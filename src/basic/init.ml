@@ -1,0 +1,10 @@
+#require "cryptokit";;
+#require "ezjsonm";;
+#require "core";;
+#load "auth.cmo";;
+#load "merkle.cmo";;
+#load "authenticatable_base.cmo";;
+#load "proof.cmo";;
+#load "prover.cmo";;
+#load "verifier.cmo";;
+#load "ideal.cmo";;

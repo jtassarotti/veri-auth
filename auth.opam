@@ -1,0 +1,18 @@
+opam-version: "2.0"
+name: "rocq-authentikit"
+synopsis: "Logical Relations for Formally Verified Authentidated Data Structures"
+maintainer: "Simon Oddershede Gregersen <s.gregersen@nyu.edu>"
+authors: "Simon Oddershede Gregersen, Chaitanya Agarwal, Joseph Tassarotti"
+license: "MIT"
+homepage: "https://github.com/jtassarotti/auth"
+dev-repo: "git+https://github.com:jtassarotti/auth.git"
+bug-reports: "https://github.com/jtassarotti/auth/issues"
+build: [make "-j%{jobs}%"]
+install: []
+depends: [
+  "coq" { (>= "8.19.2" & < "8.20~") | (= "dev") }
+  "coq-iris" { (= "4.3.0") | (= "dev") }
+  "coq-stdpp" { (= "1.11.0") | (= "dev") }
+  "sha" { (= "1.15.4") | (= "dev") }
+  "batteries" { (= "3.9.0") | (= "dev") }
+]

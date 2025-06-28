@@ -1,0 +1,12 @@
+-Q theories auth
+
+# We sometimes want to locally override notation, and there is no good way to do that with scopes.
+-arg -w -arg -notation-overridden
+# Cannot use non-canonical projections as it causes massive unification failures
+# (https://github.com/coq/coq/issues/6294).
+-arg -w -arg -redundant-canonical-projection
+# Some warnings exist only on some Coq versions
+-arg -w -arg -unknown-warning
+# Fixing this one requires Coq 8.19
+-arg -w -arg -argument-scope-delimiter
+

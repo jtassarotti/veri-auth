@@ -1,0 +1,9 @@
+test_tri
+test_rb
+test_sparse
+test
+test_ht
+bench
+*inlining.org
+data/*
+*.out
