@@ -4,6 +4,6 @@ open! Bigarray
 
 (* file: lib.rs *)
 
-external getKeys: unit -> (int array * int array) = "getKeys"
-external getProof: int array -> string -> string * int array = "getProof"
-external verifyProof: int array -> string -> int array -> bool = "verifyProof"
+external get_keys: unit -> (int array * int array) = "get_keys"
+external randomize_string: int array -> string -> string * int array = "randomize_string"
+external verify_proof: int array -> string -> int array -> bool = "verify_proof"

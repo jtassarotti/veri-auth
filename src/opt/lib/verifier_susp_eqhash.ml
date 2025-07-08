@@ -1,5 +1,6 @@
 open Auth
 open Hash
+open Vrf
 
 module IMap = Map.Make(struct type t = int let compare : int -> int -> int = compare end)
 module SMap = Map.Make(struct type t = string let compare : string -> string -> int = compare end)
@@ -7,12 +8,12 @@ module SMap = Map.Make(struct type t = string let compare : string -> string -> 
 module Verifier_susp : sig
   include AUTHENTIKIT2
   val make_auth : string -> 'a auth
-  val run : 'a authenticated_computation -> string -> 'a
+  val run : 'a authenticated_computation -> string -> string -> 'a
 end = struct
   type proof_val = proof_value
   type final_check_fn = unit -> bool
   type proof_state = 
-    { pf_stream: proof_stream; checks: final_check_fn list }
+    { pf_stream: proof_stream; checks: final_check_fn list; vrf_key: int array }
   type 'a authenticated_computation =
     proof_state -> proof_state * 'a
   type suspension = | Tag of int | Hash of string
@@ -131,7 +132,7 @@ end = struct
           | None, _ | _, None -> failwith "Unresolved hashes"
           | Some h1, Some h2 -> (h1 = h2) = res
         in
-        { pf_stream = ps; checks = eq_check :: prf_state.checks }, res
+        { prf_state with pf_stream = ps; checks = eq_check :: prf_state.checks }, res
 
   let rec eqauth_checks checks =
     match checks with
@@ -139,10 +140,22 @@ end = struct
     | check :: checks ->
       if check () then eqauth_checks checks else failwith "check failed"
 
-  let run c pf_s =
+  let randomize str prf_state =
+    match prf_state.pf_stream with
+    | [] -> failwith "Vrf proof failure"
+    | random_s :: proof_s :: ps ->
+      let proof = Marshal.from_string proof_s 0 in
+      if verify_proof prf_state.vrf_key str proof then
+        ({ prf_state with pf_stream = ps }, random_s)
+      else
+        failwith "Vrf proof failure"
+    | _ -> failwith "Vrf proof failure"
+
+  let run c pf_s pub_key_s =
     susp_table := IMap.empty;
     let pf = Marshal.from_string pf_s 0 in
-    let init_state = { pf_stream = pf; checks = [] } in
+    let pub_key = Marshal.from_string pub_key_s 0 in
+    let init_state = { pf_stream = pf; checks = []; vrf_key = pub_key } in
     match c init_state with
     | proof_state, a ->
       eqauth_checks proof_state.checks; a

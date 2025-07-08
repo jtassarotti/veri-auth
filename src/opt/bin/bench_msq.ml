@@ -50,7 +50,7 @@ let exp num_leafs random_i =
   let random_forest_with_proofs key_vals =
     let f = Msq_prover.init_forest () in
     List.fold_left (fun (i, fs) (k, v) ->
-      let _, res = Prover.run (Msq_prover.append k v (List.hd fs)) in
+      let _, _, res = Prover.run (Msq_prover.append k v (List.hd fs)) in
       let f, pos = match res with
         | None -> failwith "append failed"
         | Some r -> r
@@ -94,10 +94,10 @@ let exp num_leafs random_i =
     in
     total_naive_proof := !total_naive_proof + ret_proof_length; *)
 
-    let pruned_proof, b = Prover.run (Msq_prover.is_extension k v n first_forest last_forest) in
+    let pruned_proof, key, b = Prover.run (Msq_prover.is_extension k v n first_forest last_forest) in
     (* print_endline (String.concat "\n" (Marshal.from_string pruned_proof 0)); print_newline (); *)
     let _ = assert b in
-    let _ = Verifier.run (Msq_verifier.is_extension k v n first_forest_hash last_forest_hash) pruned_proof in
+    let _ = Verifier.run (Msq_verifier.is_extension k v n first_forest_hash last_forest_hash) pruned_proof key in
     total_pruned_proof := !total_pruned_proof + (String.length pruned_proof);
   done;
   
