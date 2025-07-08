@@ -6,6 +6,8 @@ open Prover_marshal
 open Verifier_marshal
 open Prover_io
 open Verifier_io
+open Prover_susp
+open Verifier_susp
 open Ideal
 open Utils
 
@@ -118,6 +120,8 @@ module Merkle_Prover_marshal = ((Merkle [@inlined]) (Prover_marshal) [@inlined])
 module Merkle_Verifier_marshal = ((Merkle [@inlined]) (Verifier_marshal) [@inlined]) (Merkle_retrieve_verifier);;
 module Merkle_Prover_io = ((Merkle [@inlined]) (Prover_io) [@inlined]) (Merkle_retrieve_prover);;
 module Merkle_Verifier_io = ((Merkle [@inlined]) (Verifier_io) [@inlined]) (Merkle_retrieve_verifier);;
+module Merkle_Prover_susp = ((Merkle [@inlined]) (Prover_susp) [@inlined]) (Merkle_retrieve_prover);;
+module Merkle_Verifier_susp = ((Merkle [@inlined]) (Verifier_susp) [@inlined]) (Merkle_retrieve_verifier);;
 
 let rec random_path height =
   match height with
@@ -165,6 +169,11 @@ let random_tree_marshal height leaf_len =
 let random_tree_io height leaf_len =
   let l = random_leaves (exp 2 height) leaf_len in
   Merkle_Prover_io.from_list l
+;;
+
+let random_susp_tree height leaf_len =
+  let l = random_leaves (exp 2 height) leaf_len in
+  Merkle_Prover_susp.from_list l
 ;;
 
 module RedBlack_Ideal = ((RedBlack [@inlined]) (Ideal) [@inlined]);;

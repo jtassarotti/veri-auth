@@ -1,0 +1,2 @@
+(executable (name bench_mtree) (libraries authentikit))
+(executable (name bench_rb) (libraries authentikit))

@@ -1,0 +1,16 @@
+(rule
+ (targets libvrf.a dllvrf.so)
+ (deps (glob_files *.rs))
+ (action
+  (progn
+   (run sh -c "cd %{project_root}/../../vrf && cargo build --release")
+   (run sh -c
+     "mv %{project_root}/../../vrf/target/release/libvrf.so ./dllvrf.so 2> /dev/null || \
+      mv %{project_root}/../../vrf/target/release/libvrf.dylib ./dllvrf.so")
+   (run mv %{project_root}/../../vrf/target/release/libvrf.a libvrf.a))))
+
+(library
+ (name vrf)
+ (foreign_archives vrf)
+ (c_library_flags
+  (-lc -lm -mmacosx-version-min=15.2)))

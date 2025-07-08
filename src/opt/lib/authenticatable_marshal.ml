@@ -46,6 +46,21 @@ module Prover = struct
     | T a_s', T b_s', T c_s', T d_s' ->
       T (raw_quad a_s' b_s' c_s' d_s')
 
+  let[@inline] raw_list (a_s : ('ax, 'ay) raw_evidence) =
+    let[@inline] serialize x = Marshal.to_string x marshal_flags
+    and[@inline] prepare l = 
+      let rec aux l l_ret = match l with
+        | [] -> List.rev l_ret
+        | h::t -> aux t ((a_s.prepare h) :: l_ret)
+      in 
+      aux l []
+    in { prepare; serialize }
+
+  let[@inline] list (a_s : 'a evidence) : ('a list) evidence =
+    match a_s with
+    | T a_s' ->
+      T (raw_list a_s')
+
   let[@inline] raw_sum (a_s : ('ax, 'ay) raw_evidence) (b_s : ('bx, 'by) raw_evidence) =
     let[@inline] serialize y = Marshal.to_string y marshal_flags
     and[@inline] prepare x =
@@ -58,6 +73,19 @@ module Prover = struct
     match a_s, b_s with
     | T a_s', T b_s' ->
       T (raw_sum a_s' b_s')
+
+  let[@inline] raw_option (a_s : ('ax, 'ay) raw_evidence) =
+    let[@inline] serialize y = Marshal.to_string y marshal_flags
+    and[@inline] prepare x =
+      match x with
+      | `left -> `left
+      | `right a -> `right (a_s.prepare a)
+    in { prepare; serialize }
+      
+  let[@inline] option (a_s : 'a evidence) : [> `left | `right of 'a] evidence =
+    match a_s with
+    | T a_s' ->
+      T (raw_option a_s')
 
   let[@inline] bool : 'bool evidence =
     let[@inline] serialize y = Marshal.to_string y marshal_flags
@@ -95,7 +123,17 @@ let[@inline] quad _ _ _ _ : ('a * 'b * 'c * 'd) evidence =
   let[@inline] deserialize s = Some (Marshal.from_string s 0) in
   { serialize; deserialize }
 
+let[@inline] list _ : ('a list) evidence =
+  let[@inline] serialize x = Marshal.to_string x marshal_flags in
+  let[@inline] deserialize s = Some (Marshal.from_string s 0) in
+  { serialize; deserialize }
+
 let[@inline] sum _ _ : [> `left of 'a | `right of 'b] evidence =
+  let[@inline] serialize x = Marshal.to_string x marshal_flags in
+  let[@inline] deserialize s = Some (Marshal.from_string s 0) in
+  { serialize; deserialize }
+
+let[@inline] option _ : [> `left | `right of 'a] evidence =
   let[@inline] serialize x = Marshal.to_string x marshal_flags in
   let[@inline] deserialize s = Some (Marshal.from_string s 0) in
   { serialize; deserialize }

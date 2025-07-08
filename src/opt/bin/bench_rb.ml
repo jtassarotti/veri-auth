@@ -1,3 +1,4 @@
+open Authentikit
 open Auth
 open Merkle
 open Redblack

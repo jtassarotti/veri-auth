@@ -1,0 +1,4 @@
+(test (name test) (libraries authentikit))
+; (test (name test_ht) (libraries authentikit))
+; (test (name test_msq) (libraries authentikit))
+(test (name test_vrf) (libraries vrf))
