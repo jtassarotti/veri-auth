@@ -68,14 +68,15 @@ let exp num_leafs random_i =
 
 List.iter 
   (fun random_i_perc -> 
-    let random_leaf = int_of_float (random_i_perc *. (float_of_int 150)) in
-    let pruned_size, naive_size = exp 150 random_leaf in
-    print_string 
-      ("Tree size: "^(string_of_int 150)^"; Chosen leaf: "^(string_of_float random_i_perc)
-      ^"; Results (eqauth): "^(string_of_int pruned_size)
-      ^"; Results (naive): "^(string_of_int naive_size));
-    print_newline ();
-    ()) random_i_percs
+    List.iter 
+    (fun num_leafs ->
+      let random_leaf = int_of_float (random_i_perc *. (float_of_int num_leafs)) in
+      let pruned_size, naive_size = exp num_leafs random_leaf in
+      print_string 
+        ("Tree size: "^(string_of_int num_leafs)^"; Chosen leaf: "^(string_of_float random_i_perc)
+        ^"; Results (eqauth): "^(string_of_int pruned_size)
+        ^"; Results (naive): "^(string_of_int naive_size));
+        print_newline ();) tree_sizes) random_i_percs
 
 
 
