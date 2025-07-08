@@ -50,7 +50,19 @@ let write_mrk_tree s =
   let _ = close_out !output in
   output := open_out_bin "/dev/null"
   
-let write_rdb_queries s =
+let write_rdb_looks s =
+  let rec aux x l =
+    match x with
+    | 0 -> l
+    | _ -> aux (x-1) ((string_of_int (random_odd ())^"\n") :: l)
+  in
+  let _ = output := open_out_bin (Printf.sprintf "data/rdb_look1_%d.dat" s) in
+  let l = aux num_rb_inserts [] in
+  let _ = List.iter (output_string !output) l in
+  let _ = close_out !output in
+  output := open_out_bin "/dev/null"
+  
+let write_rdb_inserts s =
   let rec aux x l =
     match x with
     | 0 -> l
@@ -75,8 +87,23 @@ let write_mtree_queries s =
   let _ = close_out !output in
   output := open_out_bin "/dev/null";;
 
+let write_mtree_updates s =
+  let n = exp 2 s in
+  let rec aux x l =
+    match x with
+    | 0 -> l
+    | _ -> aux (x-1) (Printf.sprintf "%d_%s\n" (Random.int n) (random_string leaf_size) :: l)
+  in
+  let _ = output := open_out_bin (Printf.sprintf "data/mtree_upd1_%d.dat" s) in
+  let l = aux num_mtree_retrieves [] in
+  let _ = List.iter (output_string !output) l in
+  let _ = close_out !output in
+  output := open_out_bin "/dev/null";;
+
 
 List.iter (fun s -> write_rdb_tree s) rb_sizes;
 List.iter (fun s -> write_mrk_tree s) mtree_sizes;
-List.iter (fun s -> write_rdb_queries s) rb_sizes;
+(* List.iter (fun s -> write_rdb_looks s) rb_sizes; *)
+List.iter (fun s -> write_rdb_inserts s) rb_sizes;
 List.iter (fun s -> write_mtree_queries s) mtree_sizes;
+(* List.iter (fun s -> write_mtree_updates s) mtree_sizes; *)

@@ -682,7 +682,7 @@ let verifier_io_merkle_magic_retrieves file t paths =
   in
   aux paths;;
 
-job_queue := !job_queue @ List.map (fun (s, i) ->
+(* job_queue := !job_queue @ List.map (fun (s, i) ->
   (Random.int (2*n_configs)) + ((4*n_configs)*i),
   fun () ->
     Printf.printf "%d %d dirprover_hash_merkle_magic_retrieves" i s;
@@ -710,7 +710,7 @@ job_queue := !job_queue @ List.map (fun (s, i) ->
     let paths = read_mrk_queries s in
     gc_collect ();
     measure_call ("dirprover_merkle_retrieves "^(string_of_int s)) (dirprover_merkle_retrieves t) paths)
-config_array;
+config_array; *)
 
 job_queue := !job_queue @ List.map (fun (s, i) ->
   (Random.int (2*n_configs)) + ((4*n_configs)*i),
@@ -724,7 +724,7 @@ job_queue := !job_queue @ List.map (fun (s, i) ->
     measure_call ("dirprover_merkle_io_retrieves "^(string_of_int s)) (dirprover_merkle_io_retrieves file t) paths)
 config_array;
 
-job_queue := !job_queue @ List.map (fun (s, i) ->
+(* job_queue := !job_queue @ List.map (fun (s, i) ->
   (Random.int (2*n_configs)) + ((4*n_configs)*i),
   fun () ->
     Printf.printf "%d %d dirprover_merkle_poly_io_retrieves" i s;
@@ -861,7 +861,7 @@ job_queue := !job_queue @ List.map (fun (s, i) ->
     let ht = Hashtbl.find auth_io_hash s in
     gc_collect ();
     measure_call ("verifier_io_merkle_magic_retrieves "^(string_of_int s)) (verifier_io_merkle_magic_retrieves file ht) paths)
-config_array;
+config_array; *)
 
 job_queue := List.sort (fun (i1, _) (i2, _) -> compare i1 i2) !job_queue;
 
