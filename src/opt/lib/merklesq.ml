@@ -6,7 +6,7 @@ module type MERKLESQ =
   
     type 'a evi_option = [`left | `right of 'a]
   
-    type key = int
+    type key = string
     type value = string
     type data = key * value
     type pos = int
@@ -35,7 +35,7 @@ module MerkleSq : MERKLESQ =
     
     type 'a evi_option = [`left | `right of 'a]
 
-    type key = int
+    type key = string
     type value = string
     type data = key * value
     type pos = int
@@ -50,7 +50,7 @@ module MerkleSq : MERKLESQ =
     type forest_auth = forest auth
 
     let data_evi : data Authenticatable.evidence = 
-      Authenticatable.(pair int string)
+      Authenticatable.(pair string string)
     let pos_evi : pos_range Authenticatable.evidence =
       Authenticatable.(pair int int)
     let pr_tree_evi : pr_tree Authenticatable.evidence =
@@ -78,9 +78,11 @@ module MerkleSq : MERKLESQ =
       match tree with
       | `left `left -> return None
       | `left (`right (k, v)) -> 
+        (* print_endline k; *)
         if key = k then return (Some v)
         else return None
       | `right ((k, v), left, right) ->
+        (* print_endline k; *)
         if key < k then retrieve_prtree key left
         else if key = k then return (Some v)
         else retrieve_prtree key right
@@ -92,6 +94,7 @@ module MerkleSq : MERKLESQ =
         let* tree = unauth cr_tree_evi tree in
         match tree with
         | `left (_, (k, v)) ->
+          (* print_endline k; *)
           if k = key then return (Some v) else retrieve_aux key tail
         | `right (_, pr, _, _) ->
           let* res = retrieve_prtree key pr in
@@ -101,6 +104,7 @@ module MerkleSq : MERKLESQ =
     
     let retrieve key forest =
       let* (trees, n) = unauth forest_evi forest in
+      (* let* key = randomize key in *)
       retrieve_aux key trees
 
 
@@ -177,13 +181,14 @@ module MerkleSq : MERKLESQ =
     
     let append key value forest =
       let* (trees, n) = unauth forest_evi forest in
+      (* let* key = randomize key in *)
       let* key_exists = retrieve_aux key trees in
       match key_exists with
       | None ->
         let new_cr_tree = cr_tree_leaf n (n+1) key value in
         let* trees = merge_cr_tree new_cr_tree trees in
         return (Some ((auth forest_evi (trees, n+1)), n))
-      | Some _ -> return None
+      | Some _ -> print_endline "key already exists"; return None
 
 
     let rec is_extension_tree key value n trees1 tree2 =
@@ -216,11 +221,11 @@ module MerkleSq : MERKLESQ =
           else return false
 
     let is_extension key value n forest1 forest2 =
-      let rec is_extension_aux trees1 trees2 =
+      let rec is_extension_aux key trees1 trees2 =
         match trees1, trees2 with
         | tree1::tail1, tree2::tail2 ->
           let* b = eqauth cr_tree_evi tree1 tree2 in
-          if b then is_extension_aux tail1 tail2
+          if b then is_extension_aux key tail1 tail2
           else is_extension_tree key value n trees1 tree2
         | [], _ -> return true
         | _, [] -> print_string "empty forest1\n"; return false
@@ -231,6 +236,7 @@ module MerkleSq : MERKLESQ =
 
       let trees1 = List.rev trees1 in
       let trees2 = List.rev trees2 in
-      is_extension_aux trees1 trees2
+      (* let* key = randomize key in *)
+      is_extension_aux key trees1 trees2
 
   end

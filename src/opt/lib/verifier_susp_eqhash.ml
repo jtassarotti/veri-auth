@@ -8,17 +8,19 @@ module SMap = Map.Make(struct type t = string let compare : string -> string -> 
 module Verifier_susp : sig
   include AUTHENTIKIT2
   val make_auth : string -> 'a auth
-  val run : 'a authenticated_computation -> string -> string -> 'a
+  val init : int array -> unit
+  val run : 'a authenticated_computation -> string -> 'a
 end = struct
   type proof_val = proof_value
   type final_check_fn = unit -> bool
   type proof_state = 
-    { pf_stream: proof_stream; checks: final_check_fn list; vrf_key: int array }
+    { pf_stream: proof_stream; checks: final_check_fn list }
   type 'a authenticated_computation =
     proof_state -> proof_state * 'a
   type suspension = | Tag of int | Hash of string
   type 'a auth = | Shallow of string | Suspension of suspension ref
 
+  let vrf_key: int array ref = ref [||]
   let counter: int ref = ref 0
   type finish_t = unit -> unit
   let susp_table: (int * finish_t) IMap.t ref = ref IMap.empty
@@ -145,17 +147,18 @@ end = struct
     | [] -> failwith "Vrf proof failure"
     | random_s :: proof_s :: ps ->
       let proof = Marshal.from_string proof_s 0 in
-      if verify_proof prf_state.vrf_key str proof then
+      if verify_proof !vrf_key str proof then
         ({ prf_state with pf_stream = ps }, random_s)
       else
         failwith "Vrf proof failure"
     | _ -> failwith "Vrf proof failure"
 
-  let run c pf_s pub_key_s =
+  let init pub_key = vrf_key := pub_key
+
+  let run c pf_s =
     susp_table := IMap.empty;
     let pf = Marshal.from_string pf_s 0 in
-    let pub_key = Marshal.from_string pub_key_s 0 in
-    let init_state = { pf_stream = pf; checks = []; vrf_key = pub_key } in
+    let init_state = { pf_stream = pf; checks = [] } in
     match c init_state with
     | proof_state, a ->
       eqauth_checks proof_state.checks; a

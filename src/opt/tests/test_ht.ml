@@ -1,13 +1,17 @@
 open Authentikit
 open History
 open Test_utils
-(* open Prover_rev_eqhash
-open Verifier_eqhash *)
+open Prover_rev_eqhash
+open Verifier_eqhash
 open Prover_susp_eqhash
 open Verifier_susp_eqhash
+open Utils
 
-module Prover = Prover_susp
-module Verifier = Verifier_susp
+module Prover = Prover_rev;;
+module Verifier = Verifier;;
+
+let pr_key, pb_key = Vrf.get_keys () in
+Prover.init pr_key; Verifier.init pb_key;
 
 module History_Prover = History (Prover);;
 module History_Verifier = History (Verifier);;
@@ -22,7 +26,7 @@ let exp num_leafs random_i =
   let random_cmtree_with_proofs leaves =
     let t = History_Prover.init_tree () in
     List.fold_left (fun (_, ts) leaf -> 
-      let _, _, (t, i) = Prover.run (History_Prover.append leaf (List.hd ts)) in
+      let _, (t, i) = Prover.run (History_Prover.append leaf (List.hd ts)) in
       (i+1, (t::ts))) (0, [t]) leaves
   in
 
@@ -48,20 +52,20 @@ let exp num_leafs random_i =
       (List.combine ret_proofs hts) in
   let _ = print_string "Verified proofs"; print_newline () in *)
 
-  let pruned_proof, k, b = Prover.run (History_Prover.is_extension last_t first_t) in
+  let pruned_proof, b = Prover.run (History_Prover.is_extension last_t first_t) in
   (* let _, s = Prover.run (History_Prover.inorder first_t) 100 in
   print_string s; print_newline ();
   let _, s = Prover.run (History_Prover.inorder last_t) 100 in
   print_string s; print_newline (); *)
   (* let _ = print_string ("Generated pruned proof, length: "^(string_of_int (String.length pruned_proof))); print_newline () in *)
   let _ = assert b in
-  let _ = Verifier.run (History_Verifier.is_extension last_ht first_ht) pruned_proof k in
+  let _ = Verifier.run (History_Verifier.is_extension last_ht first_ht) pruned_proof in
   (* let _ = print_string "Verified pruned proof"; print_newline () in *)
 
-  let naive_pruned_proof, k, b = Prover.run (History_Prover.is_extension_naive last_t first_t) in
+  let naive_pruned_proof, b = Prover.run (History_Prover.is_extension_naive last_t first_t) in
   (* let _ = print_string ("Generated naive pruned proof, length: "^(string_of_int (String.length naive_pruned_proof))); print_newline () in *)
   let _ = assert b in
-  let _ = Verifier.run (History_Verifier.is_extension_naive last_ht first_ht) naive_pruned_proof k in
+  let _ = Verifier.run (History_Verifier.is_extension_naive last_ht first_ht) naive_pruned_proof in
   (* print_string "Verified pruned proof"; print_newline () *)
   String.length pruned_proof, String.length naive_pruned_proof;;
 

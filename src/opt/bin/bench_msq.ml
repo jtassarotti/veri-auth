@@ -1,31 +1,34 @@
 open Authentikit
 open Merklesq
 open Test_utils
-(* open Prover_rev_eqhash *)
-(* open Verifier_eqhash *)
+open Prover_rev_eqhash
+open Verifier_eqhash
 open Prover_susp_eqhash
 open Verifier_susp_eqhash
 
-module Prover = Prover_susp;;
-module Verifier = Verifier_susp;;
+module Prover = Prover_rev;;
+module Verifier = Verifier;;
+
+let pr_key, pb_key = Vrf.get_keys () in
+Prover.init pr_key; Verifier.init pb_key;
 
 module Msq_prover = MerkleSq (Prover);;
 module Msq_verifier = MerkleSq (Verifier);;
 
-module IntKey = struct
-  type t = int
+module StrKey = struct
+  type t = string
   
-  let equal a b = a = b
+  let equal a b = String.compare a b = 0
   
   let hash a = Hashtbl.hash a
 end
 
-module IHash = Hashtbl.Make(IntKey)
+module SHash = Hashtbl.Make(StrKey)
 
 (* let print_kv k v =
   Printf.printf "%d, %s\n" k v *)
 
-let key_pos_hash = IHash.create 1048576;;
+let key_pos_hash = SHash.create 1048576;;
 
 let leaf_size = 20
 let tree_sizes = 
@@ -50,12 +53,12 @@ let exp num_leafs random_i =
   let random_forest_with_proofs key_vals =
     let f = Msq_prover.init_forest () in
     List.fold_left (fun (i, fs) (k, v) ->
-      let _, _, res = Prover.run (Msq_prover.append k v (List.hd fs)) in
+      let _, res = Prover.run (Msq_prover.append k v (List.hd fs)) in
       let f, pos = match res with
         | None -> failwith "append failed"
         | Some r -> r
       in
-      IHash.add key_pos_hash k pos;
+      SHash.add key_pos_hash k pos;
       (i+1, (f::fs))) (0, [f]) key_vals
   in
 
@@ -74,7 +77,7 @@ let exp num_leafs random_i =
 
   for _ = 1 to n_repetitions do
     let k, v = take random_i key_vals |> random_element in
-    let n = IHash.find key_pos_hash k in
+    let n = SHash.find key_pos_hash k in
 
     (* let ret_proof_length = 
       List.fold_left (fun total_length forest ->
@@ -94,10 +97,10 @@ let exp num_leafs random_i =
     in
     total_naive_proof := !total_naive_proof + ret_proof_length; *)
 
-    let pruned_proof, key, b = Prover.run (Msq_prover.is_extension k v n first_forest last_forest) in
+    let pruned_proof, b = Prover.run (Msq_prover.is_extension k v n first_forest last_forest) in
     (* print_endline (String.concat "\n" (Marshal.from_string pruned_proof 0)); print_newline (); *)
     let _ = assert b in
-    let _ = Verifier.run (Msq_verifier.is_extension k v n first_forest_hash last_forest_hash) pruned_proof key in
+    let _ = Verifier.run (Msq_verifier.is_extension k v n first_forest_hash last_forest_hash) pruned_proof in
     total_pruned_proof := !total_pruned_proof + (String.length pruned_proof);
   done;
   

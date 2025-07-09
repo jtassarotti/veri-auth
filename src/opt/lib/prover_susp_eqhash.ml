@@ -7,15 +7,18 @@ module Prover_susp : sig
   include AUTHENTIKIT2
   (* type 'a authenticated_computation = proof_stream -> (proof_stream * 'a) *)
   val get_hash : 'a auth -> string
-  val run : 'a authenticated_computation -> (string * string * 'a)
+  val init : int array -> unit
+  val run : 'a authenticated_computation -> (string * 'a)
 end = struct
   type proof_val = proof_value
   type proof_state = 
-  { pf_stream : proof_stream; buffer : (unit -> proof_value) list; vrf_key : int array }
+  { pf_stream : proof_stream; buffer : (unit -> proof_value) list }
   (* Only composite objects can be of variant Merkle. 
      Any thing that the client may have will be of variant MerkleSusp. *)
   type 'a auth = | Merkle of 'a * string | MerkleSusp of bool ref * 'a * string
   type 'a authenticated_computation = proof_state -> (proof_state * 'a)
+
+  let vrf_key: int array ref = ref [||]
 
   (* let initial_id = Int.max_int
   let counter: int ref = ref 0
@@ -86,8 +89,7 @@ end = struct
     { prf_state with buffer = finish :: prf_state.buffer }, res
 
   let randomize str prf_state =
-    let key = prf_state.vrf_key in
-    let random_s, proof = randomize_string key str in
+    let random_s, proof = randomize_string !vrf_key str in
     let proof_s = Marshal.to_string proof marshal_flags in
     let finish_s () = random_s in
     let finish_p () = proof_s in
@@ -98,12 +100,12 @@ end = struct
     | [] -> pf_stream
     | f::buffer -> flush_buf_stream buffer (f () :: pf_stream)
 
+  let init key = vrf_key := key
+
   let run m =
-    let pr_key, pub_key = get_keys () in
-    let init_state = { pf_stream = []; buffer = []; vrf_key = pr_key }  in
+    let init_state = { pf_stream = []; buffer = [] }  in
     let fin_state, res = m init_state in
     let pf_stream' = flush_buf_stream fin_state.buffer [] in
     let pf_s = Marshal.to_string ((List.rev fin_state.pf_stream) @ pf_stream') marshal_flags in
-    let pub_key_s = Marshal.to_string pub_key marshal_flags in
-    (pf_s, pub_key_s, res)
+    (pf_s, res)
 end

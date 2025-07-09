@@ -1,8 +1,10 @@
-open Authentikit.Prover_rev
-open Authentikit.Verifier
-open Authentikit.Prover_susp
-open Authentikit.Verifier_susp
-open Authentikit.Test_utils
+open Authentikit
+open Prover_rev
+open Verifier
+open Prover_susp
+open Verifier_susp
+open Test_utils
+open Utils
 
 let k = 3;;
 let leaf_size = 20;;
