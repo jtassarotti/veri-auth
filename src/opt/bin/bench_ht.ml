@@ -1,10 +1,11 @@
 open Authentikit
 open History
 open Test_utils
-open Prover_rev_eqhash
-open Verifier_eqhash
-open Prover_susp_eqhash
-open Verifier_susp_eqhash
+open Prover_rev_eqauth
+open Verifier_eqauth
+open Prover_susp_eqauth
+open Verifier_susp_eqauth
+open Utils
 
 module Prover = Prover_rev;;
 module Verifier = Verifier;;
