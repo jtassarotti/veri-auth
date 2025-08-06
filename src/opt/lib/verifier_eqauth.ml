@@ -54,7 +54,7 @@ end = struct
         | Some a -> (ps, a))
     | _ -> failwith "Proof failure"
 
-  let eqauth _ h1 h2 pf_stream = (pf_stream, h1=h2)
+  let eqauth h1 h2 pf_stream = (pf_stream, h1=h2)
 
   let randomize str pf_stream =
     match pf_stream with

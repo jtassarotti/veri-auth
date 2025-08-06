@@ -47,7 +47,7 @@ end = struct
   let[@inline] unauth evi (a, h) pf_stream =
     (evi a :: pf_stream, a)
 
-  let eqauth evi (a1, h1) (a2, h2) pf_stream =
+  let eqauth (a1, h1) (a2, h2) pf_stream =
     (pf_stream, h1=h2)
 
   let randomize str pf_stream =

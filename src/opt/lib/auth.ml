@@ -35,5 +35,5 @@ module type AUTHENTIKIT2 = sig
   val ( let* ) : 'a authenticated_computation -> ('a -> 'b authenticated_computation) ->
                   'b authenticated_computation
   val randomize : string -> string authenticated_computation
-  val eqauth : 'a Authenticatable.evidence -> 'a auth -> 'a auth -> bool authenticated_computation
+  val eqauth : 'a auth -> 'a auth -> bool authenticated_computation
 end

@@ -151,16 +151,16 @@ module History : HISTORY =
         | _, `right (`left _) -> return true
         | `left s1, `left s2 when s1 = s2 -> return true
         | `right (`right (_, _, l1, r1)), `right (`right (_, _, l2, r2)) ->
-          let* b = eqauth tree_node_evi l1 l2 in
+          let* b = eqauth l1 l2 in
           if b then
-            let* b = eqauth tree_node_evi r1 r2 in
+            let* b = eqauth r1 r2 in
             if b then return b
             else
               let* r1 = unauth tree_node_evi r1 in
               let* r2 = unauth tree_node_evi r2 in
               is_extension_aux r1 r2
           else
-            let* b = eqauth tree_node_evi r2 empty_tree_node_auth in
+            let* b = eqauth r2 empty_tree_node_auth in
             if b then 
               let* l1 = unauth tree_node_evi l1 in
               let* l2 = unauth tree_node_evi l2 in
@@ -169,10 +169,10 @@ module History : HISTORY =
         | _ -> return false
       in
       
-      let* b = eqauth tree_evi t1 t2 in
+      let* b = eqauth t1 t2 in
       if b then return b
       else
-        let* b = eqauth tree_evi t2 empty_tree_auth in
+        let* b = eqauth t2 empty_tree_auth in
         if b then return true
         else
           let* t1 = unauth tree_evi t1 in

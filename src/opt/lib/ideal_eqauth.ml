@@ -32,6 +32,6 @@ end = struct
   let pop_proof a = Some ((), a)
   let[@inline] auth e a = a
   let[@inline] unauth e a = a
-  let eqauth e a b = a = b
+  let eqauth a b = a = b
   let randomize str = random_key 100
 end

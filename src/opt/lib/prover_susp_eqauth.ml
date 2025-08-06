@@ -83,7 +83,7 @@ end = struct
     let prf_state = { prf_state with buffer = finish :: prf_state.buffer } in
     (prf_state, susp_un_a)
 
-  let eqauth evi a1 a2 prf_state =
+  let eqauth a1 a2 prf_state =
     let res = (get_hash a1) = (get_hash a2) in
     let finish () = (Authenticatable.bool).serialize res in
     { prf_state with buffer = finish :: prf_state.buffer }, res

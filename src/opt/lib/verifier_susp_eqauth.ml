@@ -122,7 +122,7 @@ end = struct
           susp_table := IMap.add id (count, finish) !susp_table;
         { proof with pf_stream = ps }, x
 
-  let eqauth _ a1 a2 prf_state =
+  let eqauth a1 a2 prf_state =
     match prf_state.pf_stream with
     | [] -> failwith "eqauth: Expected a prf_state object"
     | p :: ps ->

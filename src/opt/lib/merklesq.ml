@@ -215,7 +215,7 @@ module MerkleSq : MERKLESQ =
             else return true
           in
           if retrieve_res then
-            let* b = eqauth cr_tree_evi tree1 left in
+            let* b = eqauth tree1 left in
             if b then is_extension_tree key value n tail1 right
             else is_extension_tree key value n trees1 left
           else return false
@@ -224,7 +224,7 @@ module MerkleSq : MERKLESQ =
       let rec is_extension_aux key trees1 trees2 =
         match trees1, trees2 with
         | tree1::tail1, tree2::tail2 ->
-          let* b = eqauth cr_tree_evi tree1 tree2 in
+          let* b = eqauth tree1 tree2 in
           if b then is_extension_aux key tail1 tail2
           else is_extension_tree key value n trees1 tree2
         | [], _ -> return true
