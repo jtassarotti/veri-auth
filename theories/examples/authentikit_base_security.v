@@ -23,34 +23,53 @@ Section authenticatable.
     | tint => int_serialization_scheme
     end.
 
-  Lemma evi_type_ser_inj (t1 t2 : evi_type) v1 v2 s :
+  Lemma evi_type_ser_inj_str (t1 t2 : evi_type) v s1 s2 :
+    s_is_ser (evi_type_ser t1) v s1 →
+    s_is_ser (evi_type_ser t2) v s2 →
+    s1 = s2.
+  Proof.
+    induction t1 in t2, v, s1, s2 |-* => /=.
+    - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
+      destruct t2 => /=; destruct! Ht2; simplify_eq; eauto.
+      erewrite (IHt1_1 t2_1 _ H0); [|done|done].
+      erewrite (IHt1_2 t2_2 _ H2); [|done|done]. done.
+    - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
+      + destruct t2 => /=; destruct! Ht2; simplify_eq; auto.
+        by erewrite (IHt1_1 t2_1 _ H1).
+      + destruct t2 => /=; destruct! Ht2; simplify_eq; auto.
+        by erewrite (IHt1_2 t2_2 _ H1).
+    - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
+      destruct t2 => /=; destruct! Ht2; simplify_eq => //; auto.
+    - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
+      destruct t2 => /=; destruct! Ht2; simplify_eq => //; auto.
+  Qed.
+
+  Lemma evi_type_ser_inj_val (t1 t2 : evi_type) v1 v2 s :
     s_is_ser (evi_type_ser t1) v1 s →
     s_is_ser (evi_type_ser t2) v2 s →
     v1 = v2.
   Proof.
     induction t1 in t2, v1, v2, s |-* => /=.
     - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
-      destruct t2 => /=; destruct! Ht2; simplify_eq.
-      + f_equal; [by eapply IHt1_1|].  by eapply IHt1_2.
+      destruct t2 => /=; destruct! Ht2; simplify_eq; eauto.
+      + f_equal; [by eapply IHt1_1|]. by eapply IHt1_2.
       + exfalso. by eapply prod_ser_inl_ser_neq.
       + exfalso. by eapply prod_ser_inr_ser_neq.
       + exfalso. by eapply prod_ser_string_ser_neq.
       + exfalso. by eapply prod_ser_int_ser_neq.
     - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
-      + destruct t2 => /=; destruct! Ht2; simplify_eq.
+      + destruct t2 => /=; destruct! Ht2; simplify_eq; auto.
         * exfalso. by eapply prod_ser_inl_ser_neq.
         * f_equal. by eapply IHt1_1.
-      + destruct t2 => /=; destruct! Ht2; simplify_eq.
+      + destruct t2 => /=; destruct! Ht2; simplify_eq; auto.
         * exfalso. by eapply prod_ser_inr_ser_neq.
         * f_equal. by eapply IHt1_2.
     - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
-      destruct t2 => /=; destruct! Ht2; simplify_eq.
-      + exfalso. by eapply prod_ser_string_ser_neq.
-      + done.
+      destruct t2 => /=; destruct! Ht2; simplify_eq => //; auto.
+      exfalso. by eapply prod_ser_string_ser_neq.
     - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
-      destruct t2 => /=; destruct! Ht2; simplify_eq.
-      + exfalso. by eapply prod_ser_int_ser_neq.
-      + done.
+      destruct t2 => /=; destruct! Ht2; simplify_eq => //; auto.
+      exfalso. by eapply prod_ser_int_ser_neq.
   Qed.
 
   Definition ser_spec (ser : val) (t : evi_type) (A : lrel Σ) : iProp Σ :=

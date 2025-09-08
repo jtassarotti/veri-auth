@@ -88,7 +88,7 @@ Definition i_Authentikit : val := (i_return, i_bind, i_Authenticable).
 
 Definition i_eqauth : val := Λ: λ: "a" "b" <>, "a" = "b".
              
-Definition i_Authenitkit_eq : val := (i_return, i_bind, i_eqauth, i_Authenticable).
+Definition i_Authentikit_eq : val := (i_return, i_bind, i_eqauth, i_Authenticable).
 
 Definition i_run : val :=
   Λ: λ: "c", "c" #().
