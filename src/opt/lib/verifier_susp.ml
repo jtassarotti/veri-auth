@@ -1,6 +1,5 @@
 open Auth
 open Hash
-open Utils
 
 module IMap = Map.Make(struct type t = int let compare : int -> int -> int = compare end)
 
@@ -11,19 +10,13 @@ module Verifier_susp : sig
 end = struct
   type proof_val = proof_value
   type type_finish = unit -> unit
-  type proof_state = proof_stream
+  type proof_state = { pf_stream: proof_stream; counter: int }
   type 'a authenticated_computation =
     proof_state -> proof_state * 'a
   type suspension = | Tag of int | Hash of string
   type 'a auth = | Shallow of string | Suspension of suspension ref
 
-  let counter: int ref = ref 0
   let susp_table: (int * type_finish) IMap.t ref = ref IMap.empty
-
-  let increment_counter () =
-    let a = !counter in
-    counter := !counter + 1;
-    a
 
   let make_auth s = Shallow s
   let return a = fun pf -> pf, a
@@ -43,16 +36,16 @@ end = struct
           match !susp with
           | Tag _ -> failwith ("Serialization called on suspended value")
           | Hash h -> ("A_"^h)
-      and deserialize pid count s = 
+      and deserialize pid s = 
         if String.length s < 2 then None
         else 
           let tag = String.sub s 0 2 in
           if tag = "A_" then
             if String.length s == 2 then 
-              Some (Suspension (ref (Tag pid)), count + 1)
+              Some (Suspension (ref (Tag pid)), 1)
             else 
               let s = String.sub s 2 ((String.length s)-2) in
-              Some (Shallow s, count)
+              Some (Shallow s, 0)
           else None
       and to_string () = "Auth"
       in { serialize; deserialize; to_string }
@@ -60,23 +53,23 @@ end = struct
   end
   open Authenticatable
 
-  let push_proof a pf_stream = a :: pf_stream
+  let push_proof a pf_state = { pf_state with pf_stream = a :: pf_state.pf_stream }
   
-  let pop_proof pf_stream = 
-    match pf_stream with
+  let pop_proof pf_state = 
+    match pf_state.pf_stream with
     | [] -> None
-    | h::pf_stream -> Some (h, pf_stream)
+    | h::pf_stream -> Some (h, { pf_state with pf_stream = pf_stream })
 
   let auth evi a = 
     (* TODO: create a suspended auth here? see which cases might call auth on a suspended value. *)
     Shallow (hash (evi.serialize a))
 
   let unauth evi a proof =
-    match proof with
+    match proof.pf_stream with
     | [] -> failwith "Expected a proof object"
     | p :: ps ->
-      let id = increment_counter () in
-      match evi.deserialize id 0 p with
+      let id = proof.counter in
+      match evi.deserialize id p with
       | None -> failwith "Deserialization failure"
       | Some (x, count) ->
         let finish () =
@@ -106,12 +99,12 @@ end = struct
           finish ()
         else
           susp_table := IMap.add id (count, finish) !susp_table;
-        ps, x
+        { pf_stream = ps; counter = id + 1}, x
 
   let run c pf_s =
     let pf = Marshal.from_string pf_s 0 in
-    let init_state = pf in
+    let init_state = { pf_stream = pf; counter = 0} in
     match c init_state with
-    | proof_state, a -> a
+    | _, a -> a
 
 end
