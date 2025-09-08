@@ -45,6 +45,104 @@ Section proof.
     by iFrame "∗ #".
   Qed.
 
+  Lemma vals_compare_safe_admit :
+    ∀ v w, vals_compare_safe v w.
+  Proof. Admitted.
+
+  Lemma injective_lrel (A: lrel Σ) :
+    ∀ v1 v2 w1 w2 x1 x2, A x1 v1 w1 -∗ A x2 v2 w2 -∗ ⌜(v1 = v2 ↔ w1 = w2) ∧ (x1 = x2 ↔ w1 = w2)⌝.
+  Proof. Admitted.
+
+  Lemma refines_auth_eqauth Θ (Δ: ctxO Σ Θ) :
+    ⊢ ⟦ ∀: ⋆, var2 var0 → var2 var0 → var1 t_bool ⟧
+      (auth_ctx Δ) p_eqauth v_eqauth i_eqauth.
+  Proof.
+    iIntros (A ???) "!# _"; rewrite -/interp.
+    iIntros (????) "Hv Hi".
+    rewrite /p_eqauth/v_eqauth/i_eqauth.
+    wp_pures; v_pures; i_pures.
+    iModIntro. iFrame. clear.
+    iIntros (v1 v2 v3) "!# #HmA"; rewrite -!/interp.
+    iIntros (????) "Hv Hi /=".
+    wp_pures; v_pures; i_pures.
+    iModIntro. iFrame. clear.
+    iIntros (w1 w2 w3) "!# #HmB".
+    iIntros (????) "Hv Hi".
+    wp_pures; v_pures; i_pures.
+    iModIntro. iFrame. clear.
+    iIntros (??????? Ψ) "!# (Hv & Hi & Hproph) HΨ".
+    wp_pures; v_pures; i_pures.
+    { apply vals_compare_safe_admit. }
+    { apply vals_compare_safe_admit. }
+    Unshelve. 3: done.
+    iDestruct "HmA" as (tA' a1 a2 sa -> Hsa ->) "(Hsa & #HA)".
+    iDestruct "HmB" as (tB' b1 b2 sb -> Hsb ->) "(Hsb & #HB)".
+    wp_pures.
+    case_bool_decide.
+    - case_bool_decide.
+      + subst.
+        destruct (decide (collision sa sb)) as [|Hnc%not_collision].
+        { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "Hsa Hsb"). }
+        destruct Hnc as [<- |?]; simplify_eq.
+        pose proof (evi_type_ser_inj_val tA' tB' a2 b2 sa Hsa Hsb) as Hs.
+        subst.
+        iPoseProof (injective_lrel A with "HA HB") as "%H".
+        destruct H as [_ H].
+        destruct H as [_ H].
+        destruct H; [done|].
+        wp_pure.
+        { apply vals_compare_safe_admit. }
+        case_bool_decide; [|done].
+        wp_pures.
+        iModIntro.
+        iApply ("HΨ" $! []).
+        iFrame "∗ # %".
+        do 2 (iSplit; [iPureIntro; done|]).
+        iExists _. done.
+      + destruct (decide (collision sa sb)) as [|Hnc%not_collision].
+        { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "Hsa Hsb"). }
+        destruct Hnc as [<- |?]; simplify_eq.
+        pose proof (evi_type_ser_inj_val tA' tB' a2 b2 sa Hsa Hsb) as Hs.
+        subst.
+        iPoseProof (injective_lrel A with "HA HB") as "%H".
+        destruct H as [H _].
+        destruct H.
+        destruct H; done.
+    - case_bool_decide.
+      + iPoseProof (injective_lrel A with "HA HB") as "%H1".
+        iAssert (⌜sa = sb → False⌝)%I as "%H2".
+        { iIntros (?).
+          destruct (decide (collision sa sb)) as [|Hnc%not_collision].
+          { by iApply (hashes_auth.hashed_inj_or_coll with "Hsa Hsb"). }
+          destruct Hnc as [<- |?]; simplify_eq. }
+        assert (H3 : a2 ≠ b2).
+        { intros ?.
+          subst.
+          pose proof (evi_type_ser_inj_str tA' tB' b2 sa sb Hsa Hsb) as Hs.
+          done. }
+        destruct H1 as [H1 _].
+        destruct H1 as [_ H1].
+        pose proof (H1 H0) as H4.
+        done.
+      + iPoseProof (injective_lrel A with "HA HB") as "%H1".
+        assert (a1 ≠ b1).
+        { destruct H1 as [_ H1].
+          intros ?.
+          destruct H1 as [H1 _].
+          pose proof (H1 H2) as H3.
+          done. }
+        wp_pure.
+        { apply vals_compare_safe_admit. }
+        case_bool_decide.
+        { by inversion H3. }
+        wp_pures.
+        iModIntro.
+        iApply ("HΨ" $! []).
+        iFrame "∗ # %".
+        do 2 (iSplit; [iPureIntro; done|]).
+        iExists _. done.
+  Qed.
+
   Lemma refines_auth_bind Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → (var1 → var2 var0) → var2 var0 ⟧
       (auth_ctx Δ) p_bind v_bind i_bind.
@@ -202,11 +300,35 @@ Section proof.
     iApply refines_auth_bind.
   Qed.
 
+  Lemma refines_authentikit_func_eq Θ (Δ : ctxO Σ Θ) :
+    ⊢ ⟦ Authentikit_func_eq var1 var0 ⟧ (auth_ctx Δ) p_Authentikit_eq v_Authentikit_eq i_Authentikit_eq.
+  Proof.
+    iExists _, _, _, _, _, _; rewrite -!/interp.
+    do 3 (iSplit; [done|]).
+    iSplit; last first.
+    { iApply refines_Authenticatable. }
+    iExists _, _, _, _, _, _; rewrite -/interp.
+    do 3 (iSplit; [done|]).
+    iSplit; last first.
+    { iApply refines_auth_eqauth. }
+    iExists _, _, _, _, _, _; rewrite -/interp.
+    do 3 (iSplit; [done|]).
+    iSplit; [iApply refines_auth_return|].
+    iApply refines_auth_bind.
+  Qed.
+
   Lemma refines_authentikit Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ Authentikit ⟧ Δ p_Authentikit v_Authentikit i_Authentikit.
   Proof.
     iExists lrel_auth, lrel_auth_comp; rewrite -3!/interp.
     iApply refines_authentikit_func.
+  Qed.
+
+  Lemma refines_authentikit_eq Θ (Δ : ctxO Σ Θ) :
+    ⊢ ⟦ Authentikit_eq ⟧ Δ p_Authentikit_eq v_Authentikit_eq i_Authentikit_eq.
+  Proof.
+    iExists lrel_auth, lrel_auth_comp; rewrite -3!/interp.
+    iApply refines_authentikit_func_eq.
   Qed.
 
   Definition rel_authentikit_output (A : lrel Σ) (prf : val) (ps : list string) : lrel Σ :=
@@ -261,6 +383,35 @@ Section proof.
     v_bind (v2'' _); i_bind (v3'' _).
     iSpecialize ("Hcnt" with "[] Hv Hi"); rewrite -!/interp.
     { iApply refines_authentikit_func. }
+    wp_apply (wp_wand with "Hcnt").
+    iIntros (v1''') "(%v2''' & %v3''' & Hv & Hi & Hcnt)".
+    iFrame.
+  Qed.
+
+  Lemma refines_instantiate_eq (c1 c2 c3 : expr) (τ : type _ ⋆) :
+    (REL c1 << c2 << c3 : ⟦ ∀: ⋆ ⇒ ⋆; ⋆ ⇒ ⋆, Authentikit_func_eq var1 var0 → var0 τ ⟧ ∅) -∗
+    REL c1 #~ #~ p_Authentikit_eq
+     << c2 #~ #~ v_Authentikit_eq
+     << c3 #~ #~ i_Authentikit_eq : lrel_auth_comp (⟦ τ ⟧ (auth_ctx ∅)).
+  Proof.
+    iIntros "Hc" (????) "Hv Hi".
+    wp_bind c1; v_bind c2; i_bind c3.
+    iSpecialize ("Hc" with "Hv Hi").
+    wp_apply (wp_wand with "Hc").
+    iIntros (v1) "(%v2 & %v3 & Hv & Hi & Hcnt)".
+    iSpecialize ("Hcnt" $! lrel_auth with "[//]"); rewrite -/interp.
+    v_bind (v2 _); i_bind (v3 _).
+    iSpecialize ("Hcnt" with "Hv Hi").
+    wp_apply (wp_wand with "Hcnt").
+    iIntros (v1') "(%v2' & %v3' & Hv & Hi & Hcnt)".
+    iSpecialize ("Hcnt" $! lrel_auth_comp with "[//]"); rewrite -/interp.
+    v_bind (v2' _); i_bind (v3' _).
+    iSpecialize ("Hcnt" with "Hv Hi").
+    wp_apply (wp_wand with "Hcnt").
+    iIntros (v1'') "(%v2'' & %v3'' & Hv & Hi & Hcnt)".
+    v_bind (v2'' _); i_bind (v3'' _).
+    iSpecialize ("Hcnt" with "[] Hv Hi"); rewrite -!/interp.
+    { iApply refines_authentikit_func_eq. }
     wp_apply (wp_wand with "Hcnt").
     iIntros (v1''') "(%v2''' & %v3''' & Hv & Hi & Hcnt)".
     iFrame.
@@ -353,5 +504,39 @@ Proof.
   { iIntros (????) "Hτ". by iDestruct (eq_type_sound with "Hτ") as %[]. }
   iIntros (?).
   iApply refines_instantiate.
+  by iApply refines_typed.
+Qed.
+
+Theorem authentikit_eq_correctness_syntactic (c : expr) (σ : state) (τ : type _ ⋆) (p : proph_id) :
+  p ∈ σ.(used_proph_id) →
+  EqType τ →
+  ε |ₜ ∅ ⊢ₜ c : (∀: ⋆ ⇒ ⋆; ⋆ ⇒ ⋆, Authentikit_func_eq var1 var0 → var0 τ) →
+  adequate hash_collision NotStuck (p_run #~ #p (c #~ #~ p_Authentikit_eq)) σ
+    (λ vₚ σₚ, ∃ thpᵥ thpᵢ σᵥ σᵢ a prf,
+        (** The prover outputs a proof [prf] and [a]  *)
+        vₚ = (prf, a)%V ∧
+        (** there exists a valid verifier execution with the prover's proof [prf] returning [a] *)
+        rtc erased_step ([v_run #~ (c #~ #~ v_Authentikit_eq) prf], σ) (of_val (SOMEV a) :: thpᵥ, σᵥ) ∧
+        (** and a valid ideal execution returning [a] *)
+        rtc erased_step ([i_run #~ (c #~ #~ i_Authentikit_eq)], σ) (of_val a :: thpᵢ, σᵢ)).
+Proof.
+  intros Hp Hτ Htyped.
+  set (φ := λ (v1 v2 v3 : val), v1 = v2 ∧ v2 = v3).
+  set (c1 := (c #~ #~ p_Authentikit_eq)).
+  set (c2 := (c #~ #~ v_Authentikit_eq)).
+  set (c3 := (c #~ #~ i_Authentikit_eq)).
+  suff: (adequate hash_collision NotStuck (p_run #~ #p c1) σ
+          (λ vₚ σₚ, ∃ thpᵥ thpᵢ σᵥ σᵢ a1 a2 a3 prf,
+              vₚ = (prf, a1)%V ∧
+              rtc erased_step ([v_run #~ c2 prf], σ) (of_val (SOMEV a2) :: thpᵥ, σᵥ) ∧
+              rtc erased_step ([i_run #~ c3], σ) (of_val a3 :: thpᵢ, σᵢ) ∧
+              φ a1 a2 a3)).
+  { intros []. split; [|done]. intros ?????.
+    edestruct adequate_result as (?&?&?&?&?&?&?&?&?&?&?&?&?); [done|done|].
+    simplify_eq. do 6 eexists. eauto. }
+  apply (authentikit_correctness authΣ (λ a, ⟦ τ ⟧ (auth_ctx ∅))); [done| |].
+  { iIntros (????) "Hτ". by iDestruct (eq_type_sound with "Hτ") as %[]. }
+  iIntros (?).
+  iApply refines_instantiate_eq.
   by iApply refines_typed.
 Qed.
