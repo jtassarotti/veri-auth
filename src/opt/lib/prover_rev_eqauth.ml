@@ -32,7 +32,6 @@ end = struct
     let auth (a, h) = string h
       
   end
-  open Authenticatable
 
   let push_proof prf pf_stream = prf :: pf_stream
   

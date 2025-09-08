@@ -58,16 +58,16 @@ end = struct
           match !susp with
           | Tag _ -> failwith ("Serialization called on suspended value")
           | Hash h -> ("A_"^h)
-      and deserialize pid count s = 
+      and deserialize pid s = 
         if String.length s < 2 then None
         else 
           let tag = String.sub s 0 2 in
           if tag = "A_" then
             if String.length s == 2 then 
-              Some (Suspension (ref (Tag pid)), count + 1)
+              Some (Suspension (ref (Tag pid)), 1)
             else 
               let s = String.sub s 2 ((String.length s)-2) in
-              Some (Shallow s, count)
+              Some (Shallow s, 0)
           else None
       and to_string () = "Auth"
       in { serialize; deserialize; to_string }
@@ -90,7 +90,7 @@ end = struct
     match proof.pf_stream with
     | [] -> failwith "Expected a proof object"
     | p :: ps ->
-      match evi.deserialize id 0 p with
+      match evi.deserialize id p with
       | None -> failwith "Deserialization failure"
       | Some (x, count) ->
         let finish () =
@@ -126,7 +126,7 @@ end = struct
     match prf_state.pf_stream with
     | [] -> failwith "eqauth: Expected a prf_state object"
     | p :: ps ->
-      match (Authenticatable.bool).deserialize 0 0 p with
+      match (Authenticatable.bool).deserialize 0 p with
       | None -> failwith "eqauth: Deserialization failure"
       | Some (res, _) ->
         let eq_check () = 

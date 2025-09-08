@@ -11,7 +11,6 @@ module Prover_susp : sig
   val run : 'a authenticated_computation -> (string * 'a)
 end = struct
   type proof_val = proof_value
-  type buf_value = (int -> proof_value)
   type proof_state = { pf_stream : proof_stream; buffer : (unit -> proof_value) list }
   (* Only composite objects can be of variant Merkle. 
      Any thing that the client may have will be of variant MerkleSusp. *)
