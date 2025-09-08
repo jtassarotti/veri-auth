@@ -298,12 +298,12 @@ end
 module Verifier_susp = struct
   type 'a evidence = 
     { serialize : 'a -> string;
-      deserialize : int -> int -> string -> ('a * int) option;
+      deserialize : int -> string -> ('a * int) option;
       to_string : unit -> string }
   
   let pair f_a f_b =
     let serialize = pair_serialize f_a.serialize f_b.serialize
-    and deserialize pid count s = 
+    and deserialize pid s = 
       match try Some (String.index_from s 0 '_') with Invalid_argument _ -> None with
       | None -> None
       | Some i ->
@@ -316,9 +316,9 @@ module Verifier_susp = struct
           else
             let sa = String.sub s 0 i in
             let sb = String.sub s i ((String.length s) - i) in
-            match f_a.deserialize pid count sa with
-            | Some (a, count) -> begin match f_b.deserialize pid count sb with
-              | Some (b, count) -> Some ((a, b), count)
+            match f_a.deserialize pid sa with
+            | Some (a, count_a) -> begin match f_b.deserialize pid sb with
+              | Some (b, count_b) -> Some ((a, b), count_a + count_b)
               | None -> None
               end
             | None -> None
@@ -329,7 +329,7 @@ module Verifier_susp = struct
   let trio f_a f_b f_c =
     let evi = pair f_a (pair f_b f_c) in
     let serialize (a, b, c) = evi.serialize (a, (b, c))
-    and deserialize pid count s = match evi.deserialize pid count s with
+    and deserialize pid s = match evi.deserialize pid s with
       | None -> None
       | Some ((a, (b, c)), count) -> Some ((a, b, c), count)
     and to_string () =
@@ -339,7 +339,7 @@ module Verifier_susp = struct
   let quad f_a f_b f_c f_d =
     let evi = pair f_a (pair f_b (pair f_c f_d)) in
     let serialize (a, b, c, d) = evi.serialize (a, (b, (c, d)))
-    and deserialize pid count s = match evi.deserialize pid count s with
+    and deserialize pid s = match evi.deserialize pid s with
       | None -> None
       | Some ((a, (b, (c, d))), count) -> Some ((a, b, c, d), count)
     and to_string () =
@@ -348,7 +348,7 @@ module Verifier_susp = struct
 
   let list f_a =
     let serialize = list_serialize f_a.serialize in
-    let rec deserialize pid count s = 
+    let rec deserialize pid s = 
       if String.length s < 2 then None
       else if String.length s = 2 && s = "Li" then Some ([], 0)
       else
@@ -366,7 +366,7 @@ module Verifier_susp = struct
               else
                 let sa = String.sub s 0 i in
                 let sb = String.sub s i ((String.length s) - i) in
-                match f_a.deserialize pid count sa, deserialize pid count sb with
+                match f_a.deserialize pid sa, deserialize pid sb with
                 | Some (h, hcount), Some (t, tcount) -> Some ((h::t), hcount + tcount)
                 | _, _ -> None
         else None
@@ -376,8 +376,8 @@ module Verifier_susp = struct
 
   let sum f_a f_b =
     let serialize = sum_serialize f_a.serialize f_b.serialize
-    and deserialize pid count s = 
-      match sum_deserialize (f_a.deserialize pid count) (f_b.deserialize pid count) s with
+    and deserialize pid s = 
+      match sum_deserialize (f_a.deserialize pid) (f_b.deserialize pid) s with
       | Some (`left (a, count)) -> Some (`left a, count)
       | Some (`right (b, count)) -> Some (`right b, count)
       | _ -> None
@@ -387,8 +387,8 @@ module Verifier_susp = struct
 
   let option f_a =
     let serialize = option_serialize f_a.serialize
-    and deserialize pid count s = 
-      match option_deserialize (f_a.deserialize pid count) s with
+    and deserialize pid s = 
+      match option_deserialize (f_a.deserialize pid) s with
       | Some `left -> Some (`left, 0)
       | Some (`right (a, count)) -> Some (`right a, count)
       | _ -> None
@@ -398,27 +398,27 @@ module Verifier_susp = struct
 
   let bool =
     let serialize = bool_serialize
-    and deserialize _ count s = 
+    and deserialize _ s = 
       match bool_deserialize s with
-      | Some s -> Some (s, count)
+      | Some s -> Some (s, 0)
       | None -> None
     and to_string () = "Bool"
     in { serialize; deserialize; to_string }
 
   let string =
     let serialize = string_serialize
-    and deserialize _ count s = 
+    and deserialize _ s = 
       match string_deserialize s with
-      | Some s -> Some (s, count)
+      | Some s -> Some (s, 0)
       | None -> None
     and to_string () = "String"
     in { serialize; deserialize; to_string }
 
   let int =
     let serialize = int_serialize
-    and deserialize _ count s = 
+    and deserialize _ s = 
       match int_deserialize s with
-      | Some i -> Some (i, count)
+      | Some i -> Some (i, 0)
       | None -> None
     and to_string () = "Int"
     in { serialize; deserialize; to_string }
