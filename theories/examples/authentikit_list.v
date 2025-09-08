@@ -19,6 +19,7 @@ Definition v_bind : val :=
             let, ("prfs'", "a") := "x" in
             "f" "a" "prfs'"
         end.
+Definition v_eqauth : val := Λ: λ: "a" "b" "proof", SOME ("proof", "a" = "b").
 
 Definition v_unauth : val :=
   Λ: λ: "a_scheme" "h" "proof",
@@ -36,6 +37,7 @@ Definition v_unauth : val :=
 Definition v_Authenticable : val :=
   (v_Auth_auth, v_Auth_mu, v_Auth_pair, v_Auth_sum, v_Auth_string, v_Auth_int, v_auth, v_unauth).
 Definition v_Authentikit : val := (v_return, v_bind, v_Authenticable).
+Definition v_Authentikit_eq : val := (v_return, v_bind, v_eqauth, v_Authenticable).
 
 (** val run : 'a authenticated_computation -> proof -> 'a *)
 Definition v_run : val :=
@@ -57,6 +59,11 @@ Definition p_bind : val :=
     let, ("prf", "a") := "c" "p" #() in
     let, ("prf'", "b") := "f" "a" "p" #() in
     ("prf" @@ "prf'", "b")%E.
+Definition p_eqauth : val :=
+  Λ: λ: "ah" "bh" "proof" <>,
+      let, ("a", "ha") := "ah" in
+      let, ("b", "hb") := "bh" in
+      SOME ("proof", "ah" = "bh").
 
 Definition p_unauth : val :=
   Λ: λ: "serializer" "ah" "p" <>,
@@ -75,3 +82,4 @@ Definition p_run : val :=
 Definition p_Authenticable : val :=
   (p_Auth_auth, p_Auth_mu, p_Auth_pair, p_Auth_sum, p_Auth_string, p_Auth_int, p_auth, p_unauth).
 Definition p_Authentikit : val := (p_return, p_bind, p_Authenticable).
+Definition p_Authentikit_eq : val := (p_return, p_bind, p_eqauth, p_Authenticable).

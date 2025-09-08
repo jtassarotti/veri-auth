@@ -44,10 +44,25 @@ Definition Authentikit_func {Θ} : type Θ ((⋆ ⇒ ⋆) ⇒ (⋆ ⇒ ⋆) ⇒ 
      Authenticatable
   )%ty.
 
+Definition Authentikit_func_eq {Θ} : type Θ ((⋆ ⇒ ⋆) ⇒ (⋆ ⇒ ⋆) ⇒ ⋆) :=
+  (Λ: (* auth : *)
+   Λ: (* authenticated_computation : *)
+
+     ((* return : *) ∀: ⋆, var0 → var1 var0) *
+     ((* bind   : *) ∀: ⋆; ⋆, var2 var1 → (var1 → var2 var0) → var2 var0) *
+     ((* eqauth : *) ∀: ⋆, var2 var0 → var2 var0 → var1 t_bool) *
+     Authenticatable
+  )%ty.
+
 Definition Authentikit {Θ} : type Θ ⋆ :=
   (∃: (* auth : *) ⋆ ⇒ ⋆;
       (* authenticated_computation : *) ⋆ ⇒ ⋆,
      Authentikit_func var1 var0)%ty.
+
+Definition Authentikit_eq {Θ} : type Θ ⋆ :=
+  (∃: (* auth : *) ⋆ ⇒ ⋆;
+      (* authenticated_computation : *) ⋆ ⇒ ⋆,
+     Authentikit_func_eq var1 var0)%ty.
 
 (** ** Ideal  *)
 (** type 'a auth = 'a *)
@@ -70,6 +85,10 @@ Definition i_unauth : val :=
 Definition i_Authenticable : val :=
   (i_Auth_auth, i_Auth_mu, i_Auth_pair, i_Auth_sum, i_Auth_string, i_Auth_int, i_auth, i_unauth).
 Definition i_Authentikit : val := (i_return, i_bind, i_Authenticable).
+
+Definition i_eqauth : val := Λ: λ: "a" "b" <>, "a" = "b".
+             
+Definition i_Authenitkit_eq : val := (i_return, i_bind, i_eqauth, i_Authenticable).
 
 Definition i_run : val :=
   Λ: λ: "c", "c" #().
