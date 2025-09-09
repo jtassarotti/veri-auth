@@ -12,6 +12,8 @@ Record serialization := Serialization {
 
   s_valid_val_Persistent `{invGS_gen hlc Σ} `{g : !GenWp Σ} v ::
     Persistent (s_valid_val (g := g) v);
+  s_is_ser_Persisten `{invGS_gen hlc Σ} `{g : !GenWp Σ} v s ::
+    Persistent (s_is_ser (g := g) v s);
   s_is_ser_inj `{invGS_gen hlc Σ} `{g : !GenWp Σ} v s1 s2 :
     s_is_ser (g := g) v s1 -∗ s_is_ser (g := g) v s2 -∗ ⌜s1 = s2⌝;
   s_is_ser_valid `{invGS_gen hlc Σ} `{g : !GenWp Σ} v s :
@@ -552,7 +554,6 @@ Section prod_serialization.
     iApply "HΦ".
     iModIntro.
     iExists vA, vB, s1, s2; iSplit; auto.
-    iFrame.
   Qed.
 
   Lemma prod_ser'_spec_closed E v c :

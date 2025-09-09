@@ -23,53 +23,131 @@ Section authenticatable.
     | tint => int_serialization_scheme
     end.
 
-  Lemma evi_type_ser_inj_str (t1 t2 : evi_type) v s1 s2 :
-    s_is_ser (evi_type_ser t1) v s1 →
-    s_is_ser (evi_type_ser t2) v s2 →
-    s1 = s2.
+  Lemma evi_type_ser_inj_str `{g : !GenWp Σ} (t1 t2 : evi_type) v s1 s2 :
+    s_is_ser (g := g) (evi_type_ser t1) v s1 -∗
+    s_is_ser (g := g) (evi_type_ser t2) v s2 -∗
+    ⌜s1 = s2⌝.
   Proof.
     induction t1 in t2, v, s1, s2 |-* => /=.
-    - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
-      destruct t2 => /=; destruct! Ht2; simplify_eq; eauto.
-      erewrite (IHt1_1 t2_1 _ H0); [|done|done].
-      erewrite (IHt1_2 t2_2 _ H2); [|done|done]. done.
-    - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
-      + destruct t2 => /=; destruct! Ht2; simplify_eq; auto.
-        by erewrite (IHt1_1 t2_1 _ H1).
-      + destruct t2 => /=; destruct! Ht2; simplify_eq; auto.
-        by erewrite (IHt1_2 t2_2 _ H1).
-    - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
-      destruct t2 => /=; destruct! Ht2; simplify_eq => //; auto.
-    - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
-      destruct t2 => /=; destruct! Ht2; simplify_eq => //; auto.
+    - iIntros "Ht1 Ht2".
+      iDestruct "Ht1" as (?????) "(Ht11 & Ht12)".
+      destruct H as [-> ->].
+      destruct t2 => /=; simplify_eq; eauto.
+      + iDestruct "Ht2" as (?????) "(Ht21 & Ht22)".
+        destruct H as [? ->]. simplify_eq.
+        iPoseProof (IHt1_1 with "Ht11 Ht21") as "%".
+        iPoseProof (IHt1_2 with "Ht12 Ht22") as "%".
+        by subst.
+      + iDestruct "Ht2" as (??) "[(%&Ht2)|(%&Ht2)]";
+          destruct H; simplify_eq.
+      + iDestruct "Ht2" as (?) "(%&%)".
+        simplify_eq.
+      + iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+    - iIntros "Ht1 Ht2".
+      iDestruct "Ht1" as (??) "[((%&%)&Ht1)|((%&%)&Ht1)]".
+      + destruct t2 => /=.
+        * iDestruct "Ht2" as (????) "((%&%)&Ht21&Ht22)".
+          simplify_eq.
+        * iDestruct "Ht2" as (??) "[((%&%)&Ht2)|((%&%)&Ht2)]"; simplify_eq.
+          iAssert (⌜s'=s'0⌝ -∗ ⌜inl_ser_str s' = inl_ser_str s'0⌝)%I as "H".
+          { iIntros "%". iPureIntro. by f_equal. }
+          iApply "H".
+          iApply (IHt1_1 with "[Ht1]"); iFrame.
+        * iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+        * iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+      + destruct t2 => /=.
+        * iDestruct "Ht2" as (????) "((%&%)&Ht21&Ht22)".
+          simplify_eq.
+        * iDestruct "Ht2" as (??) "[((%&%)&Ht2)|((%&%)&Ht2)]"; simplify_eq.
+          iAssert (⌜s'=s'0⌝ -∗ ⌜inr_ser_str s' = inr_ser_str s'0⌝)%I as "H".
+          { iIntros "%". iPureIntro. by f_equal. }
+          iApply "H".
+          iApply (IHt1_2 with "[Ht1]"); iFrame.
+        * iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+        * iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+    - iIntros "Ht1 Ht2".
+      iDestruct "Ht1" as (?) "(%&%)". simplify_eq.
+      destruct t2 => /=.
+      + iDestruct "Ht2" as (????) "((%&%)&Ht21&Ht22)".
+        exfalso. simplify_eq.
+      + iDestruct "Ht2" as (??) "[((%&%)&Ht2)|((%&%)&Ht2)]"; simplify_eq.
+      + iDestruct "Ht2" as (?) "(%&%)". simplify_eq. done.
+      + iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+    - iIntros "Ht1 Ht2".
+      iDestruct "Ht1" as (?) "(%&%)". simplify_eq.
+      destruct t2 => /=.
+      + iDestruct "Ht2" as (????) "((%&%)&Ht21&Ht22)".
+        simplify_eq.
+      + iDestruct "Ht2" as (??) "[((%&%)&Ht2)|((%&%)&Ht2)]"; simplify_eq.
+      + iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+      + iDestruct "Ht2" as (?) "(%&%)". simplify_eq. done.
   Qed.
 
-  Lemma evi_type_ser_inj_val (t1 t2 : evi_type) v1 v2 s :
-    s_is_ser (evi_type_ser t1) v1 s →
-    s_is_ser (evi_type_ser t2) v2 s →
-    v1 = v2.
+  Lemma evi_type_ser_inj_val `{g : !GenWp Σ} (t1 t2 : evi_type) v1 v2 s :
+    s_is_ser (g:= g) (evi_type_ser t1) v1 s -∗
+    s_is_ser (g:= g) (evi_type_ser t2) v2 s -∗
+    ⌜v1 = v2⌝.
   Proof.
     induction t1 in t2, v1, v2, s |-* => /=.
-    - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
-      destruct t2 => /=; destruct! Ht2; simplify_eq; eauto.
-      + f_equal; [by eapply IHt1_1|]. by eapply IHt1_2.
-      + exfalso. by eapply prod_ser_inl_ser_neq.
-      + exfalso. by eapply prod_ser_inr_ser_neq.
-      + exfalso. by eapply prod_ser_string_ser_neq.
-      + exfalso. by eapply prod_ser_int_ser_neq.
-    - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
-      + destruct t2 => /=; destruct! Ht2; simplify_eq; auto.
+    - iIntros "Ht1 Ht2".
+      iDestruct "Ht1" as (?????) "(Ht11 & Ht12)".
+      destruct H as [-> ->].
+      destruct t2 => /=; simplify_eq.
+      + iDestruct "Ht2" as (?????) "(Ht21 & Ht22)".
+        destruct H as [-> ?]. simplify_eq.
+        iAssert (⌜v0 = v1⌝ -∗ ⌜v3 = v4⌝ -∗ ⌜(v0, v3)%V = (v1, v4)%V⌝)%I as "H".
+        { iIntros (??). iPureIntro. f_equal; done. }
+        iApply ("H" with "[Ht11 Ht21]").
+        { iApply (IHt1_1 with "[Ht11] [Ht21]"); iFrame. }
+        { iApply (IHt1_2 with "[Ht12] [Ht22]"); iFrame. }        
+      + iDestruct "Ht2" as (??) "[(%&Ht2)|(%&Ht2)]";
+          destruct H. simplify_eq.
         * exfalso. by eapply prod_ser_inl_ser_neq.
-        * f_equal. by eapply IHt1_1.
-      + destruct t2 => /=; destruct! Ht2; simplify_eq; auto.
         * exfalso. by eapply prod_ser_inr_ser_neq.
-        * f_equal. by eapply IHt1_2.
-    - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
-      destruct t2 => /=; destruct! Ht2; simplify_eq => //; auto.
-      exfalso. by eapply prod_ser_string_ser_neq.
-    - intros Ht1 Ht2. destruct! Ht1; simplify_eq.
-      destruct t2 => /=; destruct! Ht2; simplify_eq => //; auto.
-      exfalso. by eapply prod_ser_int_ser_neq.
+      + iDestruct "Ht2" as (?) "(%&%)".
+        iExFalso. by eapply prod_ser_string_ser_neq in H0.
+      + iDestruct "Ht2" as (?) "(%&%)".
+        iExFalso. by eapply prod_ser_int_ser_neq in H0.
+    - iIntros "Ht1 Ht2".
+      iDestruct "Ht1" as (??) "[((%&%)&Ht1)|((%&%)&Ht1)]".
+      + destruct t2 => /=.
+        * iDestruct "Ht2" as (????) "((%&%)&Ht21&Ht22)".
+          simplify_eq.
+          exfalso. symmetry in H2. by eapply prod_ser_inl_ser_neq in H2.
+        * iDestruct "Ht2" as (??) "[((%&%)&Ht2)|((%&%)&Ht2)]"; simplify_eq.
+          iAssert (⌜w=w0⌝ -∗ ⌜InjLV w = InjLV w0⌝)%I as "H".
+          { iIntros "%". iPureIntro. by f_equal. }
+          iApply "H".
+          iApply (IHt1_1 with "[Ht1]"); iFrame.
+        * iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+        * iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+      + destruct t2 => /=.
+        * iDestruct "Ht2" as (????) "((%&%)&Ht21&Ht22)".
+          simplify_eq.
+          exfalso. by eapply prod_ser_inr_ser_neq.
+        * iDestruct "Ht2" as (??) "[((%&%)&Ht2)|((%&%)&Ht2)]"; simplify_eq.
+          iAssert (⌜w=w0⌝ -∗ ⌜InjRV w = InjRV w0⌝)%I as "H".
+          { iIntros "%". iPureIntro. by f_equal. }
+          iApply "H".
+          iApply (IHt1_2 with "[Ht1]"); iFrame.
+        * iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+        * iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+    - iIntros "Ht1 Ht2".
+      iDestruct "Ht1" as (?) "(%&%)". simplify_eq.
+      destruct t2 => /=.
+      + iDestruct "Ht2" as (????) "((%&%)&Ht21&Ht22)".
+        exfalso. simplify_eq. symmetry in H0. by eapply prod_ser_string_ser_neq.
+      + iDestruct "Ht2" as (??) "[((%&%)&Ht2)|((%&%)&Ht2)]"; simplify_eq.
+      + iDestruct "Ht2" as (?) "(%&%)". simplify_eq. done.
+      + iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+    - iIntros "Ht1 Ht2".
+      iDestruct "Ht1" as (?) "(%&%)". simplify_eq.
+      destruct t2 => /=.
+      + iDestruct "Ht2" as (????) "((%&%)&Ht21&Ht22)".
+        exfalso. symmetry in H0. by eapply prod_ser_int_ser_neq.
+      + iDestruct "Ht2" as (??) "[((%&%)&Ht2)|((%&%)&Ht2)]"; simplify_eq.
+      + iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
+      + iDestruct "Ht2" as (?) "(%&%)". simplify_eq. done.
   Qed.
 
   Definition v_deser_spec (v_deser a2 : val) (s : string) : iProp Σ :=
@@ -82,7 +160,7 @@ Section authenticatable.
       {{{ ▷ A a1 a2 a3 }}}
         p_ser a1
       {{{ s, RET #s;
-          ⌜s_is_ser (evi_type_ser t) a2 s⌝ ∗
+          s_is_ser (g := gwp_upto_bad) (evi_type_ser t) a2 s ∗
            v_ser_spec v_ser a2 s ∗ v_deser_spec v_deser a2 s }}}.
 
   Definition lrel_serialization (A : lrel Σ) : lrel Σ := LRel (λ v1 v2 _,
@@ -125,14 +203,14 @@ Section authenticatable.
     iDestruct "Hp" as (??????) "(>-> & >-> & >-> & #Ha & #Hb)".
     wp_pures.
     wp_apply ("HserA" with "Ha").
-    iIntros (sA) "(%HsA & #HserA' & #HdeserA)".
+    iIntros (sA) "(#HsA & #HserA' & #HdeserA)".
     wp_pures.
     wp_apply ("HserB" with "Hb").
-    iIntros (sB) "(%HsB & #HserB' & #HdeserB)".
+    iIntros (sB) "(#HsB & #HserB' & #HdeserB)".
     wp_pures.
     iApply "HΨ".
     iModIntro. iSplit.
-    { iPureIntro. do 4 eexists; split_and!; eauto. }
+    { iExists _,_,_,_. by iFrame "#". }
     iSplit.
     - iIntros (??) "!# Hv".
       v_pures. v_bind (v_sA _).
@@ -143,13 +221,13 @@ Section authenticatable.
     - iIntros "!#" (K tᵥ) "Hv".
       iMod (prod_deser'_complete (s_is_ser (evi_type_ser tA)) (s_is_ser (evi_type_ser tB))
               ⊤ (v2, v2') _ _ _ () %I with "[//] [] [] [] [] [$Hv //]") as (?) "[Hv H]".
-      { iIntros (?? HsA') "!# H". iIntros (??) "[% Hv]".
-        rewrite -(evi_type_ser_inj_str _ _ _ _ _ HsA HsA').
+      { iIntros (??) "!# #HsA' H". iIntros (??) "[% Hv]".
+        iPoseProof (evi_type_ser_inj_str _ _ _ _ _ with "HsA HsA'") as "->".
         iMod ("HdeserA" with "[$Hv $Ha]") as "$". iModIntro. by iApply "H". }
-      { iIntros (?? HsB') "!# H". iIntros (??) "[% Hv]".
-        rewrite -(evi_type_ser_inj_str _ _ _ _ _ HsB HsB').
+      { iIntros (??) "!# #HsB' H". iIntros (??) "[% Hv]".
+        iPoseProof (evi_type_ser_inj_str _ _ _ _ _ with "HsB HsB'") as "->".
         iMod ("HdeserB" with "[$Hv $Hb //]") as "$". iModIntro. by iApply "H". }
-      { iPureIntro. do 4 eexists. split_and!; eauto. }
+      { iExists _,_,_,_. by iFrame "#". }
       { instantiate (1 := (λ v, ⌜v = SOMEV _⌝)%I). simpl. eauto. }
       by iDestruct "H" as %->.
   Qed.
@@ -184,42 +262,44 @@ Section authenticatable.
     iDestruct "Hsum" as (???) "[(>-> & >-> & >-> & #HA) | (>-> & >-> & >-> & #HB)]".
     - wp_pures.
       wp_apply ("HserA" with "HA").
-      iIntros (sA) "(%HsA & #Hser' & #Hdeser)".
+      iIntros (sA) "(#HsA & #Hser' & #Hdeser)".
       wp_pures. iModIntro.
-      iApply "HΨ". iSplit; [by iExists _, _; iLeft|].
+      iApply "HΨ". iSplit.
+      { iExists _,_. iLeft. by iFrame "#". }
       iSplit.
       + iIntros (??) "!# Hv". v_pures.
         v_bind (v_sA _).
         iMod ("Hser'" with "Hv") as "Hv /=".
         v_pures. by iModIntro.
       + iIntros (??) "!# Hv".
-        iMod (sum_deser'_complete (s_is_ser (evi_type_ser tA)) (s_is_ser (evi_type_ser tB))
+        iMod (sum_deser'_complete (s_is_ser (evi_type_ser tA)) (s_is_ser (g := gwp_upto_bad) (evi_type_ser tB))
                 ⊤ (InjLV _) _ () with "[] [] [] [] [$Hv //]") as (?) "[Hv H]".
-        { iIntros (???) "!# % %HsA' H". simplify_eq. iIntros (??) "[% Hv]".
-          pose proof (evi_type_ser_inj_str _ _ _ _ _ HsA HsA'). subst.
+        { iIntros (???) "!# % #HsA' H". simplify_eq. iIntros (??) "[% Hv]".
+          iPoseProof (evi_type_ser_inj_str _ _ _ _ _ with "HsA HsA'") as "->".
           iMod ("Hdeser" with "[$Hv //]") as "$". iModIntro. by iApply "H". }
         { iIntros (?? [=]). }
-        { iPureIntro. do 2 eexists. by left. }
+        { iExists _,_. iLeft. by iFrame "#". }
         { instantiate (1 := (λ v, ⌜v = SOMEV _⌝)%I). simpl. eauto. }
         by iDestruct "H" as %->.
     - wp_pures.
       wp_apply ("HserB" with "HB").
-      iIntros (sA) "(%HsA & #Hser' & #Hdeser)".
+      iIntros (sA) "(#HsA & #Hser' & #Hdeser)".
       wp_pures. iModIntro.
-      iApply "HΨ". iSplit; [by iExists _, _; iRight|].
+      iApply "HΨ". iSplit.
+      { iExists _,_. iRight. by iFrame "#". }
       iSplit.
       + iIntros (??) "!# Hv". v_pures.
         v_bind (v_sB _).
         iMod ("Hser'" with "Hv") as "Hv /=".
         v_pures. by iModIntro.
       + iIntros (??) "!# Hv".
-        iMod (sum_deser'_complete  (s_is_ser (evi_type_ser tA)) (s_is_ser (evi_type_ser tB))
+        iMod (sum_deser'_complete  (s_is_ser (g := gwp_upto_bad) (evi_type_ser tA)) (s_is_ser (evi_type_ser tB))
                 ⊤ (InjRV _) _ () with "[] [] [] [] [$Hv //]") as (?) "[Hv H]".
         { iIntros (?? [=]). }
-        { iIntros (???) "!# % %HsA' H". simplify_eq. iIntros (??) "[% Hv]".
-          pose proof (evi_type_ser_inj_str _ _ _ _ _ HsA HsA'). subst.
+        { iIntros (???) "!# % #HsA' H". simplify_eq. iIntros (??) "[% Hv]".
+          iPoseProof (evi_type_ser_inj_str _ _ _ _ _ with "HsA HsA'") as "->".
           iMod ("Hdeser" with "[$Hv //]") as "$". iModIntro. by iApply "H". }
-        { iPureIntro. do 2 eexists. by right. }
+        { iExists _,_. iRight. by iFrame "#". }
         { instantiate (1 := (λ v, ⌜v = SOMEV _⌝)%I). simpl. eauto. }
         by iDestruct "H" as %->.
   Qed.
@@ -276,7 +356,7 @@ Section authenticatable.
     iEval (rewrite interp_rec_unfold /lrel_car /=) in "HA".
     rewrite /rec_fold. wp_pures.
     iApply ("Hser" with "HA").
-    iIntros (s) "!> (%Hs & #Hser' & #Hdeser)".
+    iIntros (s) "!> (#Hs & #Hser' & #Hdeser)".
     iApply "HΨ". iSplit; [done|]. iSplit.
     - iIntros "!#" (??) "Hv". v_pures. by iApply "Hser'".
     - iIntros "!#" (??) "Hv". v_pures. by iApply "Hdeser".
@@ -285,7 +365,7 @@ Section authenticatable.
   (** Note that [hashed s] is only needed from [authentikit_buf.v] and onwards  *)
   Definition lrel_auth' (A : lrel Σ) : lrel Σ := LRel (λ v1 v2 v3,
     ∃ (t : evi_type) (a1 a2 : val) (s : string),
-      ⌜v1 = (a1, #(hash s))%V⌝ ∗ ⌜s_is_ser (evi_type_ser t) a2 s⌝ ∗ ⌜v2 = #(hash s)⌝ ∗
+      ⌜v1 = (a1, #(hash s))%V⌝ ∗ s_is_ser (g := gwp_upto_bad) (evi_type_ser t) a2 s ∗ ⌜v2 = #(hash s)⌝ ∗
       hashed s ∗ A a1 a2 v3)%I.
 
   Program Definition lrel_auth : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_auth' A.
@@ -308,14 +388,14 @@ Section authenticatable.
     do 2 (iSplit; [done|]). clear.
     iIntros (a1 a2 a3 Ψ) "!# Hauth HΨ".
     rewrite /lrel_car /=.
-    iDestruct "Hauth" as (????) "(>-> & >% & >-> & _ & #HA)".
+    iDestruct "Hauth" as (????) "(>-> & #H & >-> & _ & #HA)".
     wp_pures. iModIntro.
     iApply "HΨ". iSplit; [by iExists _|]. iSplit.
     - iIntros "!#" (??) "Hv". rewrite /string_ser.
       v_pures. by iModIntro.
     - iIntros "!#" (??) "Hv".
       iMod (string_deser_spec' ⊤ _ _ () (λ v, ⌜v = SOMEV _⌝)%I
-             with "[] [] [$Hv //]") as (?) "[H ->]"; [|done|done].
+             with "[] [] [$Hv //]") as (?) "[H1 ->]"; [|done|done].
       by iExists _.
   Qed.
 
@@ -340,7 +420,7 @@ Section authenticatable.
     v_bind (v_ser _). wp_bind (p_ser _).
 
     wp_apply ("Hser" with "HA").
-    iIntros (s1) "(%Hs1 & #Hser' & #Hdeser)".
+    iIntros (s1) "(#Hs1 & #Hser' & #Hdeser)".
     iMod ("Hser'" with "Hv") as "Hv /=".
     wp_apply (wp_hash with "[$]"); iIntros "Hhash".
     wp_pures.
