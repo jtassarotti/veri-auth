@@ -1,0 +1,5 @@
+(env
+ (dev
+  (ocamlopt_flags (:standard))
+  (flags (:standard -w -A))))
+  

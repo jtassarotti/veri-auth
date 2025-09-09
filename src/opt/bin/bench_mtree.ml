@@ -1,3 +1,4 @@
+open Authentikit
 open Auth
 open Merkle
 open Prover_rev
@@ -473,7 +474,7 @@ let read_dir_prover_io_tree s =
   close_in chn;
   DirMerkleProverIo.from_list l
 
-let dir_poly_io_hash = Hashtbl.create 18  
+(* let dir_poly_io_hash = Hashtbl.create 18   *)
 let read_dir_prover_poly_io_tree s =
   let n = exp 2 s in
   let chn = Printf.sprintf "%s/mtree1_%d.dat" data_folder s |> open_in_bin in
@@ -481,7 +482,7 @@ let read_dir_prover_poly_io_tree s =
   close_in chn;
   DirMerkleProverPolyIo.from_list l
 
-let dir_poly_mar_ser_io_hash = Hashtbl.create 18
+(* let dir_poly_mar_ser_io_hash = Hashtbl.create 18 *)
 let read_dir_prover_poly_mar_ser_io_tree s =
   let n = exp 2 s in
   let chn = Printf.sprintf "%s/mtree1_%d.dat" data_folder s |> open_in_bin in
@@ -489,7 +490,7 @@ let read_dir_prover_poly_mar_ser_io_tree s =
   close_in chn;
   DirMerkleProverPolyMarSerIo.from_list l
 
-let auth_io_hash = Hashtbl.create 18
+(* let auth_io_hash = Hashtbl.create 18 *)
 let read_io_tree s =
   let n = exp 2 s in
   let chn = Printf.sprintf "%s/mtree1_%d.dat" data_folder s |> open_in_bin in
@@ -524,7 +525,7 @@ let dirprover_merkle_io_retrieves file t paths =
     match paths with
     | [] -> DirMerkleProverIo.close_output ()
     | path::paths ->
-      DirMerkleProverIo.retrieve path t;
+      let _ = DirMerkleProverIo.retrieve path t in
       aux paths
   in
   aux paths
@@ -535,7 +536,7 @@ let dirprover_merkle_poly_io_retrieves file t paths =
     match paths with
     | [] -> DirMerkleProverPolyIo.close_output ()
     | path::paths ->
-      DirMerkleProverPolyIo.retrieve path t;
+      let _ = DirMerkleProverPolyIo.retrieve path t in
       aux paths
   in
   aux paths
@@ -546,7 +547,7 @@ let dirprover_merkle_poly_mar_ser_io_retrieves file t paths =
     match paths with
     | [] -> DirMerkleProverPolyMarSerIo.close_output ()
     | path::paths ->
-      DirMerkleProverPolyMarSerIo.retrieve path t;
+      let _ = DirMerkleProverPolyMarSerIo.retrieve path t in
       aux paths
   in
   aux paths
