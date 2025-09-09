@@ -63,10 +63,10 @@ Definition p_bind : val :=
     let, ("buf'", "a") := "c" "p" "buf" in
     "f" "a" "p" "buf'".
 Definition p_eqauth : val :=
-  Λ: λ: "ah" "bh" "proof",
+  Λ: λ: "ah" "bh" <> "buf",
       let, ("a", "ha") := "ah" in
       let, ("b", "hb") := "bh" in
-      SOME ("proof", "ha" = "hb").
+      ("buf", "ha" = "hb").
 
 Definition p_unauth : val :=
   Λ: λ: "serializer" "ah" "p" "buf",

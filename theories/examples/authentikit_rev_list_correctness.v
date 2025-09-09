@@ -45,6 +45,105 @@ Section proof.
     iFrame "∗ #". done.
   Qed.
 
+  Lemma vals_compare_safe_admit :
+    ∀ v w, vals_compare_safe v w.
+  Proof. Admitted.
+
+  Lemma injective_lrel (A: lrel Σ) :
+    ∀ v1 v2 w1 w2 x1 x2, A x1 v1 w1 -∗ A x2 v2 w2 -∗ ⌜(v1 = v2 ↔ w1 = w2) ∧ (x1 = x2 ↔ w1 = w2)⌝.
+  Proof. Admitted.
+
+  Lemma refines_auth_eqauth Θ (Δ: ctxO Σ Θ) :
+    ⊢ ⟦ ∀: ⋆, var2 var0 → var2 var0 → var1 t_bool ⟧
+      (auth_ctx Δ) p_eqauth v_eqauth i_eqauth.
+  Proof.
+    iIntros (A ???) "!# _"; rewrite -/interp.
+    iIntros (????) "Hv Hi".
+    rewrite /p_eqauth/v_eqauth/i_eqauth.
+    wp_pures; v_pures; i_pures.
+    iModIntro. iFrame. clear.
+    iIntros (v1 v2 v3) "!# #HmA"; rewrite -!/interp.
+    iIntros (????) "Hv Hi /=".
+    wp_pures; v_pures; i_pures.
+    iModIntro. iFrame. clear.
+    iIntros (w1 w2 w3) "!# #HmB".
+    iIntros (????) "Hv Hi".
+    wp_pures; v_pures; i_pures.
+    iModIntro. iFrame. clear.
+    iIntros (????????? Ψ) "!# (Hv & Hi & Hw & Hw') HΨ".
+    wp_pures; v_pures; i_pures.
+    { apply vals_compare_safe_admit. }
+    { apply vals_compare_safe_admit. }
+    Unshelve. 3: done.
+    iDestruct "HmA" as (tA' a1 a2 sa -> Hsa ->) "(Hsa & #HA)".
+    iDestruct "HmB" as (tB' b1 b2 sb -> Hsb ->) "(Hsb & #HB)".
+    wp_pures.
+    case_bool_decide.
+    - case_bool_decide.
+      + subst.
+        destruct (decide (collision sa sb)) as [|Hnc%not_collision].
+        { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "Hsa Hsb"). }
+        destruct Hnc as [<- |?]; simplify_eq.
+        pose proof (evi_type_ser_inj_val tA' tB' a2 b2 sa Hsa Hsb) as Hs.
+        subst.
+        iPoseProof (injective_lrel A with "HA HB") as "%H".
+        destruct H as [_ H].
+        destruct H as [_ H].
+        destruct H; [done|].
+        iModIntro.
+        iApply ("HΨ" $! []).
+        iFrame "∗ # %".
+        iSplit.
+        { iPureIntro. 
+          simpl. 
+        
+        do 2 (iSplit; [iPureIntro; done|]).
+        iExists _. done.
+      + destruct (decide (collision sa sb)) as [|Hnc%not_collision].
+        { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "Hsa Hsb"). }
+        destruct Hnc as [<- |?]; simplify_eq.
+        pose proof (evi_type_ser_inj_val tA' tB' a2 b2 sa Hsa Hsb) as Hs.
+        subst.
+        iPoseProof (injective_lrel A with "HA HB") as "%H".
+        destruct H as [H _].
+        destruct H.
+        destruct H; done.
+    - case_bool_decide.
+      + iPoseProof (injective_lrel A with "HA HB") as "%H1".
+        iAssert (⌜sa = sb → False⌝)%I as "%H2".
+        { iIntros (?).
+          destruct (decide (collision sa sb)) as [|Hnc%not_collision].
+          { by iApply (hashes_auth.hashed_inj_or_coll with "Hsa Hsb"). }
+          destruct Hnc as [<- |?]; simplify_eq. }
+        assert (H3 : a2 ≠ b2).
+        { intros ?.
+          subst.
+          pose proof (evi_type_ser_inj_str tA' tB' b2 sa sb Hsa Hsb) as Hs.
+          done. }
+        destruct H1 as [H1 _].
+        destruct H1 as [_ H1].
+        pose proof (H1 H0) as H4.
+        done.
+      + iPoseProof (injective_lrel A with "HA HB") as "%H1".
+        assert (a1 ≠ b1).
+        { destruct H1 as [_ H1].
+          intros ?.
+          destruct H1 as [H1 _].
+          pose proof (H1 H2) as H3.
+          done. }
+        wp_pure.
+        { apply vals_compare_safe_admit. }
+        case_bool_decide.
+        { by inversion H3. }
+        wp_pures.
+        iModIntro.
+        iApply ("HΨ" $! []).
+        iFrame "∗ # %".
+        do 2 (iSplit; [iPureIntro; done|]).
+        iExists _. done.
+  Qed.
+
+
   Lemma refines_auth_bind Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → (var1 → var2 var0) → var2 var0 ⟧
       (auth_ctx Δ) p_bind v_bind i_bind.
