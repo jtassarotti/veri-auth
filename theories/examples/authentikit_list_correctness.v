@@ -90,10 +90,6 @@ Section proof.
         destruct H as [_ H].
         destruct H as [_ H].
         destruct H; [done|].
-        wp_pure.
-        { apply vals_compare_safe_admit. }
-        case_bool_decide; [|done].
-        wp_pures.
         iModIntro.
         iApply ("HΨ" $! []).
         iFrame "∗ # %".
@@ -131,11 +127,6 @@ Section proof.
           destruct H1 as [H1 _].
           pose proof (H1 H2) as H3.
           done. }
-        wp_pure.
-        { apply vals_compare_safe_admit. }
-        case_bool_decide.
-        { by inversion H3. }
-        wp_pures.
         iModIntro.
         iApply ("HΨ" $! []).
         iFrame "∗ # %".

@@ -63,7 +63,7 @@ Definition p_eqauth : val :=
   Λ: λ: "ah" "bh" "proof" <>,
       let, ("a", "ha") := "ah" in
       let, ("b", "hb") := "bh" in
-      ([], "ah" = "bh").
+      ([], "ha" = "hb").
 
 Definition p_unauth : val :=
   Λ: λ: "serializer" "ah" "p" <>,
