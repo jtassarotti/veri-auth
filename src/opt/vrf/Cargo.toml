@@ -1,0 +1,17 @@
+[package]
+name = "vrf"
+version = "0.1.0"
+authors = ["Zach Shipko <zachshipko@gmail.com>"]
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+ocaml = {version = "^1.0.0"}
+vrf-wasm = { version = "0.8", features = ["browser"] }
+bincode = "*"
+hex = "*"
+
+[build-dependencies]
+ocaml-build = {version = "^1.0.0"}

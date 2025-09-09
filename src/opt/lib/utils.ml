@@ -64,8 +64,21 @@ let random_even () =
 let random_odd () =
   Random.int(50000000) * 2 + 1
 
+let random_alpha_char () =
+  Char.chr (97 + Random.int 26)
+
 let random_string len =
   String.concat "" (list_init len (fun _ -> String.make 1 (BatRandom.char())))
+
+let random_key length =
+  let charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" in
+  let len = String.length charset in
+  let result = Bytes.create length in
+  for i = 0 to length - 1 do
+    let index = Random.int len in
+    Bytes.set result i charset.[index]
+  done;
+  Bytes.to_string result
 
 let random_leaves num len =
   let rec go num acc =
@@ -82,10 +95,9 @@ let random_key_vals num len =
   let rec go num acc =
     match num with
     | 0 -> acc
-    | _ -> go (num-1) ((num, random_string len) :: acc)
+    | _ -> go (num-1) ((random_key len, random_string len) :: acc)
   in
-  go num [] 
-  |> List.sort (fun (_, a) (_, b) -> String.compare a b)
+  go num []
 ;;
 
 let random_odd_key_vals num =
