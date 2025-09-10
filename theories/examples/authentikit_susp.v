@@ -93,7 +93,7 @@ Definition v_Authentikit : expr := (v_return, v_bind, v_Authenticable).
 (* type proof_state = { pf_stream : string list; buffer : (unit -> string) list } *)
 (* Only composite objects can be of variant Merkle (InjLV). *)
 (* Any thing that the client may have will be of variant MerkleSusp (InjRV). *)
-(* type 'a auth = | Merkle of 'a * string | MerkleSusp of bool ref * 'a * string *)
+(* type 'a auth = | Merkle of 'a * string | MerkleSusp of bool ref * bool ref * 'a * string *)
 (* type 'a authenticated_computation = proof_state -> (proof_state * 'a) *)
 
 Definition p_return : val :=
@@ -108,7 +108,7 @@ Definition p_auth : val :=
   Λ: λ: "evi" "a",
       let, ("serialize", "suspend", "unsuspend") := "evi" in
       let: "unsusp_a" := "unsuspend" "a" in
-      InjL (ref #true, "unsusp_a", Hash ("serialize" "unsusp_a")).
+      InjL (ref #false, ref #false, "unsusp_a", Hash ("serialize" "unsusp_a")).
 
 Definition p_unauth : val :=
   Λ: λ: "evi" "a" "prf_state",
@@ -117,16 +117,22 @@ Definition p_unauth : val :=
       let: "un_a" :=
         match: "a" with
           InjL "susp_data" =>
-            let, ("b", "a", <>) := "susp_data" in
-            "b" <- #false;; "a"
+            let, ("b", "r", "a", <>) := "susp_data" in
+            "b" <- #false;;
+            if: !r then NONEV
+            else SOMEV "a"
         | InjR "data" =>
-            let, ("a", "<>") := "data" in "a"
+            let, ("a", "<>") := "data" in SOMEV "a"
         end
       in
-      let: "susp_un_a" := "suspend" "un_a" in
-      let: "finish" := λ: <>,"serialize" "susp_un_a" in
-      let: "prf_state'" := ("pf_stream", "finish" :: "buffer") in
-      ("prf_state'", "susp_un_a").
+      match: "un_a" with
+        NONE => NONEV
+      | SOME "un_a" =>
+        let: "susp_un_a" := "suspend" "un_a" in
+        let: "finish" := λ: <>,"serialize" "susp_un_a" in
+        let: "prf_state'" := ("pf_stream", "finish" :: "buffer") in
+        ("prf_state'", "susp_un_a")
+      end.
 
 Definition flush_buf_stream : val :=
   rec: "aux" "buffer" "pf_stream" :=

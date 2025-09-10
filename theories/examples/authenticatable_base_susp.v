@@ -22,11 +22,10 @@ Definition auth_ser_v : val :=
   λ: "v",
     let: "a_ser" := Fst auth_scheme in
     match: "v" with
-      InjL "h" => SOME ("a_ser" (InjR "h"))
+      InjL "h" => "a_ser" (InjR "h")
     | InjR "susp" =>
         match: !"susp" with
-          InjL <> => NONE
-        | InjR "h" => SOME ("a_ser" (InjR "h"))
+          InjR "h" => "a_ser" (InjR "h")
         end
     end.
 
@@ -87,7 +86,7 @@ Definition auth_ser_p : val :=
         let, ("a", "h") := "d" in
         "a_ser" (InjR "h")
     | InjR "d" =>
-        let, ("b", "a", "h") := "d" in
+        let, ("b", <>, "a", "h") := "d" in
         if: !"b" then "a_ser" (InjL #"")
         else "a_ser" (InjR "h")
     end.
@@ -97,7 +96,7 @@ Definition auth_suspend_p : val :=
     match: "a" with
       InjL "d" =>
         let, ("a", "h") := "d" in
-        InjR (ref #false, "a", "h")
+        InjR (ref #false, ref #false, "a", "h")
     | InjR <> => NONE
     end.
 
@@ -106,7 +105,8 @@ Definition auth_unsuspend_p : val :=
     match: "a" with
       InjL "d" => NONE
     | InjR "d" =>
-        let, ("b", "a", "h") := "d" in
+        let, ("b", "r", "a", "h") := "d" in
+        "r" <- #true;;
         InjL ("a", "h")
     end.
 
