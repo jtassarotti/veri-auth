@@ -26,6 +26,7 @@ Definition auth_ser_v : val :=
     | InjR "susp" =>
         match: !"susp" with
           InjR "h" => "a_ser" (InjR "h")
+        | InjL <> => NONEV
         end
     end.
 
