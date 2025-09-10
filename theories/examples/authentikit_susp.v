@@ -119,10 +119,10 @@ Definition p_unauth : val :=
           InjL "susp_data" =>
             let, ("b", "r", "a", <>) := "susp_data" in
             "b" <- #false;;
-            if: !r then NONEV
-            else SOMEV "a"
+            if: !"r" then NONEV
+            else SOME "a"
         | InjR "data" =>
-            let, ("a", "<>") := "data" in SOMEV "a"
+            let, ("a", "<>") := "data" in SOME "a"
         end
       in
       match: "un_a" with
