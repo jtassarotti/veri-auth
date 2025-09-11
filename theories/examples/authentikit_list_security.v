@@ -101,10 +101,6 @@ Section proof.
     ∀ v w, vals_compare_safe v w.
   Proof. Admitted.
 
-  Lemma injective_lrel (A: lrel Σ) :
-    ∀ v1 v2 w1 w2, A v1 w1 -∗ A v2 w2 -∗ ⌜v1 = v2 ↔ w1 = w2⌝.
-  Proof. Admitted.
-
   Lemma refines_auth_eqauth Θ (Δ: ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆, var2 var0 → var2 var0 → var1 t_bool ⟧
       (auth_ctx Δ) v_eqauth i_eqauth.
@@ -112,7 +108,7 @@ Section proof.
     iIntros (A ??) "!# _".
     iIntros (??) "Hi".
     rewrite /v_eqauth/i_eqauth.
-    i_pures; wp_pures.    
+    i_pures; wp_pures.
     iModIntro. iFrame. clear.
     iIntros (v1 v2) "!# #HmA".
     iIntros (??) "Hi".
@@ -128,15 +124,14 @@ Section proof.
     i_pures.
     { apply vals_compare_safe_admit. }
     interp_unfold! in "HmA"; interp_unfold! in "HmB".
-    iDestruct "HmA" as (???? ->) "(HA & HashA)".
-    iDestruct "HmB" as (???? ->) "(HB & HashB)".
+    iDestruct "HmA" as (???? ->) "(HinjA & HA & HashA)".
+    iDestruct "HmB" as (???? ->) "(HinjA' & HA' & HashA')".
 
     case_bool_decide.
     - wp_pures. iModIntro.
       iExists (Some _). iFrame. clear.
       iSplit. { eauto. }
-      iPoseProof (injective_lrel A with "HA HB") as "%H2".
-      destruct H2 as [H21 H22].
+      iDestruct ("HinjA"  with "HA HA'") as %[H21 H22].
       pose proof (H22 H1) as H2.
       subst.
       pose proof (evi_type_ser_inj_str t t0 a0 s1 s0 H H0) as Hs.
@@ -150,12 +145,11 @@ Section proof.
     - wp_pures. iModIntro.
       iExists (Some _). iFrame.
       iSplit. { eauto. }
-      iPoseProof (injective_lrel A with "HA HB") as "%H2".
-      destruct H2 as [H21 H22].
+      iDestruct ("HinjA"  with "HA HA'") as %[H21 H22].
       subst.
       case_bool_decide.
       + destruct (decide (collision s1 s0)) as [|Hnc%not_collision].
-        { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "HashA HashB"). }
+        { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "HashA HashA'"). }
         destruct Hnc as [<- |?]; simplify_eq.
         exfalso.
         apply H1.
@@ -184,9 +178,9 @@ Section proof.
     iIntros (??) "Hi".
     i_pures.
     interp_unfold! in "Hauth".
-    iDestruct "Hauth" as (a1 tA s1 Hs1 ->) "(#HA & #Hs1)".
+    iDestruct "Hauth" as (a1 tA s1 Hs1 ->) "(#HinjA & #HA & #Hs1)".
     interp_unfold! in "Hevi".
-    iDestruct "Hevi" as (tA' ser deser ->) "[#Hser #Hdeser]".
+    iDestruct "Hevi" as (tA' ser deser ->) "(#Hinj & #Hser & #Hdeser)".
     wp_pures. iFrame. iModIntro.
     interp_unfold!.
     iIntros "!#" (? [? ?]).
@@ -283,15 +277,15 @@ Section proof.
     { iPoseProof refines_auth_return as "H". rewrite interp_unseal //. }
     iPoseProof refines_auth_bind as "?".
     rewrite interp_unseal //.
-  Qed. 
-  
+  Qed.
+
   Lemma refines_authentikit Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ Authentikit ⟧ Δ v_Authentikit i_Authentikit.
   Proof.
     iExists lrel_auth, lrel_auth_comp.
     iApply refines_authentikit_func.
-  Qed. 
-  
+  Qed.
+
   Lemma refines_authentikit_eq Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ Authentikit_eq ⟧ Δ v_Authentikit_eq i_Authentikit_eq.
   Proof.

@@ -72,6 +72,9 @@ Section authenticatable.
       exfalso. by eapply prod_ser_int_ser_neq.
   Qed.
 
+  Definition injective_lrel (A: lrel Σ) : iProp Σ :=
+    □ ∀ v1 v2 w1 w2, A v1 w1 -∗ A v2 w2 -∗ ⌜v1 = v2 ↔ w1 = w2⌝.
+
   Definition ser_spec (ser : val) (t : evi_type) (A : lrel Σ) : iProp Σ :=
     ∀ (v1 v2 : val),
       {{{ ▷ A v1 v2 }}} ser v1 {{{ s, RET #s; ⌜s_is_ser (evi_type_ser t) v1 s⌝ }}}.
@@ -85,12 +88,12 @@ Section authenticatable.
   Definition lrel_evidence' (A : lrel Σ) : lrel Σ :=
     LRel (λ v1 v2,
         ∃ (t : evi_type) (ser deser : val),
-          ⌜v1 = (ser, deser)%V⌝ ∗ ser_spec ser t A ∗ deser_spec deser t)%I.
+          ⌜v1 = (ser, deser)%V⌝ ∗ injective_lrel A ∗ ser_spec ser t A ∗ deser_spec deser t)%I.
 
   Program Definition lrel_evidence : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_evidence' A.
   Next Obligation.
     intros ??????.
-    rewrite /lrel_car/= /ser_spec.
+    rewrite /lrel_car/= /ser_spec /injective_lrel.
     solve_proper.
   Qed.
 
@@ -110,20 +113,25 @@ Section authenticatable.
     iModIntro. iFrame.
     iIntros (??) "!# HA".
     interp_unfold! in "HA".
-    iDestruct "HA" as (tA serA deserA ->) "[#HserA #HdeserA]". clear.
+    iDestruct "HA" as (tA serA deserA ->) "(#HinjA & #HserA & #HdeserA)". clear.
     iIntros (??) "Hi".
     i_pures; wp_pures.
     iModIntro. iFrame.
     iIntros (??) "!# HB".
     interp_unfold! in "HB".
-    iDestruct "HB" as (tB serB deserB ->) "[#HserB #HdeserB]". clear.
+    iDestruct "HB" as (tB serB deserB ->) "(#HinjB & #HserB & #HdeserB)". clear.
     iIntros (??) "Hi".
     i_pures; wp_pures.
     rewrite /prod_scheme /prod_ser /prod_deser.
     wp_pures. iFrame. iModIntro.
     interp_unfold!.
     iExists (tprod tA tB), _, _.
-    iSplit; [done|]. clear. iSplit.
+    iSplit; [done|]. clear. repeat iSplit.
+    - iIntros (??) "!# % % (% & % & % & % & -> & -> & HA & HB)
+                           (% & % & % & % & -> & -> & HA' & HB')" .
+      iDestruct ("HinjA" with "HA HA'") as %[HA HA'].
+      iDestruct ("HinjB" with "HB HB'") as %[HB HB'].
+      iPureIntro. split; intros [= -> ->]; rewrite ?HA ?HB ?HA' ?HB' //.
     - iIntros (v1 v2 ?) "!# Hp H".
       iDestruct "Hp" as (w1 w2 u1 u2) "(>-> & >-> & #HA & #HB)".
       wp_apply (prod_ser'_spec (evi_type_ser tA) (evi_type_ser tB)
@@ -150,20 +158,26 @@ Section authenticatable.
     iModIntro. iFrame.
     iIntros (??) "!# HA".
     interp_unfold! in "HA".
-    iDestruct "HA" as (tA serA deserA ->) "[#HserA #HdeserA]". clear.
+    iDestruct "HA" as (tA serA deserA ->) "(#HinjA & #HserA & #HdeserA)". clear.
     iIntros (??) "Hi".
     i_pures; wp_pures.
     iModIntro. iFrame.
     iIntros (??) "!# HB".
     interp_unfold! in "HB".
-    iDestruct "HB" as (tB serB deserB ->) "[#HserB #HdeserB]". clear.
+    iDestruct "HB" as (tB serB deserB ->) "(#HinjB & #HserB & #HdeserB)". clear.
     iIntros (??) "Hi".
     i_pures; wp_pures.
     rewrite /sum_scheme /sum_ser /sum_deser.
     wp_pures. iModIntro. iFrame.
     interp_unfold!.
     iExists (tsum tA tB), _, _.
-    iSplit; [done|]. clear. iSplit.
+    iSplit; [done|]. clear. repeat iSplit.
+    - iIntros (??) "!# % % (% & % & [(-> & -> & HA) | (-> & -> & HB)])
+                           (% & % & [(-> & -> & HA') | (-> & -> & HB')])"; auto.
+      + iDestruct ("HinjA" with "HA HA'") as %[HA HA']. iPureIntro.
+        split; intros [= ->]; rewrite ?HA ?HA' //.
+      + iDestruct ("HinjB" with "HB HB'") as %[HB HB']. iPureIntro.
+        split; intros [= ->]; rewrite ?HB ?HB' //.
     - iIntros (v1 v2 Ψ) "!# (%w & %u & #Hsum) HΨ".
       wp_apply (sum_ser'_spec (evi_type_ser tA) (evi_type_ser tB)
                   (λ v1, A v1 u)%I (λ v1, B v1 u)%I with "[]"); [|done|done| |done].
@@ -177,7 +191,8 @@ Section authenticatable.
   Proof.
     iExists tstring, _, _.
     iSplit; [done|]. rewrite /ser_spec /deser_spec.
-    iSplit.
+    repeat iSplit.
+    - iIntros (??) "!# % % (% & -> & ->) (% & -> & ->) //".
     - iIntros (v1 v2 Ψ) "!# (% & #? & #?) HΨ".
       wp_apply string_ser_spec; [|done]. by iExists _.
     - iIntros (s Ψ) "!# _ HΨ".
@@ -190,7 +205,8 @@ Section authenticatable.
   Proof.
     iExists tint, _, _.
     iSplit; [done|]. rewrite /ser_spec /deser_spec.
-    iSplit.
+    repeat iSplit.
+    - iIntros (??) "!# % % (% & -> & ->) (% & -> & ->) //".
     - iIntros (v1 v2 Ψ) "!# (% & #? & #?) HΨ".
       wp_apply int_ser_spec; [|done]. by iExists _.
     - iIntros (s Ψ) "!# _ HΨ".
@@ -211,25 +227,47 @@ Section authenticatable.
     iIntros (??) "!# H".
     iIntros (??) "Hi".
     interp_unfold! in "H".
-    iDestruct "H" as "(%t & %ser & %deser & -> & #Hser & #Hdeser)".
+    iDestruct "H" as "(%t & %ser & %deser & -> & #Hinj & #Hser & #Hdeser)".
     i_pures. wp_pures.
     iFrame. iModIntro.
     interp_unfold!.
     iExists t, _, _. iSplit; [done|].
-    clear. iSplit.
+    clear. repeat iSplit.
+    - iClear "Hser Hdeser".
+      iIntros (??) "!# % %".
+      rewrite !interp_rec_star_unfold.
+      rewrite !interp_unseal /=.
+      iIntros "HA HA'".
+      (** * Goal: *)
+      (* "Hinj" : ∀ v0 v3 w0 w3 : val, *)
+      (*            A (interp_rec (λne A1 : lrelC Σ, A A1)) v0 w0 -∗ *)
+      (*            A (interp_rec (λne A1 : lrelC Σ, A A1)) v3 w3 -∗ ⌜v0 = v3 ↔ w0 = w3⌝ *)
+      (* --------------------------------------□ *)
+      (* "HA" : ▷ A (interp_rec (λne A1 : lrelC Σ, A A1)) v1 w1 *)
+      (* "HA'" : ▷ A (interp_rec (λne A1 : lrelC Σ, A A1)) v2 w2 *)
+      (* --------------------------------------∗ *)
+      (* ⌜v1 = v2 ↔ w1 = w2⌝ *)
+
+      admit.
+
+
     - iIntros (v1 v2 Ψ) "!# Hs HΨ".
       wp_pures.
       rewrite interp_rec_star_unfold.
       rewrite interp_unseal /=.
       by wp_apply ("Hser" with "Hs").
     - iIntros (s Ψ) "!# _ HΨ". wp_pures. by wp_apply "Hdeser".
-  Qed.
+  Admitted.
 
   Definition lrel_auth' (A : lrel Σ) : lrel Σ :=
     LRel (λ v1 v2,
         ∃ (a1 : val) (t : evi_type) (s1 : string),
           ⌜s_is_ser (evi_type_ser t) a1 s1⌝ ∗ ⌜v1 = #(hash s1)⌝ ∗
+          injective_lrel A ∗
           A a1 v2 ∗ hashed s1)%I.
+
+  Instance : NonExpansive injective_lrel.
+  Proof. Admitted.
 
   Program Definition lrel_auth : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_auth' A.
   Next Obligation. solve_proper. Qed.
@@ -255,7 +293,16 @@ Section authenticatable.
     rewrite /auth_ctx.
     interp_unfold!.
     iExists tstring, _, _.
-    iSplit; [done|]. clear. iSplit.
+    iSplit; [done|]. clear. repeat iSplit.
+    - iIntros (??) "!# % % (% & % & % & %HserA & -> & #HinjA & #HA & #Hs1)
+                           (% & % & % & %HserA' & -> & #HinjA' & #HA' & #Hs2)".
+      iDestruct ("HinjA" with "HA HA'") as %[HA1 HA2].
+      destruct (decide (collision s1 s0)) as [|Hnc%not_collision].
+      { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "Hs1 Hs2"). }
+      destruct Hnc as [<- |?]; simplify_eq.
+      + rewrite (evi_type_ser_inj_val _ _ _ _ _ HserA HserA') in HA1. rewrite HA1 //.
+      + iPureIntro. split; intros [=]; [done|]. subst. rewrite HA2 // in HserA.
+        rewrite (evi_type_ser_inj_str _ _ _ _ _ HserA HserA') //.
     - iIntros (???) "!# Hauth H".
       iDestruct "Hauth" as (???) "(#? & #? & #HA)".
       wp_apply string_ser_spec; [by iExists _|]. done.
@@ -276,7 +323,7 @@ Section authenticatable.
     iIntros (??) "!# #HeviA".
     rewrite /auth_ctx.
     interp_unfold! in "HeviA".
-    iDestruct "HeviA" as (tA ser deser ->) "[#Hser #Hdeser]".
+    iDestruct "HeviA" as (tA ser deser ->) "(#Hinj & #Hser & #Hdeser)".
     iIntros (??) "Hi".
     i_pures; wp_pures.
     iFrame.
