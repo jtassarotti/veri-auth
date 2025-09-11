@@ -49,10 +49,6 @@ Section proof.
     ∀ v w, vals_compare_safe v w.
   Proof. Admitted.
 
-  Lemma injective_lrel (A: lrel Σ) :
-    ∀ v1 v2 w1 w2 x1 x2, A x1 v1 w1 -∗ A x2 v2 w2 -∗ ⌜(v1 = v2 ↔ w1 = w2) ∧ (x1 = x2 ↔ w1 = w2)⌝.
-  Proof. Admitted.
-
   Lemma refines_auth_eqauth Θ (Δ: ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆, var2 var0 → var2 var0 → var1 t_bool ⟧
       (auth_ctx Δ) p_eqauth v_eqauth i_eqauth.
@@ -75,8 +71,8 @@ Section proof.
     { apply vals_compare_safe_admit. }
     { apply vals_compare_safe_admit. }
     Unshelve. 3: done.
-    iDestruct "HmA" as (tA' a1 a2 sa -> Hsa ->) "(Hsa & #HA)".
-    iDestruct "HmB" as (tB' b1 b2 sb -> Hsb ->) "(Hsb & #HB)".
+    iDestruct "HmA" as (tA' a1 a2 sa -> Hsa ->) "(#HinjA & Hsa & #HA)".
+    iDestruct "HmB" as (tB' b1 b2 sb -> Hsb ->) "(HinjB & Hsb & #HB)".
     wp_pures.
     case_bool_decide.
     - case_bool_decide.
@@ -86,7 +82,7 @@ Section proof.
         destruct Hnc as [<- |?]; simplify_eq.
         pose proof (evi_type_ser_inj_val tA' tB' a2 b2 sa Hsa Hsb) as Hs.
         subst.
-        iPoseProof (injective_lrel A with "HA HB") as "%H".
+        iPoseProof ("HinjA" with "HA HB") as "%H".
         destruct H as [_ H].
         destruct H as [_ H].
         destruct H; [done|].
@@ -100,12 +96,12 @@ Section proof.
         destruct Hnc as [<- |?]; simplify_eq.
         pose proof (evi_type_ser_inj_val tA' tB' a2 b2 sa Hsa Hsb) as Hs.
         subst.
-        iPoseProof (injective_lrel A with "HA HB") as "%H".
+        iPoseProof ("HinjA" with "HA HB") as "%H".
         destruct H as [H _].
         destruct H.
         destruct H; done.
     - case_bool_decide.
-      + iPoseProof (injective_lrel A with "HA HB") as "%H1".
+      + iPoseProof ("HinjA" with "HA HB") as "%H1".
         iAssert (⌜sa = sb → False⌝)%I as "%H2".
         { iIntros (?).
           destruct (decide (collision sa sb)) as [|Hnc%not_collision].
@@ -120,7 +116,7 @@ Section proof.
         destruct H1 as [_ H1].
         pose proof (H1 H0) as H4.
         done.
-      + iPoseProof (injective_lrel A with "HA HB") as "%H1".
+      + iPoseProof ("HinjA" with "HA HB") as "%H1".
         assert (a1 ≠ b1).
         { destruct H1 as [_ H1].
           intros ?.
@@ -189,14 +185,14 @@ Section proof.
     v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
     iIntros (???) "!#"; rewrite -!/interp /=.
-    iDestruct 1 as (tA p_ser v_ser v_deser -> ->) "#Hser".
+    iDestruct 1 as (tA p_ser v_ser v_deser -> ->) "#[HinjA Hser]".
     iIntros (????) "Hv Hi".
     v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
     iIntros (???) "!# #Hauth /=".
     iIntros (????) "Hv Hi".
     v_pures; i_pures; wp_pures.
-    iDestruct "Hauth" as (tA' a1 a2 s -> Hs ->) "(Hs & #HA)".
+    iDestruct "Hauth" as (tA' a1 a2 s -> Hs ->) "(HinjB & Hs & #HA)".
 
     iModIntro. iFrame.
     iIntros (??????? Ψ) "!# (Hv & Hi & [%Hprf Hproph]) HΨ".
