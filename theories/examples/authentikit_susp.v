@@ -39,7 +39,7 @@ Definition v_unauth : val :=
           match: "deserialize" "id" "p" with
             NONE => NONE
           | SOME "x" =>
-              let: "nchild" := "count" "p" in
+              let: "nchild" := "count" "x" in
               let: "finish" :=
                 λ: <>,
                   let: "y" := "serialize" "x" in
@@ -118,22 +118,17 @@ Definition p_unauth : val :=
         match: "a" with
           InjL "susp_data" =>
             let, ("b", "r", "a", <>) := "susp_data" in
-            "b" <- #false;;
-            if: !"r" then NONEV
-            else SOME "a"
+            if: !"r" then #() else "b" <- #false;;
+            "a"
         | InjR "data" =>
-            let, ("a", "<>") := "data" in SOME "a"
+            let, ("a", "<>") := "data" in "a"
         end
       in
-      match: "un_a" with
-        NONE => NONEV
-      | SOME "un_a" =>
-        let: "susp_un_a" := "suspend" "un_a" in
-        let: "finish" := λ: <>,"serialize" "susp_un_a" in
-        let: "prf_state'" := ("pf_stream", "finish" :: "buffer") in
-        ("prf_state'", "susp_un_a")
-      end.
-
+      let: "susp_un_a" := "suspend" "un_a" in
+      let: "finish" := λ: <>,"serialize" "susp_un_a" in
+      let: "prf_state'" := ("pf_stream", "finish" :: "buffer") in
+      ("prf_state'", "susp_un_a").
+                     
 Definition flush_buf_stream : val :=
   rec: "aux" "buffer" "pf_stream" :=
       match: list_head "buffer" with
