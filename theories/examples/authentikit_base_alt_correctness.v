@@ -13,7 +13,7 @@ Section authenticatable.
     ∀ (a1 a2 a3 : val),
       {{{ ▷ A a1 a2 a3 }}}
         p_ser a1
-      {{{ s, RET #s; ⌜s_is_ser (evi_type_ser t) a2 s⌝ ∗ v_ser_spec v_ser a2 s }}}.
+      {{{ s, RET #s; s_is_ser (g := gwp_upto_bad) (evi_type_ser t) a2 s ∗ v_ser_spec v_ser a2 s }}}.
 
   Definition v_deser_spec (v_deser : val) (t : evi_type) (a2 : val) (s : string) : iProp Σ :=
     (□ ∀ K tᵥ, spec_verifier tᵥ (fill K (v_deser #s)) ={⊤}=∗ spec_verifier tᵥ (fill K (SOMEV a2))).
@@ -21,7 +21,7 @@ Section authenticatable.
   Definition deser_spec (p_deser v_deser : val) (A : lrel Σ) : iProp Σ :=
     {{{ True }}} p_deser #() {{{ RET #(); True }}} ∗
     ∀ (a1 a2 a3 : val) (t : evi_type) (s : string),
-      {{{ ⌜s_is_ser (evi_type_ser t) a2 s⌝ ∗ ▷ A a1 a2 a3 }}}
+      {{{ s_is_ser (g := gwp_upto_bad) (evi_type_ser t) a2 s ∗ ▷ A a1 a2 a3 }}}
         p_deser #()
       {{{ RET #(); v_deser_spec v_deser t a2 s }}}.
 
@@ -66,10 +66,10 @@ Section authenticatable.
       iDestruct "Hp" as (??????) "(>-> & >-> & >-> & #Ha & #Hb)".
       wp_pures.
       wp_apply ("HserA" with "Ha").
-      iIntros (sA) "(%HsA & #HserA')".
+      iIntros (sA) "(#HsA & #HserA')".
       wp_pures.
       wp_apply ("HserB" with "Hb").
-      iIntros (sB) "(%HsB & #HserB')".
+      iIntros (sB) "(#HsB & #HserB')".
       wp_pures.
       iApply "HΨ".
       iModIntro. iSplit.

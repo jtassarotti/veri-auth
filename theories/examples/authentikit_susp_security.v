@@ -1,11 +1,14 @@
 From auth.prelude Require Import stdpp.
 From auth.rel_logic_bin Require Export model spec_rules spec_tactics interp lib adequacy fundamental.
+From auth.heap_lang Require Import gen_weakestpre.
 From auth.heap_lang.lib Require Import list serialization.
 From auth.examples Require Export authentikit_susp authenticatable_base_susp.
 From iris.base_logic.lib Require Export invariants.
 
 Section authenticatable.
-  Context `{!authG Σ} (N : namespace).
+  Context `{!authG Σ} `{invGS_gen hlc Σ} `{g : !GenWp Σ} (N : namespace).
+
+  Implicit Types c : gwp_type g.
 
   Inductive evi_type : Type :=
   | tprod (t1 t2 : evi_type)
@@ -20,6 +23,68 @@ Section authenticatable.
   Definition auth_serialization_scheme : serialization_scheme :=
     sum_serialization_scheme string_serialization_scheme string_serialization_scheme.
 
+  Definition auth_valid_val (v : val) : iProp Σ :=
+    (∃ (h : string), ⌜v = InjLV #h⌝) ∨
+      (∃ (susp : loc), ⌜v = InjRV #susp⌝ ∗
+        ((∃ (h : string), gwp_pointsto g susp (DfracOwn 1) (InjRV #h)) ∨
+          (∃ (pid : nat), gwp_pointsto g susp (DfracOwn 1) (InjLV #pid)))).
+
+  Definition auth_is_ser (v : val) (s : string) : iProp Σ :=
+    (∃ (h : string), ⌜v = InjLV #h⌝ ∗ string_is_ser #h s) ∨
+       (∃ (susp : loc), ⌜v = InjRV #susp⌝ ∗
+         ((∃ (h : string), gwp_pointsto g susp (DfracOwn 1) (InjRV #h) ∗ string_is_ser #h s) ∨
+            (∃ (pid : nat), gwp_pointsto g susp (DfracOwn 1) (InjLV #pid) ∗ ⌜s = ""⌝))).
+
+  Lemma auth_is_ser_inj v s1 s2 :
+    auth_is_ser v s1 -∗ auth_is_ser v s2 -∗ ⌜s1 = s2⌝.
+  Proof.
+    iIntros "[(% & % & Hs1)|(% & % & [(% & Hl1 & Hs1)|(% & Hl1 & %)])] [(% & % & Hs2)|(% & % & [(% & Hl2 & Hs2)|(% & Hl2 & %)])]"; simplify_eq.
+    - by iApply (string_is_ser_inj with "[Hs1] [Hs2]").
+    - iPoseProof (pointsto_agree with "[Hl1] [Hl2]") as "%". [done|done|]. simplify_eq.
+      by iApply (string_is_ser_inj with "[Hs1] [Hs2]").
+    - iPoseProof (pointsto_agree with "[Hl1] [Hl2]") as "%"; [done|done|]. simplify_eq.
+    - iPoseProof (pointsto_agree with "[Hl1] [Hl2]") as "%"; [done|done|]. simplify_eq.
+    - iPoseProof (pointsto_agree with "[Hl1] [Hl2]") as "%"; [done|done|]. done.
+  Qed.
+
+  Lemma auth_is_ser_valid v s : auth_is_ser v s ⊢ auth_valid_val v.
+  Proof.
+    iIntros "[(% & % & Hs1)|(% & % & [(% & Hl1 & Hs1)|(% & Hl1 & %)])]".
+    - iLeft. iFrame "%".
+    - iRight. iFrame "%".
+      iLeft. iFrame.
+    - iRight. iFrame "%".
+      iRight. iFrame.
+  Qed.
+
+  Lemma auth_ser_spec E v c :
+    G{{{ ▷?(gwp_laters g) auth_valid_val v }}}
+      auth_ser_v v @ c; E
+    {{{ (s : string), RET #s; auth_is_ser v s }}} ? gwp_laters g.
+  Proof.
+    iIntros (?) "H1 H2".
+    rewrite /auth_ser_v. gwp_pures.
+    iDestruct "H1" as "[(% & ->)|(% & -> & [(% & Hl1)|(% & Hl1)])]".
+    - gwp_pures. rewrite /string_ser.
+      gwp_pures. iModIntro. iApply "H2".
+      rewrite /auth_is_ser. iLeft.
+      iExists _. iSplit; [done|].
+      rewrite /string_is_ser. eauto.
+    - gwp_pures. gwp_load.
+      
+  
+  Definition equivalent (t : evi_type) (v1 : val) (v2 : val) : val :=
+    match t with
+    | tprod t1 t2 => 
+    | tsum t1 t2 =>
+        (match: val with
+           InjLV "lv" => InjLV (make_serializable "lv")
+         | InjRV "rv" => InjRV (make_serializable "rv"))%I
+    | tstring => v
+    | tint => v
+    | tauth =>
+        (
+        
   Fixpoint s_is_ser' (t : evi_type) (v : val) (s : string) : iProp Σ :=
     match t with
     | tprod t1 t2 => prod_is_ser' v s (s_is_ser' t1) (s_is_ser' t2)
@@ -65,13 +130,13 @@ Section authenticatable.
                                                  
   Definition ser_spec (ser : val) (t : evi_type) (A : lrel Σ) : iProp Σ :=
     ∀ (v1 v2 : val),
-      {{{ ▷ A v1 v2 }}} ser v1 {{{ s, RET #s; s_is_ser' t v1 s }}}.
+      {{{ ▷ A v1 v2 }}} ser v1 {{{ s, RET #s; s_is_ser (g := gwp_upto_bad) (evi_type_ser t) v1 s }}}.
 
   Definition deser_spec (deser : val) (t : evi_type) : iProp Σ :=
     ∀ (pid : nat) (s : string),
       {{{ True }}}
         deser #pid #s
-        {{{ o, RET $o; if o is Some v then s_is_ser' t v s else True }}}.
+        {{{ o, RET $o; if o is Some v then s_is_ser (g := gwp_upto_bad) (evi_type_ser t) v s else True }}}.
 
   Definition count_spec (count : val) (t : evi_type) : iProp Σ :=
     ∀ (v : val),
@@ -124,8 +189,8 @@ Section proof.
     rewrite /prod_scheme /prod_ser /prod_deser /prod_count.
     wp_pures. iFrame. iModIntro.
     interp_unfold!.
-    iExists (tprod tA tB), _, _.
-    iSplit; [done|]. clear. iSplit.
+    iExists (tprod tA tB), _, _, _.
+    iSplit; [done|]. clear. iSplit; [|iSplit].
     - iIntros (v1 v2 ?) "!# Hp H".
       iDestruct "Hp" as (w1 w2 u1 u2) "(>-> & >-> & #HA & #HB)".
       wp_apply (prod_ser'_spec (evi_type_ser tA) (evi_type_ser tB)
@@ -133,7 +198,7 @@ Section proof.
       { iIntros (?) "!# _ H". by wp_apply ("HserA" with "HA"). }
       { iIntros (?) "!# _ H". by wp_apply ("HserB" with "HB"). }
       iExists _, _.  eauto.
-    - iIntros (s Ψ) "!# _ HΨ". by wp_apply prod_deser'_sound.
+    - iIntros (pid s Ψ) "!# _ HΨ". by wp_apply prod_deser'_sound.
   Qed.
   
   

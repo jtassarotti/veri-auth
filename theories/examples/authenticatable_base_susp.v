@@ -20,19 +20,18 @@ Definition auth_scheme : expr := sum_scheme string_scheme string_scheme.
 
 Definition auth_ser_v : val :=
   λ: "v",
-    let: "a_ser" := Fst auth_scheme in
     match: "v" with
-      InjL "h" => "a_ser" (InjR "h")
+      InjL "h" => string_ser "h"
     | InjR "susp" =>
         match: !"susp" with
-          InjR "h" => "a_ser" (InjR "h")
+          InjR "h" => string_ser "h"
         | InjL <> => NONEV
         end
     end.
 
 Definition auth_deser_v : val :=
-  λ: "s",
-    match: Snd auth_scheme with
+  λ: "s" "pid",
+    match: (Snd auth_scheme) "s" with
       NONE => NONE
     | SOME "v" =>
         match: "v" with
@@ -63,7 +62,7 @@ Definition v_Auth_pair : val :=
         let, ("ser_A", "deser_A", "count_A") := "A" in
         let, ("ser_B", "deser_B", "count_B") := "B" in
         let: "ser" := prod_ser "ser_A" "ser_B" in
-        let: "deser" := prod_deser ("deser_A" "pid") ("deser_B" "pid") in
+        let: "deser" := λ: "pid", prod_deser ("deser_A" "pid") ("deser_B" "pid") in
         let: "count" := prod_count "count_A" "count_B" in
         ("ser", "deser", "count").
 Definition v_Auth_sum : val :=
@@ -71,7 +70,7 @@ Definition v_Auth_sum : val :=
         let, ("ser_A", "deser_A", "count_A") := "A" in
         let, ("ser_B", "deser_B", "count_B") := "B" in
         let: "ser" := sum_ser "ser_A" "ser_B" in
-        let: "deser" := sum_deser ("deser_A" "pid") ("deser_B" "pid") in
+        let: "deser" := λ: "pid", sum_deser ("deser_A" "pid") ("deser_B" "pid") in
         let: "count" := sum_count "count_A" "count_B" in
         ("ser", "deser", "count").
 Definition v_Auth_string : val :=

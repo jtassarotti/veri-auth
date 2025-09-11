@@ -75,8 +75,8 @@ end = struct
   let unauth evi a prf_state =
     let un_a = match a with
       | MerkleSusp (b, r, a, _) ->
-        if !r then failwith "This value has been serialized earlier. It should not be suspended.";
-        b := true; a
+        if not !r then b := true;
+        a
       | Merkle (a, _) -> a (* Never reached *)
     in
     let susp_un_a = evi.suspend un_a in
