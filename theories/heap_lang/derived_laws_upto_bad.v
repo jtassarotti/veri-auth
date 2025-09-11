@@ -418,6 +418,7 @@ Global Typeclasses Opaque array.
 Proof.
   constructor; intros.
   - apply _.
+  - iApply pointsto_agree.
   - by apply wp_value.
   - apply wp_fupd.
   - apply wp_bind. apply _.

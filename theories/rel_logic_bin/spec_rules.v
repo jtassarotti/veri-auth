@@ -311,6 +311,14 @@ Lemma gwp_mixin_spec_ideal `{!authG Σ} :
 Proof.
   constructor; intros.
   - apply _.
+  - apply bi.entails_wand, bi.wand_intro_r.
+    rewrite heapS_pointsto_eq -own_op -auth_frag_op own_valid uPred.discrete_valid.
+    f_equiv=> /=.
+    rewrite -!pair_op singleton_op right_id -!pair_op.
+    rewrite auth_frag_valid.
+    intros [_ Hv]. move:Hv => /=.
+    rewrite singleton_valid.
+    by move=> [_] /to_agree_op_inv_L [->].
   - by iIntros "H" (??) "[% $]".
   - iIntros "H" (??) "[% Hi]". iMod ("H" with "[$Hi //]") as (?) "[$ $]".
   - iIntros "H" (? K') "[% Hi]".
