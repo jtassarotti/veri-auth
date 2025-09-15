@@ -319,6 +319,10 @@ Proof.
     intros [_ Hv]. move:Hv => /=.
     rewrite singleton_valid.
     by move=> [_] /to_agree_op_inv_L [->].
+  - rewrite heapS_pointsto_eq /heapS_pointsto_def own_valid !uPred.discrete_valid.
+    apply bi.entails_wand, pure_mono=> /auth_frag_valid /= [_ Hfoo].
+    revert Hfoo. simpl. rewrite singleton_valid.
+    by intros [? _].
   - by iIntros "H" (??) "[% $]".
   - iIntros "H" (??) "[% Hi]". iMod ("H" with "[$Hi //]") as (?) "[$ $]".
   - iIntros "H" (? K') "[% Hi]".

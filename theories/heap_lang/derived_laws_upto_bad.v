@@ -419,6 +419,9 @@ Proof.
   constructor; intros.
   - apply _.
   - iApply pointsto_agree.
+  - rewrite !uPred.discrete_valid. iApply pointsto_valid.
+  - iIntros "H1 H2".
+    by iPoseProof (pointsto_valid_2 with "H1 H2") as "(% & %)".
   - by apply wp_value.
   - apply wp_fupd.
   - apply wp_bind. apply _.

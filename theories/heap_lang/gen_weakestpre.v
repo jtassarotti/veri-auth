@@ -2,6 +2,7 @@ From iris.bi Require Export bi updates.
 From iris.base_logic.lib Require Import fancy_updates.
 From iris.proofmode Require Import coq_tactics reduction spec_patterns.
 From iris.proofmode Require Export tactics.
+Import uPred.
 
 From auth.heap_lang Require Import lang tactics notation class_instances.
 Set Default Proof Using "Type*".
@@ -16,6 +17,10 @@ Section GenWp_mixin.
     mixin_gwp_pointsto_timeless l dq v : Timeless (gwp_pointsto l dq v);
     mixin_gwp_pointsto_agree l dq1 dq2 v1 v2 :
       gwp_pointsto l dq1 v1 -∗ gwp_pointsto l dq2 v2 -∗ ⌜v1=v2⌝;
+    mixin_gwp_pointsto_valid l dq v :
+      gwp_pointsto l dq v -∗ ✓ dq;
+    mixin_gwp_pointsto_valid_2 l dq1 dq2 v1 v2 :
+      gwp_pointsto l dq1 v1 -∗ gwp_pointsto l dq2 v2 -∗ ⌜✓ (dq1 ⋅ dq2)⌝;
       
     mixin_gwp_value E Φ v s : Φ v ⊢ gwp s E (of_val v) Φ;
       mixin_gwp_fupd E Φ e s : gwp s E e (λ v, |={E}=> Φ v) ⊢ gwp s E e Φ;
@@ -90,6 +95,12 @@ Section genWp.
   Proof. apply gwp_mixin. Qed.
   Lemma gwp_pointsto_agree l dq1 dq2 v1 v2 :
     gwp_pointsto g l dq1 v1 -∗ gwp_pointsto g l dq2 v2 -∗ ⌜v1=v2⌝.
+  Proof. apply gwp_mixin. Qed.
+  Lemma gwp_pointsto_valid l dq v :
+    gwp_pointsto g l dq v -∗ ✓ dq.
+  Proof. apply gwp_mixin. Qed.
+  Lemma gwp_pointsto_valid_2 l dq1 dq2 v1 v2 :
+    gwp_pointsto g l dq1 v1 -∗ gwp_pointsto g l dq2 v2 -∗ ⌜✓ (dq1 ⋅ dq2)⌝.
   Proof. apply gwp_mixin. Qed.
   
   Lemma gwp_value E Φ v s : Φ v ⊢ GWP (of_val v) @ s ; E {{ Φ }}.
