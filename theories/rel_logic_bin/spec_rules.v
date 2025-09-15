@@ -323,6 +323,14 @@ Proof.
     apply bi.entails_wand, pure_mono=> /auth_frag_valid /= [_ Hfoo].
     revert Hfoo. simpl. rewrite singleton_valid.
     by intros [? _].
+  - apply bi.entails_wand, bi.wand_intro_r.
+    rewrite heapS_pointsto_eq -own_op -auth_frag_op own_valid uPred.discrete_valid.
+    f_equiv=> /=.
+    rewrite -!pair_op singleton_op right_id -!pair_op.
+    rewrite auth_frag_valid.
+    intros [_ Hv]. move:Hv => /=.
+    rewrite singleton_valid.
+    by move=> [H1 _].     
   - by iIntros "H" (??) "[% $]".
   - iIntros "H" (??) "[% Hi]". iMod ("H" with "[$Hi //]") as (?) "[$ $]".
   - iIntros "H" (? K') "[% Hi]".
