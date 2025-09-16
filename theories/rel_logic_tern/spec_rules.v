@@ -531,6 +531,9 @@ Lemma gwp_mixin_spec_verifier `{!authG Σ} :
 Proof.
   constructor; intros.
   - apply _.
+  - iIntros "H1 H2". by iDestruct (pointstoS_agree with "H1 H2") as "[H ->]".
+  - iIntros "H". iApply (pointstoS_valid with "H").
+  - iIntros "H1 H2". by iDestruct (pointstoS_agree with "H1 H2") as "[H ->]".
   - by iIntros "H" (??) "[% $]".
   - iIntros "H" (??) "[% Hi]". iMod ("H" with "[$Hi //]") as (?) "[$ $]".
   - iIntros "H" (? K') "[% Hi]".
@@ -564,6 +567,9 @@ Lemma gwp_mixin_spec_ideal `{!authG Σ} :
 Proof.
   constructor; intros.
   - apply _.
+  - iIntros "H1 H2". by iDestruct (pointstoS_agree with "H1 H2") as "[H ->]".
+  - iIntros "H". iApply (pointstoS_valid with "H").
+  - iIntros "H1 H2". by iDestruct (pointstoS_agree with "H1 H2") as "[H ->]".    
   - by iIntros "H" (??) "[% $]".
   - iIntros "H" (??) "[% Hi]". iMod ("H" with "[$Hi //]") as (?) "[$ $]".
   - iIntros "H" (? K') "[% Hi]".
