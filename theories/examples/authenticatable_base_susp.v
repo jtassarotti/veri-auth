@@ -16,27 +16,30 @@ Definition sum_count : val :=
     | InjR "vB" => "countB" "vB"
     end.
 
-Definition auth_scheme : expr := sum_scheme string_scheme string_scheme.
+Definition auth_scheme : serialization_scheme :=
+  option_serialization_scheme string_serialization_scheme.
+Arguments s_serializer : simpl never.
+Arguments s_deserializer : simpl never.
 
 Definition auth_ser_v : val :=
   λ: "v",
     match: "v" with
-      InjL "h" => string_ser "h"
+      InjL "h" => auth_scheme.(s_serializer) (SOME "h")
     | InjR "susp" =>
         match: !"susp" with
-          InjR "h" => string_ser "h"
-        | InjL <> => NONEV
+          InjR "h" => auth_scheme.(s_serializer) (SOME "h")
+        | InjL <> => auth_scheme.(s_serializer) NONE
         end
     end.
 
 Definition auth_deser_v : val :=
-  λ: "s" "pid",
-    match: (Snd auth_scheme) "s" with
+  λ: "pid" "s",
+    match: auth_scheme.(s_deserializer) "s" with
       NONE => NONE
     | SOME "v" =>
         match: "v" with
-          InjL <> => SOME (InjR (ref (InjL "pid")))
-        | InjR "h" => SOME (InjL "h")
+          NONE => SOME (InjR (ref (InjL "pid")))
+        | SOME "h" => SOME (InjL "h")
         end
     end.
 
@@ -80,7 +83,7 @@ Definition v_Auth_int : val :=
 
 Definition auth_ser_p : val :=
   λ: "a",
-    let: "a_ser" := Fst auth_scheme in
+    let: "a_ser" := auth_scheme.(s_deserializer) in
     match: "a" with
       InjL "d" =>
         let, ("a", "h") := "d" in

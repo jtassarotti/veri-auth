@@ -5,46 +5,35 @@ From auth.heap_lang.lib Require Import list serialization.
 From auth.examples Require Export authentikit_susp authenticatable_base_susp.
 From iris.base_logic.lib Require Export invariants.
 
-Section authenticatable.
-  Context `{!authG Σ} `{invGS_gen hlc Σ} `{g : !GenWp Σ} (N : namespace).
+Section auth_serialization.
+  Context `{invGS_gen hlc Σ} `{g : !GenWp Σ} (N : namespace).
 
   Implicit Types c : gwp_type g.
-
-  Inductive evi_type : Type :=
-  | tprod (t1 t2 : evi_type)
-  | tsum (t1 t2 : evi_type)
-  | tstring
-  | tint
-  | tauth.
-
-  #[global] Instance : Inhabited evi_type.
-  Proof. constructor. apply tstring. Qed.
-
-  Definition auth_serialization_scheme : serialization_scheme :=
-    sum_serialization_scheme string_serialization_scheme string_serialization_scheme.
 
   Definition auth_valid_val (v : val) : iProp Σ :=
     (∃ (h : string), ⌜v = InjLV #h⌝) ∨
       (∃ (susp : loc), ⌜v = InjRV #susp⌝ ∗
-        ((∃ (h : string), gwp_pointsto g susp (DfracOwn 1) (InjRV #h)) ∨
+        ((∃ (h : string), gwp_pointsto g susp DfracDiscarded (InjRV #h)) ∨
           (∃ (pid : nat), gwp_pointsto g susp (DfracOwn 1) (InjLV #pid)))).
 
   Definition auth_is_ser (v : val) (s : string) : iProp Σ :=
-    (∃ (h : string), ⌜v = InjLV #h⌝ ∗ string_is_ser #h s) ∨
+    (∃ (h : string), ⌜v = InjLV #h⌝ ∗ s_is_ser (g:=g) auth_scheme (SOMEV #h) s) ∨
        (∃ (susp : loc), ⌜v = InjRV #susp⌝ ∗
-         ((∃ (h : string), gwp_pointsto g susp (DfracOwn 1) (InjRV #h) ∗ string_is_ser #h s) ∨
-            (∃ (pid : nat), gwp_pointsto g susp (DfracOwn 1) (InjLV #pid) ∗ ⌜s = ""⌝))).
+         ((∃ (h : string), gwp_pointsto g susp DfracDiscarded (InjRV #h) ∗ s_is_ser (g:=g) auth_scheme (SOMEV #h) s) ∨
+            (∃ (pid : nat), gwp_pointsto g susp (DfracOwn 1) (InjLV #pid) ∗ s_is_ser (g:=g) auth_scheme NONEV s))).
 
   Lemma auth_is_ser_inj v s1 s2 :
     auth_is_ser v s1 -∗ auth_is_ser v s2 -∗ ⌜s1 = s2⌝.
   Proof.
     iIntros "[(% & % & Hs1)|(% & % & [(% & Hl1 & Hs1)|(% & Hl1 & %)])] [(% & % & Hs2)|(% & % & [(% & Hl2 & Hs2)|(% & Hl2 & %)])]"; simplify_eq.
-    - by iApply (string_is_ser_inj with "[Hs1] [Hs2]").
-    - iPoseProof (pointsto_agree with "[Hl1] [Hl2]") as "%". [done|done|]. simplify_eq.
-      by iApply (string_is_ser_inj with "[Hs1] [Hs2]").
-    - iPoseProof (pointsto_agree with "[Hl1] [Hl2]") as "%"; [done|done|]. simplify_eq.
-    - iPoseProof (pointsto_agree with "[Hl1] [Hl2]") as "%"; [done|done|]. simplify_eq.
-    - iPoseProof (pointsto_agree with "[Hl1] [Hl2]") as "%"; [done|done|]. done.
+    - iEval (simpl) in "Hs1 Hs2".
+      by iApply (option_is_ser_inj with "[Hs1] [Hs2]").
+    - iEval (simpl) in "Hs1 Hs2".
+      iPoseProof (gwp_pointsto_agree with "[Hl1] [Hl2]") as "%"; [done|done|]. simplify_eq.
+      by iApply (option_is_ser_inj with "[Hs1] [Hs2]").
+    - iPoseProof (gwp_pointsto_agree with "[Hl1] [Hl2]") as "%"; [done|done|]. simplify_eq.
+    - iPoseProof (gwp_pointsto_agree with "[Hl1] [Hl2]") as "%"; [done|done|]. simplify_eq.
+    - by iPoseProof (gwp_pointsto_valid_2 with "Hl1 Hl2") as "%".
   Qed.
 
   Lemma auth_is_ser_valid v s : auth_is_ser v s ⊢ auth_valid_val v.
@@ -60,18 +49,111 @@ Section authenticatable.
   Lemma auth_ser_spec E v c :
     G{{{ ▷?(gwp_laters g) auth_valid_val v }}}
       auth_ser_v v @ c; E
-    {{{ (s : string), RET #s; auth_is_ser v s }}} ? gwp_laters g.
+    {{{ (w: val), RET w; (∃ (s: string), ⌜w=#s⌝ ∗ auth_is_ser v s) }}} ? gwp_laters g.
   Proof.
     iIntros (?) "H1 H2".
     rewrite /auth_ser_v. gwp_pures.
     iDestruct "H1" as "[(% & ->)|(% & -> & [(% & Hl1)|(% & Hl1)])]".
-    - gwp_pures. rewrite /string_ser.
-      gwp_pures. iModIntro. iApply "H2".
-      rewrite /auth_is_ser. iLeft.
+    - gwp_pures.
+      gwp_apply s_ser_spec.
+      { iRight. iExists _. iSplit; [done|].
+        iExists _. done. }
+      iIntros (s Hser).
+      destruct Hser as [(? & Hser)|Hser]; [done|].
+      destruct Hser as (? & ? & (H1 & ->) & (s' & -> & ->)).
+      inversion H1. subst.
+      iApply "H2".
       iExists _. iSplit; [done|].
-      rewrite /string_is_ser. eauto.
-    - gwp_pures. gwp_load.
-      
+      rewrite /auth_is_ser /auth_scheme. iLeft.
+      iExists _. iSplit; [done|].
+      simpl. rewrite /option_is_ser.
+      iRight.
+      iExists _, _.
+      eauto.
+    - gwp_pures. gwp_load. gwp_pures.
+      gwp_apply (s_ser_spec).
+      { iRight. eauto. }
+      iIntros (?) "Hser".
+      iApply "H2". 
+      iExists _. iSplit; [done|].
+      rewrite /auth_is_ser //.
+      iRight. iExists _. iSplit; [done|].
+      iLeft. iFrame.
+    - gwp_pures. gwp_load. gwp_pures.
+      gwp_apply (s_ser_spec).
+      { iLeft. eauto. }
+      iIntros (?) "Hser".
+      iApply "H2". 
+      iExists _. iSplit; [done|].
+      rewrite /auth_is_ser //.
+      iRight. iExists _. iSplit; [done|].
+      iRight. iFrame.
+  Qed.
+
+End auth_serialization.
+
+Program Definition auth_serialization : serialization :=
+  {| s_valid_val := λ _ Σ, @auth_valid_val _ Σ;
+    s_serializer := auth_ser_v;
+    s_is_ser := λ _ _ Σ, @auth_is_ser _ _ Σ;
+    s_is_ser_inj := λ _ Σ, @auth_is_ser_inj _ Σ;
+    s_is_ser_valid := λ _ Σ, @auth_is_ser_valid _ Σ;
+    s_ser_spec := @auth_ser_spec; |}.
+
+Section auth_deserialization.
+  Context `(pid : nat).
+  Context `{invGS_gen hlc Σ} `{g : !GenWp Σ} (N : namespace).
+
+  Implicit Types c : gwp_type g.
+
+  Definition auth_is_ser' (v : val) (s : string) : iProp Σ :=
+    (∃ (h : string), ⌜v = InjLV #h⌝ ∗ string_is_ser #h s) ∨
+       (∃ (susp : loc), ⌜v = InjRV #susp⌝ ∗
+         ((∃ (h : string), gwp_pointsto g susp (DfracOwn (1/2)) (InjRV #h) ∗ string_is_ser #h s) ∨
+            (∃ (pid : nat), gwp_pointsto g susp (DfracOwn (1/2)) (InjLV #pid) ∗ ⌜s = ""⌝))).
+
+  Lemma auth_deser_sound E s c:
+    G{{{ True }}}
+      auth_deser_v #pid #s @ c; E
+    {{{ o, RET $o; if o is Some v then auth_is_ser (g:=g) v s else ⌜True⌝ }}} ? gwp_laters g.
+  Proof.
+    iIntros (Φ _) "HΦ".
+    rewrite /auth_deser_v.
+    gwp_pures.
+    gwp_apply (s_deser_sound); [done|].
+    iIntros ([a|]) "Hser"; gwp_pures; [|by iApply ("HΦ" $! None)].
+    iDestruct "Hser" as "[(% & %)|(% & % & (% & %) & (% & % & %))]";
+      simplify_eq; gwp_pures; last first.
+    { iModIntro. iApply ("HΦ" $! (Some _)).
+      iLeft. iExists _. iSplit; [done|].
+      iRight. iExists _, _. iSplit; eauto. }
+    gwp_alloc susp. gwp_pures.
+    iModIntro. iApply ("HΦ" $! (Some _)).
+    iRight. iExists _. iSplit; [done|].
+    iRight. iFrame.
+    iLeft. done.
+  Qed.
+
+  Lemma auth_deser_complete E v s c:
+    G{{{ auth_is_ser (g := g) v s }}}
+      auth_deser_v #pid #s @ c; E
+    {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+  Proof.
+    iIntros (?) "Hser H".
+    iDestruct "Hser" as "[(% & % & Hs1)|(% & % & [(% & Hl1 & Hs1)|(% & Hl1 & %)])]"; 
+      rewrite /auth_deser_v; gwp_pures.
+    Focus 3.
+    destruct H1 as [(? & ?)|(? & ? & (? & ?) & ? & ? & ?)]; [|done].
+    simplify_eq. rewrite /s_deserializer. 
+    gwp_pures. rewrite /option_deser'. gwp_pures.
+    
+End auth_deserialization.
+
+Program Definition auth_deserialization : deserialization :=
+  {| s_deserializer := auth_deser_v;
+    s_deser_sound := ;
+    s_deser_complete := ;
+  |}.
   
   Definition equivalent (t : evi_type) (v1 : val) (v2 : val) : val :=
     match t with
@@ -97,6 +179,16 @@ Section authenticatable.
             ((∃ (h : string), susp ↦ (InjRV #h) ∗ s_is_ser (g := gwp_upto_bad) auth_serialization_scheme (InjRV #h) s) ∨
                (∃ (v : val), susp ↦ InjLV v)))
     end.
+
+  Inductive evi_type : Type :=
+  | tprod (t1 t2 : evi_type)
+  | tsum (t1 t2 : evi_type)
+  | tstring
+  | tint
+  | tauth.
+
+  #[global] Instance : Inhabited evi_type.
+  Proof. constructor. apply tstring. Qed.
 
   Fixpoint evi_type_ser (t : evi_type) : serialization_scheme :=
     match t with
