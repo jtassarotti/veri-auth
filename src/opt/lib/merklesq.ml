@@ -104,7 +104,7 @@ module MerkleSq : MERKLESQ =
     
     let retrieve key forest =
       let* (trees, n) = unauth forest_evi forest in
-      (* let* key = randomize key in *)
+      let* key = randomize key in
       retrieve_aux key trees
 
 
@@ -181,7 +181,7 @@ module MerkleSq : MERKLESQ =
     
     let append key value forest =
       let* (trees, n) = unauth forest_evi forest in
-      (* let* key = randomize key in *)
+      let* key = randomize key in
       let* key_exists = retrieve_aux key trees in
       match key_exists with
       | None ->
@@ -200,7 +200,7 @@ module MerkleSq : MERKLESQ =
         | `left x ->
           let* tree1 = unauth cr_tree_evi tree1 in
           begin match tree1 with
-          | `left y -> return (x = y)
+          | `left y -> return (x = y && List.length tail1 = 0)
           | `right _ -> (print_string "insufficient tree2\n"; return false)
           end
         | `right ((i1, i2), pr_tree, left, right) ->
@@ -236,7 +236,7 @@ module MerkleSq : MERKLESQ =
 
       let trees1 = List.rev trees1 in
       let trees2 = List.rev trees2 in
-      (* let* key = randomize key in *)
+      let* key = randomize key in
       is_extension_aux key trees1 trees2
 
   end
