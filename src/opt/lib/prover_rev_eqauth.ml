@@ -13,6 +13,7 @@ end = struct
   type proof_state = proof_stream
   type 'a auth = 'a * string
   type 'a authenticated_computation = proof_state -> (proof_state * 'a)
+  type random = string
 
   let vrf_key: int array ref = ref [||]
 
@@ -29,6 +30,7 @@ end = struct
   module Authenticatable = struct
     include Authenticatable_base.Prover
     
+    let random = string
     let auth (a, h) = string h
       
   end

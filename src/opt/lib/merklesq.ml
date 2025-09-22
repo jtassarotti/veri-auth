@@ -8,7 +8,7 @@ module type MERKLESQ =
   
     type key = string
     type value = string
-    type data = key * value
+    type data = random * value
     type pos = int
     type pos_range = pos * pos
 
@@ -37,7 +37,7 @@ module MerkleSq : MERKLESQ =
 
     type key = string
     type value = string
-    type data = key * value
+    type data = random * value
     type pos = int
     type pos_range = pos * pos
 
@@ -50,7 +50,7 @@ module MerkleSq : MERKLESQ =
     type forest_auth = forest auth
 
     let data_evi : data Authenticatable.evidence = 
-      Authenticatable.(pair string string)
+      Authenticatable.(pair random string)
     let pos_evi : pos_range Authenticatable.evidence =
       Authenticatable.(pair int int)
     let pr_tree_evi : pr_tree Authenticatable.evidence =

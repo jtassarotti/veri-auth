@@ -15,6 +15,8 @@ end = struct
   type 'a authenticated_computation = proof_state -> (proof_state * 'a)
   type 'a auth = string
 
+  type random = string
+
   let vrf_key: int array ref = ref [||]
 
   let make_auth s = s
@@ -30,6 +32,7 @@ end = struct
   module Authenticatable = struct
     include Authenticatable_base.Verifier
 
+    let random = string
     let auth = string
 
   end

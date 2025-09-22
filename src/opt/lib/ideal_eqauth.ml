@@ -9,6 +9,7 @@ end = struct
   type proof_state = unit
   type 'a auth = 'a
   type 'a authenticated_computation = 'a
+  type random = string
 
   let[@inline] return a = a
   let[@inline] bind a f = (f[@inlined]) a
@@ -16,6 +17,7 @@ end = struct
 
   module Authenticatable = struct
     type 'a evidence = 'a -> unit
+    let random _ = ()
     let auth a = ()
     let pair a b (a, b) = ()
     let trio a b c (a, b, c) = ()

@@ -18,6 +18,8 @@ end = struct
   type 'a auth = | Merkle of 'a * string | MerkleSusp of bool ref * 'a * string
   type 'a authenticated_computation = proof_state -> (proof_state * 'a)
 
+  type random = string
+
   let vrf_key: int array ref = ref [||]
 
   (* let initial_id = Int.max_int
@@ -39,6 +41,8 @@ end = struct
 
   module Authenticatable = struct
     include Authenticatable_base.Prover_susp
+
+    let random = string
 
     let auth =
       let serialize = function

@@ -20,6 +20,8 @@ end = struct
   type suspension = | Tag of int | Hash of string
   type 'a auth = | Shallow of string | Suspension of suspension ref
 
+  type random = string
+
   let vrf_key: int array ref = ref [||]
   let counter: int ref = ref 0
   type finish_t = unit -> unit
@@ -50,6 +52,8 @@ end = struct
 
   module Authenticatable = struct
     include Authenticatable_base.Verifier_susp
+
+    let random = string
 
     let auth =
       let serialize = function
