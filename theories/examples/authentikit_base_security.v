@@ -206,6 +206,11 @@ Section authenticatable.
     - iIntros (s Ψ) "!# _ HΨ". wp_pures. by wp_apply "Hdeser".
   Qed.
 
+(*  Definition lrel_random (A : lrel Σ) : lrel Σ :=
+    LRel (λ v1 v2,
+        ∃ (p pk: val) (x1 x2 : string),
+          A x1 x2 ∗ verify pk x1 p ∗ proof_to_hash p v1)%I. *)
+
   Definition lrel_auth' (A : lrel Σ) : lrel Σ :=
     LRel (λ v1 v2,
         ∃ (a1 : val) (t : evi_type) (s1 : string),
