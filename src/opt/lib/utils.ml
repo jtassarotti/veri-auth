@@ -10,6 +10,19 @@ let from_channel_with_string chan =
   really_input chan str Marshal.header_size d;
   Bytes.to_string str
 
+(** String functions *)
+let string_to_bits (s : string) : string =
+  let len = String.length s in
+  let out = Bytes.create (len * 8) in
+  for i = 0 to len - 1 do
+    let code = Char.code s.[i] in
+    for j = 0 to 7 do
+      let bit = (code lsr (7 - j)) land 1 in
+      Bytes.set out (i * 8 + j) (if bit = 1 then '1' else '0')
+    done
+  done;
+  Bytes.unsafe_to_string out
+
 (** List functions *)
 let rec list_sub n path =
   if n = 0 then []
@@ -58,6 +71,16 @@ let measured_calls = ref 0
 let set_default_seed () =
   Random.set_state (Random.State.make ([|1|]))
 
+let random_int64 () =
+  Random.int64(Int64.max_int)
+
+let random_int64s num =
+  let rec random_int64s_aux num acc =
+    if num = 0 then acc
+    else
+      random_int64s_aux (num-1) (random_int64 ()::acc)
+  in random_int64s_aux num []
+
 let random_even () =
   Random.int(50000000) * 2
 
@@ -79,6 +102,16 @@ let random_key length =
     Bytes.set result i charset.[index]
   done;
   Bytes.to_string result
+
+let random_bytes length =
+  let charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" in
+  let len = String.length charset in
+  let result = Bytes.create length in
+  for i = 0 to length - 1 do
+    let index = Random.int len in
+    Bytes.set result i charset.[index]
+  done;
+  result
 
 let random_leaves num len =
   let rec go num acc =

@@ -5,7 +5,7 @@ let () =
   print_endline "generated eys";
   let message = "aljs" in
   let hash, proof = randomize_string keys message in
-  print_endline ("got hash "^hash);
-  assert (verify_proof pk message proof);
+  print_endline ("got hash "^(Bytes.unsafe_to_string hash));
+  assert (verify_proof pk message proof hash);
   print_endline "verified"
 

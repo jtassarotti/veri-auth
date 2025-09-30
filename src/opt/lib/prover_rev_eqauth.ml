@@ -13,7 +13,8 @@ end = struct
   type proof_state = proof_stream
   type 'a auth = 'a * string
   type 'a authenticated_computation = proof_state -> (proof_state * 'a)
-  type random = string
+  
+  type random = int64
 
   let vrf_key: int array ref = ref [||]
 
@@ -30,7 +31,6 @@ end = struct
   module Authenticatable = struct
     include Authenticatable_base.Prover
     
-    let random = string
     let auth (a, h) = string h
       
   end
@@ -51,10 +51,14 @@ end = struct
   let eqauth (a1, h1) (a2, h2) pf_stream =
     (pf_stream, h1=h2)
 
-  let randomize str pf_stream =
-    let random_s, proof = randomize_string !vrf_key str in
+  let randomize evi obj pf_stream =
+    let str = evi obj in
+    let random, proof = randomize_string !vrf_key str in
+    let random_s = Bytes.to_string random in
+    let rand_int = Bytes.get_int64_le random 0 in
     let proof_s = Marshal.to_string proof marshal_flags in
-    (proof_s :: random_s :: pf_stream , random_s)
+    let prf_val = Authenticatable.(pair string string) (random_s, proof_s) in
+    (prf_val :: pf_stream, rand_int)
 
   let init key = vrf_key := key
 

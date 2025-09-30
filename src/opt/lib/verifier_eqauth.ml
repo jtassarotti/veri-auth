@@ -15,7 +15,7 @@ end = struct
   type 'a authenticated_computation = proof_state -> (proof_state * 'a)
   type 'a auth = string
 
-  type random = string
+  type random = int64
 
   let vrf_key: int array ref = ref [||]
 
@@ -32,7 +32,7 @@ end = struct
   module Authenticatable = struct
     include Authenticatable_base.Verifier
 
-    let random = string
+    let random = int64
     let auth = string
 
   end
@@ -59,15 +59,21 @@ end = struct
 
   let eqauth h1 h2 pf_stream = (pf_stream, h1=h2)
 
-  let randomize str pf_stream =
+  let randomize evi obj pf_stream =
+    let str = evi.serialize obj in
     match pf_stream with
     | [] -> failwith "Vrf proof failure"
-    | random_s :: proof_s :: ps ->
-      let proof = Marshal.from_string proof_s 0 in
-      if verify_proof !vrf_key str proof then
-        (ps, random_s)
-      else
-        failwith "Vrf proof failure"
+    | prf_val :: ps ->
+      match Authenticatable.(pair string string).deserialize prf_val with
+      | Some (random_s, proof_s) ->
+        let random = Bytes.of_string random_s in
+        let proof = Marshal.from_string proof_s 0 in
+        let rand_int = Bytes.get_int64_le random 0 in
+        if verify_proof !vrf_key str proof random then
+          (ps, rand_int)
+        else
+          failwith "Vrf proof failure"
+      | None -> failwith "Vrf proof failure"
     | _ -> failwith "Vrf proof failure"
   
   let init pub_key = vrf_key := pub_key

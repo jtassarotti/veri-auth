@@ -150,6 +150,24 @@ let int_deserialize s =
     try Some (int_of_string (String.sub s 2 ((String.length s)-2))) with Failure _ -> None
   else None
 
+let bytes_serialize b = "by_"^(Bytes.to_string b)
+
+let bytes_deserialize s =
+  if String.length s < 4 then None
+  else let tag = String.sub s 0 3 in
+  if tag = "by_" then
+    try Some (Bytes.of_string (String.sub s 3 ((String.length s)-3))) with Failure _ -> None
+  else None
+
+let int64_serialize b = "i6_"^(Int64.to_string b)
+
+let int64_deserialize s =
+  if String.length s < 4 then None
+  else let tag = String.sub s 0 3 in
+  if tag = "i6_" then
+    try Some (Int64.of_string (String.sub s 3 ((String.length s)-3))) with Failure _ -> None
+  else None
+
 
 module Prover = struct
   type 'a evidence = 'a -> string
@@ -163,6 +181,9 @@ module Prover = struct
   let bool = bool_serialize
   let string = string_serialize
   let int = int_serialize
+  let int64 = int64_serialize
+  let bytes = bytes_serialize
+  let random = int64
 end
 
 module Verifier = struct
@@ -205,7 +226,13 @@ module Verifier = struct
 
   let int = { serialize=int_serialize; deserialize=int_deserialize }
 
+  let int64 = { serialize=int64_serialize; deserialize=int64_deserialize }
+
   let string = { serialize=string_serialize; deserialize=string_deserialize }
+
+  let bytes = { serialize=bytes_serialize; deserialize=bytes_deserialize }
+
+  let random = int64
 
 end
 
@@ -293,6 +320,21 @@ module Prover_susp = struct
     and suspend a = a
     and unsuspend a = a in
     { serialize; suspend; unsuspend }
+
+  let int64 =
+    let serialize = int64_serialize
+    and suspend a = a
+    and unsuspend a = a in
+    { serialize; suspend; unsuspend }
+
+  let bytes =
+    let serialize = bytes_serialize
+    and suspend a = a
+    and unsuspend a = a in
+    { serialize; suspend; unsuspend }
+
+  let random = int64
+
 end
 
 module Verifier_susp = struct
@@ -422,5 +464,25 @@ module Verifier_susp = struct
       | None -> None
     and to_string () = "Int"
     in { serialize; deserialize; to_string }
+
+  let int64 =
+    let serialize = int64_serialize
+    and deserialize _ s = 
+      match int64_deserialize s with
+      | Some i -> Some (i, 0)
+      | None -> None
+    and to_string () = "Int64"
+    in { serialize; deserialize; to_string }
+
+  let bytes =
+    let serialize = bytes_serialize
+    and deserialize _ s = 
+      match bytes_deserialize s with
+      | Some i -> Some (i, 0)
+      | None -> None
+    and to_string () = "Bytes"
+    in { serialize; deserialize; to_string }
+
+  let random = int64
   
 end
