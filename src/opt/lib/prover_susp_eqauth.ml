@@ -18,6 +18,8 @@ end = struct
   type 'a auth = | Merkle of 'a * string | MerkleSusp of bool ref * 'a * string
   type 'a authenticated_computation = proof_state -> (proof_state * 'a)
 
+  type random = int64
+
   let vrf_key: int array ref = ref [||]
 
   (* let initial_id = Int.max_int
@@ -88,12 +90,14 @@ end = struct
     let finish () = (Authenticatable.bool).serialize res in
     { prf_state with buffer = finish :: prf_state.buffer }, res
 
-  let randomize str prf_state =
-    let random_s, proof = randomize_string !vrf_key str in
+  let randomize evi obj prf_state =
+    let str = evi.serialize obj in
+    let random, proof = randomize_string !vrf_key str in
+    let rand_int = Bytes.get_int64_le random 0 in
+    let random_s = Bytes.to_string random in
     let proof_s = Marshal.to_string proof marshal_flags in
-    let finish_s () = random_s in
-    let finish_p () = proof_s in
-    ({ prf_state with buffer = finish_p :: finish_s :: prf_state.buffer }, random_s)
+    let finish () = Authenticatable.(pair string string).serialize (random_s, proof_s) in
+    ({ prf_state with buffer = finish :: prf_state.buffer }, rand_int)
 
   let rec flush_buf_stream buffer pf_stream =
     match buffer with

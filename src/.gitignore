@@ -8,5 +8,4 @@ bench
 data/*
 *.out
 
-opt/vrf
 opt/_build

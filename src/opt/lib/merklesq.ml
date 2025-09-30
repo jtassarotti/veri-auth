@@ -7,12 +7,13 @@ module type MERKLESQ =
     type 'a evi_option = [`left | `right of 'a]
   
     type key = string
+    type priv_key = random
     type value = string
-    type data = key * value
+    type data = priv_key * value
     type pos = int
     type pos_range = pos * pos
 
-    type pr_tree = [`left of data evi_option | `right of data * pr_tree auth * pr_tree auth ]
+    type pr_tree = [`left of data evi_option | `right of pr_tree auth * pr_tree auth ]
     type pr_auth = pr_tree auth
 
     type cr_tree = [`left of pos_range * data | `right of pos_range * pr_auth * cr_tree auth * cr_tree auth ]
@@ -24,6 +25,7 @@ module type MERKLESQ =
     val retrieve : key -> forest_auth -> value option authenticated_computation
     (* Also return the position where the value is appended *)
     val append : key -> value -> forest_auth -> (forest_auth * pos) option authenticated_computation
+    val print_key_vals : forest_auth -> unit authenticated_computation
     (* Check if forest2 is an extension of forest1 *)
     val is_extension : key -> value -> pos -> forest_auth -> forest_auth -> bool authenticated_computation
   end
@@ -36,12 +38,13 @@ module MerkleSq : MERKLESQ =
     type 'a evi_option = [`left | `right of 'a]
 
     type key = string
+    type priv_key = random
     type value = string
-    type data = key * value
+    type data = priv_key * value
     type pos = int
     type pos_range = pos * pos
 
-    type pr_tree = [`left of data evi_option | `right of data * pr_tree auth * pr_tree auth ]
+    type pr_tree = [`left of data evi_option | `right of pr_tree auth * pr_tree auth ]
     type pr_auth = pr_tree auth
 
     type cr_tree = [`left of pos_range * data | `right of pos_range * pr_auth * cr_tree auth * cr_tree auth ]
@@ -49,12 +52,14 @@ module MerkleSq : MERKLESQ =
     type forest = cr_auth list * pos
     type forest_auth = forest auth
 
+    let key_evi : key Authenticatable.evidence =
+      Authenticatable.string
     let data_evi : data Authenticatable.evidence = 
-      Authenticatable.(pair string string)
+      Authenticatable.(pair random string)
     let pos_evi : pos_range Authenticatable.evidence =
       Authenticatable.(pair int int)
     let pr_tree_evi : pr_tree Authenticatable.evidence =
-      Authenticatable.(sum (option data_evi) (trio data_evi auth auth))
+      Authenticatable.(sum (option data_evi) (pair auth auth))
     let cr_tree_evi : cr_tree Authenticatable.evidence =
       Authenticatable.(sum (pair pos_evi data_evi) (quad pos_evi auth auth auth))
     let forest_evi : forest Authenticatable.evidence =
@@ -69,23 +74,27 @@ module MerkleSq : MERKLESQ =
     let pr_tree_empty = `left `left
     let pr_tree_empty_auth = auth pr_tree_evi pr_tree_empty
     let pr_tree_leaf kv = `left (`right kv)
-    let pr_tree_node kv left right = `right (kv, left, right)
+    let pr_tree_node left right = `right (left, right)
 
     let last_cr_tree_size (forest_size as n) = (n land (-n))
 
-    let rec retrieve_prtree key tree =
-      let* tree = unauth pr_tree_evi tree in
-      match tree with
-      | `left `left -> return None
-      | `left (`right (k, v)) -> 
-        (* print_endline k; *)
-        if key = k then return (Some v)
-        else return None
-      | `right ((k, v), left, right) ->
-        (* print_endline k; *)
-        if key < k then retrieve_prtree key left
-        else if key = k then return (Some v)
-        else retrieve_prtree key right
+    let retrieve_prtree key tree =
+      let rec retrieve_prtree_aux key tree depth =
+        let* tree = unauth pr_tree_evi tree in
+        match tree with
+        | `left `left -> return None
+        | `left (`right (k, v)) -> 
+          (* print_endline (Int64.to_string key); *)
+          if Int64.equal key k then return (Some v)
+          else return None
+        | `right (left, right) ->
+          if depth >= 64 then failwith "Exceeded max depth";
+          (* print_endline (Int64.to_string key); *)
+          let new_key = Int64.shift_right key 1 in
+          let i = Int64.sub key (Int64.shift_left new_key 1) in
+          if Int64.equal i 0L then retrieve_prtree_aux new_key left (depth+1)
+          else retrieve_prtree_aux new_key right (depth+1)
+      in retrieve_prtree_aux key tree 0
 
     let rec retrieve_aux key trees =
       match trees with
@@ -104,11 +113,47 @@ module MerkleSq : MERKLESQ =
     
     let retrieve key forest =
       let* (trees, n) = unauth forest_evi forest in
-      (* let* key = randomize key in *)
+      let* key = randomize key_evi key in
       retrieve_aux key trees
 
+    let print_data (key, v) =
+      print_endline ("key:"^(Int64.to_string key))
 
-    let rec inorder tree =
+    let print_key_vals_prtree pr_tree =
+      let rec aux pr_tree key_cur depth =
+        let* pr_tree = unauth pr_tree_evi pr_tree in
+        match pr_tree with
+        | `left `left -> return ()
+        | `left (`right (key, v)) -> 
+          print_data (key, v); return ()
+        | `right (left, right) ->
+          let* _ = aux left key_cur (depth+1) in
+          aux right (Int64.add (Int64.shift_left 1L depth) key_cur) (depth+1)
+      in
+      aux pr_tree 0L 0
+
+    let print_key_vals_crtree cr_tree =
+      let* cr_tree = unauth cr_tree_evi cr_tree in
+      match cr_tree with
+      | `left (_, data) -> print_data data; return ()
+      | `right (_, pr_tree, _, _) ->
+        print_key_vals_prtree pr_tree
+
+    let print_key_vals forest =
+      let rec aux trees =
+        match trees with
+        | [] -> return ()
+        | tree :: trees ->
+          print_endline "tree:";
+          let* _ = print_key_vals_crtree tree in
+          aux trees
+      in
+      print_endline "forest:";
+      let* (trees, n) = unauth forest_evi forest in
+      aux trees
+
+
+    (* let rec inorder tree =
       match tree with
       | `left `left -> return []
       | `left (`right kv) -> return [kv]
@@ -145,13 +190,73 @@ module MerkleSq : MERKLESQ =
           | [] -> failwith "unreachable case in from_list"
           | h::t -> h, t
         in
-        auth pr_tree_evi (pr_tree_node kv (from_list left) (from_list right))
+        auth pr_tree_evi (pr_tree_node kv (from_list left) (from_list right)) *)
+
+    let rec merge_prefix_leafs (k1, v1) (k2, v2) depth =
+      if depth >= 64 then failwith "Exceeded max depth";
+      let new_k1 = Int64.shift_right k1 1 in
+      let i1 = Int64.sub k1 (Int64.shift_left new_k1 1) in
+      let new_k2 = Int64.shift_right k2 1 in
+      let i2 = Int64.sub k2 (Int64.shift_left new_k2 1) in
+      if Int64.equal i1 i2 then
+        if Int64.equal i1 0L then
+          let left_tree = merge_prefix_leafs (new_k1, v1) (new_k2, v2) (depth+1) |> auth pr_tree_evi in
+          `right (left_tree, pr_tree_empty_auth)
+        else
+          let right_tree = merge_prefix_leafs (new_k1, v1) (new_k2, v2) (depth+1) |> auth pr_tree_evi in
+          `right (pr_tree_empty_auth, right_tree)
+      else
+        if Int64.equal i1 0L then
+          `right (pr_tree_leaf (new_k1, v1) |> auth pr_tree_evi, 
+            pr_tree_leaf (new_k2, v2) |> auth pr_tree_evi)
+        else
+          `right (pr_tree_leaf (new_k2, v2) |> auth pr_tree_evi, 
+            pr_tree_leaf (new_k1, v1) |> auth pr_tree_evi)
+
+    let rec insert_kv_prtree (k, v) tree depth =
+      match tree with
+      | `left `left -> `left (`right (k, v)) |> return
+      | `left (`right (k2, v2)) -> 
+        if Int64.equal k k2 then failwith "key collision";
+        merge_prefix_leafs (k, v) (k2, v2) depth |> return
+      | `right (left, right) ->
+        if depth >= 64 then failwith "Exceeded max depth";
+        let new_k1 = Int64.shift_right k 1 in
+        let i1 = Int64.sub k (Int64.shift_left new_k1 1) in
+        if Int64.equal i1 0L then
+          let* left_un = unauth pr_tree_evi left in
+          let* left = insert_kv_prtree (new_k1, v) left_un (depth+1) in
+          `right (auth pr_tree_evi left, right) |> return
+        else
+          let* right_un = unauth pr_tree_evi right in
+          let* right = insert_kv_prtree (new_k1, v) right_un (depth+1) in
+          `right (left, auth pr_tree_evi right) |> return
 
     let merge_prefix_trees tree1 tree2 = 
-      let* l1 = inorder tree1 in
-      let* l2 = inorder tree2 in
-      let l = merge_sorted l1 l2 in
-      return (from_list l)
+      let rec merge_prefix_trees_aux tree1 tree2 depth =
+        match tree1, tree2 with
+        | `left `left, `left `left -> `left `left |> return
+        | `left `left, `left (`right (k, v))
+        | `left (`right (k, v)), `left `left -> 
+          `left (`right (k, v)) |> return
+        | `left (`right (k1, v1)), `left (`right (k2, v2)) ->
+          if Int64.equal k1 k2 then failwith "key collision";
+          merge_prefix_leafs (k1, v1) (k2, v2) depth |> return
+        | `left `left, `right (left, right)
+        | `right (left, right), `left `left -> 
+          `right (left, right) |> return
+        | `left (`right (k, v)), `right (left, right)
+        | `right (left, right), `left (`right (k, v)) ->
+          insert_kv_prtree (k, v) (`right (left, right)) depth
+        | `right (left1, right1), `right (left2, right2) ->
+          let* left1 = unauth pr_tree_evi left1 in
+          let* left2 = unauth pr_tree_evi left2 in
+          let* right1 = unauth pr_tree_evi right1 in
+          let* right2 = unauth pr_tree_evi right2 in
+          let* left = merge_prefix_trees_aux left1 left2 (depth+1) in
+          let* right = merge_prefix_trees_aux right1 right2 (depth+1) in
+          `right (left |> auth pr_tree_evi, right |> auth pr_tree_evi) |> return
+      in merge_prefix_trees_aux tree1 tree2 0
 
     let rec merge_cr_tree tree trees =
       let tree_auth = auth cr_tree_evi tree in
@@ -176,18 +281,22 @@ module MerkleSq : MERKLESQ =
         else if n1 > n2 then failwith "right tree is smaller"
         else
           let* new_pr_tree = merge_prefix_trees pr1 pr2 in
-          let new_cr_tree = cr_tree_node j1 i2 new_pr_tree head tree_auth in
+          let new_cr_tree = cr_tree_node j1 i2 (auth pr_tree_evi new_pr_tree) head tree_auth in
           merge_cr_tree new_cr_tree tail
-    
+
     let append key value forest =
+      (* let* _ = print_key_vals forest in *)
       let* (trees, n) = unauth forest_evi forest in
-      (* let* key = randomize key in *)
+      let* key = randomize key_evi key in
+      (* print_endline ("rand:"^(Int64.to_string key)); *)
       let* key_exists = retrieve_aux key trees in
       match key_exists with
       | None ->
         let new_cr_tree = cr_tree_leaf n (n+1) key value in
         let* trees = merge_cr_tree new_cr_tree trees in
-        return (Some ((auth forest_evi (trees, n+1)), n))
+        let new_forest = auth forest_evi (trees, n+1) in
+        (* let* _ = print_key_vals new_forest in *)
+        return (Some (new_forest, n))
       | Some _ -> print_endline "key already exists"; return None
 
 
@@ -200,7 +309,7 @@ module MerkleSq : MERKLESQ =
         | `left x ->
           let* tree1 = unauth cr_tree_evi tree1 in
           begin match tree1 with
-          | `left y -> return (x = y)
+          | `left y -> return (x = y && List.length tail1 = 0)
           | `right _ -> (print_string "insufficient tree2\n"; return false)
           end
         | `right ((i1, i2), pr_tree, left, right) ->
@@ -236,7 +345,7 @@ module MerkleSq : MERKLESQ =
 
       let trees1 = List.rev trees1 in
       let trees2 = List.rev trees2 in
-      (* let* key = randomize key in *)
+      let* key = randomize key_evi key in
       is_extension_aux key trees1 trees2
 
   end

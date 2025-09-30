@@ -20,6 +20,8 @@ end = struct
   type suspension = | Tag of int | Hash of string
   type 'a auth = | Shallow of string | Suspension of suspension ref
 
+  type random = int64
+
   let vrf_key: int array ref = ref [||]
   let counter: int ref = ref 0
   type finish_t = unit -> unit
@@ -142,15 +144,21 @@ end = struct
     | check :: checks ->
       if check () then eqauth_checks checks else failwith "check failed"
 
-  let randomize str prf_state =
+  let randomize evi obj prf_state =
+    let str = evi.serialize obj in
     match prf_state.pf_stream with
     | [] -> failwith "Vrf proof failure"
-    | random_s :: proof_s :: ps ->
-      let proof = Marshal.from_string proof_s 0 in
-      if verify_proof !vrf_key str proof then
-        ({ prf_state with pf_stream = ps }, random_s)
-      else
-        failwith "Vrf proof failure"
+    | prf_val :: ps ->
+      match Authenticatable.(pair string string).deserialize 0 prf_val with
+      | Some ((random_s, proof_s), _) ->
+        let random = Bytes.of_string random_s in
+        let proof = Marshal.from_string proof_s 0 in
+        let rand_int = Bytes.get_int64_le random 0 in
+        if verify_proof !vrf_key str proof random then
+          ({ prf_state with pf_stream = ps }, rand_int)
+        else
+            failwith "Vrf proof failure"
+      | None -> failwith "Vrf proof failure"
     | _ -> failwith "Vrf proof failure"
 
   let init pub_key = vrf_key := pub_key

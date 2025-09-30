@@ -5,5 +5,5 @@ open! Bigarray
 (* file: lib.rs *)
 
 external get_keys: unit -> (int array * int array) = "get_keys"
-external randomize_string: int array -> string -> string * int array = "randomize_string"
-external verify_proof: int array -> string -> int array -> bool = "verify_proof"
+external randomize_string: int array -> string -> bytes * int array = "randomize_string"
+external verify_proof: int array -> string -> int array -> bytes -> bool = "verify_proof"

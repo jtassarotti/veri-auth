@@ -14,19 +14,21 @@ pub fn get_keys() -> (Vec<u8>, Vec<u8>) {
 }
 
 #[ocaml::func]
-#[ocaml::sig("int array -> string -> string * int array")]
-pub fn randomize_string(keys: Vec<u8>, input: &str) -> (String, Vec<u8>) {
+#[ocaml::sig("int array -> string -> bytes * int array")]
+pub fn randomize_string(keys: Vec<u8>, input: &str) -> ([u8; 64], Vec<u8>) {
     let keypair: ECVRFKeyPair = bincode::deserialize(&keys).unwrap();
     let (hash, proof) = keypair.output(input.as_bytes());
     let proof_bytes = bincode::serialize(&proof).unwrap();
-    (hex::encode(hash), proof_bytes)
+    (hash, proof_bytes)
 }
 
 #[ocaml::func]
-#[ocaml::sig("int array -> string -> int array -> bool")]
-pub fn verify_proof(public_key_bytes: Vec<u8>, input: &str, proof_bytes: Vec<u8>) -> bool {
+#[ocaml::sig("int array -> string -> int array -> bytes -> bool")]
+pub fn verify_proof(public_key_bytes: Vec<u8>, input: &str, proof_bytes: Vec<u8>, hash: [u8; 64]) -> bool {
     let public_key: ECVRFPublicKey = bincode::deserialize(&public_key_bytes).unwrap();
     let proof: ECVRFProof = bincode::deserialize(&proof_bytes).unwrap();
-    proof.verify(input.as_bytes(), &public_key).is_ok()
+    let comp_hash = ECVRFProof::to_hash(&proof);
+    proof.verify(input.as_bytes(), &public_key).is_ok() && comp_hash == hash
+
 }
 

@@ -16,7 +16,15 @@ module StrKey = struct
   let hash a = Hashtbl.hash a
 end
 
+module IntKey = struct
+  type t = int
+  
+  let equal a b = a = b
+  let hash a = Hashtbl.hash a
+end
+
 module SHash = Hashtbl.Make(StrKey);;
+module IHash = Hashtbl.Make(IntKey);;
 
 let pr_key, pb_key = Vrf.get_keys () in
 Prover_rev.init pr_key; Verifier.init pb_key;
@@ -56,12 +64,17 @@ let exp n random_i key_vals =
   let random_forest_with_proofs key_vals =
     let f = Msq_prover.init_forest () in
     List.fold_left (fun (i, fs) (k, v) ->
+      (* print_endline (string_of_int i); *)
       let _, res = Prover_rev.run (Msq_prover.append k v (List.hd fs)) in
       let f, pos = match res with
         | None -> failwith "append failed"
         | Some r -> r
       in
-      SHash.add key_pos_hash k pos;
+      (* let _ = Prover_rev.run (Msq_prover.print_key_vals f) in *)
+      let _, res = Prover_rev.run (Msq_prover.retrieve k f) in
+      match res with
+      | None -> failwith "retrieve after append failed"
+      | Some v1 -> assert (v = v1); SHash.add key_pos_hash k pos;
       (i+1, (f::fs))) (0, [f]) key_vals
   in
 
