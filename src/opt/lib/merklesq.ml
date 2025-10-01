@@ -4,8 +4,6 @@ module type MERKLESQ =
   functor (K : AUTHENTIKIT2) -> sig
     open K
   
-    type 'a evi_option = [`left | `right of 'a]
-  
     type key = string
     type priv_key = random
     type value = string

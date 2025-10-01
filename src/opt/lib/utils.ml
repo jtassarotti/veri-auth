@@ -133,6 +133,26 @@ let random_key_vals num len =
   go num []
 ;;
 
+let random_key_vals_rep num len =
+  let keys = Array.make num "" in
+  let rec go num acc i =
+    match num with
+    | 0 -> acc
+    | _ -> 
+      let key, i =
+        if (Random.bool ()) && (i>0) then
+          let ind = Random.int i in
+          keys.(ind), i
+        else
+          let key = random_key len in
+          keys.(i) <- key;
+          key, i+1
+      in
+      go (num-1) ((key, random_string len) :: acc) i
+  in
+  go num [] 0
+;;
+
 let random_odd_key_vals num =
   let rec go num acc1 acc2 =
     match num with

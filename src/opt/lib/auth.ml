@@ -1,3 +1,5 @@
+type 'a evi_option = [`left | `right of 'a]
+
 module type AUTHENTIKIT = sig
   type proof_val
   type proof_state
@@ -49,7 +51,7 @@ module type AUTHENTIKIT2 = sig
     val quad : 'a evidence -> 'b evidence -> 'c evidence -> 'd evidence -> ('a * 'b * 'c * 'd) evidence
     (* val quint : 'a evidence -> 'b evidence -> 'c evidence -> 'd evidence -> 'e evidence -> ('a * 'b * 'c * 'd * 'e) evidence *)
     val sum : 'a evidence -> 'b evidence -> [`left of 'a | `right of 'b] evidence
-    val option : 'a evidence -> [`left | `right of 'a] evidence
+    val option : 'a evidence -> 'a evi_option evidence
     val list : 'a evidence -> 'a list evidence
     val random : int64 evidence
     val bool : bool evidence
