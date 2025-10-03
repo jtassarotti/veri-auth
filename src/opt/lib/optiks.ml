@@ -20,7 +20,7 @@ module type OPTIKS =
     
     type epoch = int
     (* epoch, ozks *)
-    type state = ozks_auth * int
+    type state = ozks_auth * epoch
     type state_auth = state auth
 
     val init_state : unit -> state_auth
