@@ -9,16 +9,21 @@ Record serialization := Serialization {
   s_valid_val `{invGS_gen hlc Σ} `{g : !GenWp Σ} : val → iProp Σ;
   s_serializer : val;
   s_is_ser `{invGS_gen hlc Σ} `{g : !GenWp Σ} : val → string → iProp Σ;
-
+  s_is_ser' `{invGS_gen hlc Σ} `{g : !GenWp Σ} : string → iProp Σ;
+                            
   s_valid_val_Persistent `{invGS_gen hlc Σ} `{g : !GenWp Σ} v ::
     Persistent (s_valid_val (g := g) v);
-  s_is_ser_Persisten `{invGS_gen hlc Σ} `{g : !GenWp Σ} v s ::
+  s_is_ser_Persistent `{invGS_gen hlc Σ} `{g : !GenWp Σ} v s ::
     Persistent (s_is_ser (g := g) v s);
+  s_is_ser'_Persistent `{invGS_gen hlc Σ} `{g : !GenWp Σ} s ::
+    Persistent (s_is_ser' (g := g) s);
   s_is_ser_inj `{invGS_gen hlc Σ} `{g : !GenWp Σ} v s1 s2 :
     s_is_ser (g := g) v s1 -∗ s_is_ser (g := g) v s2 -∗ ⌜s1 = s2⌝;
   s_is_ser_valid `{invGS_gen hlc Σ} `{g : !GenWp Σ} v s :
     s_is_ser (g := g) v s ⊢ s_valid_val (g := g) v;
-
+  s_is_ser_eq `{invGS_gen hlc Σ} `{g : !GenWp Σ} v s :
+    s_is_ser (g := g) v s -∗ s_is_ser' (g := g) s;
+                            
   s_ser_spec `{invGS_gen hlc Σ} `{g : !GenWp Σ} E v (a : gwp_type g) :
     G{{{ ▷?(gwp_laters g) s_valid_val (g := g) v }}}
       s_serializer v @ a ; E
@@ -33,10 +38,10 @@ Record deserialization (ser : serialization) := Deserialization {
       s_deserializer #s @ a ; E
      {{{ o, RET $o; if o is Some v then s_is_ser (g := g) ser v s else ⌜True⌝ }}} ? gwp_laters g;
 
-  s_deser_complete `{invGS_gen hlc Σ} `{g : !GenWp Σ} E v s (a : gwp_type g) :
-    G{{{ s_is_ser (g := g) ser v s }}}
+  s_deser_complete `{invGS_gen hlc Σ} `{g : !GenWp Σ} E s (a : gwp_type g) :
+    G{{{ s_is_ser' (g := g) ser s }}}
       s_deserializer #s @ a ; E
-     {{{ RET (SOMEV v); True }}} ? gwp_laters g;
+     {{{ v, RET (SOMEV v); s_is_ser (g := g) ser v s }}} ? gwp_laters g;
 }.
 
 Arguments s_deserializer {_}.
@@ -85,6 +90,16 @@ Context `{invGS_gen hlc Σ} `{g : !GenWp Σ}.
 
 Definition int_is_ser (v : val) (s : string) : iProp Σ :=
   ⌜∃ (z : Z), v = #z ∧ s = int_ser_str z⌝.
+Definition int_is_ser' (s : string) : iProp Σ :=
+  ⌜∃ (z : Z), s = int_ser_str z⌝.
+
+Lemma int_is_ser_eq (v : val) (s : string) :
+  int_is_ser v s -∗ int_is_ser' s.
+Proof.
+  (* - iIntros (?). exists #x.
+    rewrite /int_is_ser. by exists x.
+  - intros (? & (? & -> & ->)).                                 
+    by exists x0. *) Admitted.
 
 Lemma int_is_ser_inj v s1 s2 :
   int_is_ser v s1 -∗ int_is_ser v s2 -∗ ⌜s1 = s2⌝.
@@ -147,13 +162,13 @@ Proof.
   apply length_substring_le.
 Qed.
 
-Lemma int_deser_spec' E v s a :
-  G{{{ int_is_ser v s }}}
+Lemma int_deser_spec' E s a :
+  G{{{ int_is_ser' s }}}
     int_deser #(LitString s) @ a ; E
-  {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+  {{{ v, RET (SOMEV v); int_is_ser v s }}} ? gwp_laters g.
 Proof.
-  iIntros (Φ (i & -> & ->)) "HΦ".
-  rewrite /int_deser /int_is_ser.
+  iIntros (Φ (i & ->)) "HΦ".
+  rewrite /int_deser.
   gwp_pures.
   rewrite substring_n_0 bool_decide_eq_true_2 //.
   gwp_pures.
@@ -162,7 +177,9 @@ Proof.
   rewrite substring_0_length.
   rewrite ZOfString_inv.
   gwp_pures. rewrite bool_decide_eq_true_2 //.
-  gwp_pures. by iApply "HΦ".
+  gwp_pures. iApply "HΦ".
+  iModIntro. iPureIntro.
+  rewrite /int_is_ser. eauto.
 Qed.
 
 End int_specs.
@@ -171,8 +188,10 @@ Definition int_serialization : serialization :=
   {| s_valid_val := λ _ Σ _ _, @int_valid_val Σ;
      s_serializer := int_ser;
      s_is_ser := λ _ Σ _ _, @int_is_ser Σ;
+     s_is_ser' := λ _ Σ _ _, @int_is_ser' Σ;
      s_is_ser_inj := λ _ Σ _ _, @int_is_ser_inj Σ;
      s_is_ser_valid := λ  _ Σ _ _, @int_is_ser_valid Σ ;
+     s_is_ser_eq := @int_is_ser_eq;
      s_ser_spec := @int_ser_spec;
   |}.
 
@@ -207,6 +226,12 @@ Implicit Types a : gwp_type g.
 
 Definition bool_is_ser (v : val) (s : string) : iProp Σ :=
   ⌜∃ (b : bool), v = #b ∧ s = bool_ser_str b⌝.
+Definition bool_is_ser' (s : string) : iProp Σ :=
+  ⌜∃ (b : bool), s = bool_ser_str b⌝.
+
+Lemma bool_is_ser_eq (v : val) (s : string) :
+  bool_is_ser v s -∗ bool_is_ser' s.
+Proof. Admitted.
 
 Lemma bool_is_ser_inj v s1 s2 :
   bool_is_ser v s1 -∗ bool_is_ser v s2 -∗ ⌜s1 = s2⌝.
@@ -255,19 +280,20 @@ Proof.
   by iApply ("HΦ" $! None).
 Qed.
 
-Lemma bool_deser_spec' E v s a :
-  G{{{ bool_is_ser v s }}}
+Lemma bool_deser_spec' E s a :
+  G{{{ bool_is_ser' s }}}
     bool_deser #s @ a; E
-  {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+  {{{ v, RET (SOMEV v); bool_is_ser v s }}} ? gwp_laters g.
 Proof.
-  iIntros (Φ [b [-> ->]]) "HΦ".
+  iIntros (Φ [b ->]) "HΦ".
   rewrite /bool_scheme /bool_deser /bool_is_ser.
   gwp_pures.
   destruct b.
   - rewrite bool_decide_eq_true_2 //.
-    gwp_pures. by iApply "HΦ".
+    gwp_pures. iApply "HΦ".
+    eauto.    
   - rewrite bool_decide_eq_false_2 //.
-    gwp_pures. by iApply "HΦ".
+    gwp_pures. iApply "HΦ". eauto.
 Qed.
 End bool_specs.
 
@@ -275,8 +301,10 @@ Definition bool_serialization : serialization :=
   {| s_valid_val := λ _ _ Σ _, bool_valid_val;
      s_serializer := bool_ser;
      s_is_ser := λ _ _ Σ _, bool_is_ser;
+     s_is_ser' := λ _ _ Σ _, bool_is_ser';
      s_is_ser_inj := λ _ _ Σ _, bool_is_ser_inj;
-     s_is_ser_valid := λ _ Σ _ _, @bool_is_ser_valid Σ;
+    s_is_ser_valid := λ _ Σ _ _, @bool_is_ser_valid Σ;
+    s_is_ser_eq := @bool_is_ser_eq;
      s_ser_spec := @bool_ser_spec;
   |}.
 
@@ -304,6 +332,13 @@ Context `{invGS_gen hlc Σ} `{g : !GenWp Σ}.
 
 Definition string_is_ser (v : val) (s : string) : iProp Σ :=
   ⌜∃ (s' : string), v = #s' ∧ s = string_ser_str s'⌝.
+Definition string_is_ser' (s : string) : iProp Σ :=
+  ⌜∃ (s' : string), s = string_ser_str s'⌝.
+
+Lemma string_is_ser_eq (v : val) (s : string) :
+  string_is_ser v s -∗ string_is_ser' s.
+Proof.
+  Admitted.
 
 Lemma string_is_ser_inj v s1 s2 :
   string_is_ser v s1 -∗ string_is_ser v s2 -∗ ⌜s1 = s2⌝.
@@ -357,12 +392,12 @@ Proof.
   apply length_substring_le.
 Qed.
 
-Lemma string_deser_spec' E v s a :
-  G{{{ string_is_ser v s }}}
+Lemma string_deser_spec' E s a :
+  G{{{ string_is_ser' s }}}
     string_deser #s @ a; E
-  {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+  {{{ v, RET (SOMEV v); string_is_ser v s }}} ? gwp_laters g.
 Proof.
-  iIntros (Φ (s' & -> & ->)) "HΦ".
+  iIntros (Φ (s' & ->)) "HΦ".
   rewrite /string_deser /string_is_ser.
   gwp_pures.
   rewrite substring_n_0 bool_decide_eq_true_2 //.
@@ -370,16 +405,18 @@ Proof.
   assert (Z.to_nat (S (S (String.length s')) - 2) = String.length s') as ->.
   { lia. }
   rewrite substring_0_length.
-  by iApply "HΦ".
+  iApply "HΦ". eauto.
 Qed.
 End string_specs.
 
 Definition string_serialization : serialization :=
   {| s_valid_val := λ _ Σ _ _, @string_valid_val Σ;
      s_serializer := string_ser;
-     s_is_ser := λ _ Σ _ _, string_is_ser;
+    s_is_ser := λ _ Σ _ _, string_is_ser;
+    s_is_ser' := λ _ Σ _ _, string_is_ser';
      s_is_ser_inj := λ _ Σ _ _, string_is_ser_inj;
-     s_is_ser_valid := λ _ Σ _ _, @string_is_ser_valid Σ;
+    s_is_ser_valid := λ _ Σ _ _, @string_is_ser_valid Σ;
+    s_is_ser_eq := @string_is_ser_eq;
      s_ser_spec := @string_ser_spec; |}.
 
 Program Definition string_deserialization : deserialization string_serialization :=
@@ -504,6 +541,23 @@ Section prod_serialization.
   Definition prod_is_ser (v : val) (s : string) : iProp Σ :=
     prod_is_ser' v s (s_is_ser (g := g) A) (s_is_ser (g := g) B).
 
+  Definition prod_is_ser''' (s : string) (HA HB : string → iProp Σ) : iProp Σ :=
+    ∃ s1 s2, HA s1 ∗ HB s2 ∗ ⌜s = prod_ser_str s1 s2⌝.
+
+  Definition prod_is_ser'' (s : string) : iProp Σ :=
+    prod_is_ser''' s (s_is_ser' (g := g) A) (s_is_ser' (g := g) B).
+
+  Lemma prod_is_ser_eq (v : val) (s : string) :
+    prod_is_ser v s -∗ prod_is_ser'' s.
+  Proof. Admitted.
+(*    split.
+    - intros (? & ? & ? & ? & ?).
+      apply s_is_ser_eq in H as (? & HA).
+      apply s_is_ser_eq in H0 as (? & HB).
+      exists (x1,x2)%V.
+      by exists x1,x2,x,x0.
+    - Admitted.    *)
+      
   Lemma prod_is_ser_inj v s1 s2 :
     prod_is_ser v s1 -∗ prod_is_ser v s2 -∗ ⌜s1 = s2⌝.
   Proof.
@@ -546,10 +600,10 @@ Section prod_serialization.
     iDestruct "Hp" as (???) "[H1 H2]". iSimplifyEq.
     gwp_pures.
     gwp_apply ("HA" with "H1").
-    iIntros (s1) "Hs1".
+    iIntros (s1) "#Hs1".
     gwp_pures.
     gwp_apply ("HB" with "H2").
-    iIntros (s2) "Hs2".
+    iIntros (s2) "#Hs2".
     gwp_pures.
     iApply "HΦ".
     iModIntro.
@@ -595,9 +649,11 @@ End prod_serialization.
 Program Definition prod_serialization (A B : serialization) : serialization :=
   {| s_valid_val := λ _ Σ, @prod_valid_val A B _ Σ;
      s_serializer := prod_ser' _ _;
-     s_is_ser := λ _ Σ, @prod_is_ser A B _ Σ;
+    s_is_ser := λ _ Σ, @prod_is_ser A B _ Σ;
+    s_is_ser' := λ _ Σ, @prod_is_ser'' A B _ Σ;
      s_is_ser_inj := λ _ Σ, @prod_is_ser_inj A B _ Σ;
-     s_is_ser_valid := λ _ Σ, @prod_is_ser_valid A B _ Σ;
+    s_is_ser_valid := λ _ Σ, @prod_is_ser_valid A B _ Σ;
+    s_is_ser_eq := @prod_is_ser_eq A B;
      s_ser_spec := @prod_ser'_spec_closed A B; |}.
 
 Section prod_deserialization.
@@ -681,23 +737,21 @@ Section prod_deserialization.
     by gwp_apply (prod_deser'_sound with "HA HB").
   Qed.
 
-  Lemma prod_deser'_complete (HA HB : val → string → iProp Σ) E v vA vB s c (deserA deserB : val) :
-    ▷?(gwp_laters g) ⌜v = (vA, vB)%V⌝ -∗
-    (∀ sA,
-      G{{{ HA vA sA }}}
-        deserA #sA @ c; E
-       {{{ RET (SOMEV vA); True }}} ? gwp_laters g) -∗
-    (∀ sB,
-      G{{{ HB vB sB }}}
-        deserB #sB @ c; E
-       {{{ RET (SOMEV vB); True }}} ? gwp_laters g) -∗
-    G{{{ prod_is_ser' v s HA HB }}}
+  Lemma prod_deser'_complete (HA HB : string → iProp Σ) (HA' HB' : val → string → iProp Σ) E s sA sB c (deserA deserB : val) :
+    ▷?(gwp_laters g) ⌜s = prod_ser_str sA sB⌝ -∗
+    G{{{ HA sA }}}
+      deserA #sA @ c; E
+    {{{ vA, RET (SOMEV vA); HA' vA sA }}} ? gwp_laters g -∗
+    G{{{ HB sB }}}
+      deserB #sB @ c; E
+    {{{ vB, RET (SOMEV vB); HB' vB sB }}} ? gwp_laters g -∗
+    G{{{ prod_is_ser''' s HA HB }}}
       prod_deser' deserA deserB #s @ c; E
-    {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+    {{{ v, RET (SOMEV v); prod_is_ser' v s HA' HB' }}} ? gwp_laters g.
   Proof.
-    iIntros "#Heq #HA #HB" (Φ) "!# (%v1 & %v2 & %s1 & %s2 & [-> ->] & Hv1 & Hv2) HΦ".
-    rewrite /prod_deser' /prod_is_ser /prod_ser_str.
-    gwp_pures. iSimplifyEq.
+    iIntros "#Heq #HA #HB" (Φ) "!# (%&%&H1&H2&%) HΦ".
+    rewrite /prod_deser' /prod_is_ser.
+    gwp_pures. iSimplifyEq. rewrite /prod_ser_str.
     erewrite (index_0_append_char ); auto; last first.
     { apply valid_tag_stringOfZ. }
     gwp_pures.
@@ -715,50 +769,52 @@ Section prod_deserialization.
     gwp_pures.
 
     rewrite !Nat2Z.id.
-    replace (Z.to_nat (String.length (StringOfZ (String.length s1)) + 1))
-      with (String.length (StringOfZ (String.length s1)) + 1); [|lia].
+    replace (Z.to_nat (String.length (StringOfZ (String.length sA)) + 1))
+      with (String.length (StringOfZ (String.length sA)) + 1); [|lia].
     rewrite substring_add_length_app /=.
     rewrite substring_0_length_append.
-    gwp_apply ("HA" with "Hv1").
-    iIntros "_".
+    
+    gwp_apply ("HA" with "H1").
+    iIntros (?) "H1".
     gwp_pures.
     rewrite Z2Nat.inj_add; [|lia..].
-    replace (Z.to_nat (String.length (StringOfZ (String.length s1)) + 1) +
-               Z.to_nat (String.length s1))
-      with (String.length (StringOfZ (String.length s1)) + 1 + String.length s1); [|lia].
+    replace (Z.to_nat (String.length (StringOfZ (String.length sA)) + 1) +
+               Z.to_nat (String.length sA))
+      with (String.length (StringOfZ (String.length sA)) + 1 + String.length sA); [|lia].
     rewrite Z2Nat.inj_sub ?Nat2Z.id; [|lia].
     rewrite !Z2Nat.inj_add ?Nat2Z.id; [|lia..].
     rewrite -Nat.add_assoc.
     rewrite substring_add_length_app /=.
-    replace (String.length (StringOfZ (String.length s1) +:+ "_" +:+ s1 +:+ s2) -
-                (String.length (StringOfZ (String.length s1)) + S (String.length s1)))
-      with (String.length s2); last first.
+    replace (String.length (StringOfZ (String.length sA) +:+ "_" +:+ sA +:+ sB) -
+                (String.length (StringOfZ (String.length sA)) + S (String.length sA)))
+      with (String.length sB); last first.
     { rewrite !strings.length_app /=. lia. }
     rewrite substring_length_append.
-    gwp_apply ("HB" with "Hv2"). iIntros "_".
+    gwp_apply ("HB" with "H2"). iIntros (?) "H2".
     gwp_pures.
-    iApply "HΦ"; done.
+    iApply "HΦ".
+    rewrite /prod_is_ser'.
+    iExists _,_,_,_. iFrame.
+    eauto.    
   Qed.
 
-  Lemma prod_deser_complete (HA HB : val → string → iProp Σ) E v vA vB s c (deserA deserB : val) :
-    ▷?(gwp_laters g) ⌜v = (vA, vB)%V⌝ -∗
-    (∀ sA,
-      G{{{ HA vA sA }}}
-        deserA #sA @ c; E
-       {{{ RET (SOMEV vA); True }}} ? gwp_laters g) -∗
-    (∀ sB,
-      G{{{ HB vB sB }}}
-        deserB #sB @ c; E
-       {{{ RET (SOMEV vB); True }}} ? gwp_laters g) -∗
-    G{{{ prod_is_ser' v s HA HB }}}
+  Lemma prod_deser_complete (HA HB : string → iProp Σ) (HA' HB' : val → string → iProp Σ) E s sA sB c (deserA deserB : val) :
+    ▷?(gwp_laters g) ⌜s = prod_ser_str sA sB⌝ -∗
+    (G{{{ HA sA }}}
+       deserA #sA @ c; E
+      {{{ vA, RET (SOMEV vA); HA' vA sA }}} ? gwp_laters g) -∗
+    (G{{{ HB sB }}}
+       deserB #sB @ c; E
+      {{{ vB, RET (SOMEV vB); HB' vB sB }}} ? gwp_laters g) -∗
+    G{{{ prod_is_ser''' s HA HB }}}
       prod_deser deserA deserB #s @ c; E
-    {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+    {{{ v, RET (SOMEV v); prod_is_ser' v s HA' HB' }}} ? gwp_laters g.
   Proof.
-    iIntros "#Heq #HA #HB" (Φ) "!# (%v1 & %v2 & %s1 & %s2 & [-> ->] & Hv1 & Hv2) HΦ".
-    simplify_eq.
-    rewrite /prod_deser. do 4 gwp_pure _.
-    gwp_apply (prod_deser'_complete _ _ _ (_, _) with "Heq HA HB [Hv1 Hv2]"); [|done].
-    do 4 (iExists _). iSplit; [done|iFrame].
+    iIntros "#Hs #HA #HB" (?) "!# Hser H".
+    iDestruct "Hser" as "(%&%&H1&H2&%)". simplify_eq.
+    rewrite /prod_deser. do 4 gwp_pure _. iDestruct "Hs" as "%". simplify_eq.
+    gwp_apply (prod_deser'_complete _ _ _ with "[//] HA HB [H1 H2]"); [|done].
+    do 2 iExists _. iFrame. eauto.
   Qed.
 
 End prod_deserialization.
@@ -776,20 +832,25 @@ Section prod_deserialization_closed.
   Proof.
     iIntros (?) "_ H".
     gwp_apply (prod_deser'_sound with "[] [] [//]"); [| |done].
-    - iIntros (??) "!# Hv H". by gwp_apply s_deser_sound.
-    - iIntros (??) "!# Hv H". by gwp_apply s_deser_sound.
+    - iIntros (??) "!# Hv H". gwp_apply s_deser_sound; [done|].
+      iIntros (?) "#H1". iApply "H". destruct o; done.
+    - iIntros (??) "!# Hv H". gwp_apply s_deser_sound; [done|].
+      iIntros (?) "#H1". iApply "H". destruct o; done.
   Qed.
 
-  Lemma prod_deser'_complete_closed E v s c :
-    G{{{ prod_is_ser (g := g) A B v s }}}
+  Lemma prod_deser'_complete_closed E s c :
+    G{{{ prod_is_ser'' (g:=g) A B s }}}
       prod_deser' dA.(s_deserializer) dB.(s_deserializer) #s @ c; E
-    {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+    {{{ v, RET (SOMEV v); prod_is_ser (g:=g) A B v s }}} ? gwp_laters g.
   Proof.
-    iIntros (?) "(%&%&%&%&(-> & ->)&H1&H2) H".
-    gwp_apply (prod_deser'_complete (s_is_ser A) (s_is_ser B) _ (_, _) with "[] [] [] [H1 H2]"); [done| | | |done].
-    - iIntros (?) "!# % H1 H2". by gwp_apply (s_deser_complete with "H1").
-    - iIntros (?) "!# % H1 H2". by gwp_apply (s_deser_complete with "H1").
-    - do 4 (iExists _). iFrame. iPureIntro. eauto.
+    iIntros (?) "Hser H".
+    iDestruct "Hser" as "(%&%&#H1&#H2&%)". simplify_eq.
+    gwp_apply (prod_deser'_complete (s_is_ser' A) (s_is_ser' B) _); [done| | | |done].
+    - iIntros (?) "!# _ H". gwp_apply s_deser_complete; [done|].
+      iIntros (?) "#Hs1". by iApply "H".
+    - iIntros (?) "!# _ H". gwp_apply s_deser_complete; [done|].
+      iIntros (?) "#Hs2". by iApply "H".
+    - iExists _, _; eauto.
   Qed.
 
 End prod_deserialization_closed.
@@ -871,9 +932,31 @@ Definition inr_ser_str (s : string) := "R_" +:+ s.
 
 Section sum_serialization.
   Context (A B : serialization).
+
   Context `{invGS_gen hlc Σ} `{g : !GenWp Σ}.
 
   Implicit Types c : gwp_type g.
+
+  Definition sum_is_ser' (v : val) (s : string) (HA HB : val → string → iProp Σ) : iProp Σ :=
+    ∃ w s',
+      (HA w s' ∧ ⌜v = InjLV w ∧ s = inl_ser_str s'⌝) ∨
+      (HB w s' ∧ ⌜v = InjRV w ∧ s = inr_ser_str s'⌝).
+
+  Definition sum_is_ser (v : val) (s : string) : iProp Σ :=
+    sum_is_ser' v s (s_is_ser (g:=g) A) (s_is_ser (g:=g) B).
+
+  Definition sum_is_ser''' (s : string) (HA HB : string → iProp Σ) : iProp Σ :=
+    ∃ s',
+      (HA s' ∧ ⌜s = inl_ser_str s'⌝) ∨
+      (HB s' ∧ ⌜s = inr_ser_str s'⌝).
+
+  Definition sum_is_ser'' (s : string) : iProp Σ :=
+    sum_is_ser''' s (s_is_ser' (g:=g) A) (s_is_ser' (g:=g) B).
+
+  Lemma sum_is_ser_eq (v : val) (s : string) :
+    sum_is_ser v s -∗ sum_is_ser'' s.
+  Proof. 
+  Admitted.
 
   Definition sum_valid_val' (v : val) (HA HB : val → iProp Σ) : iProp Σ :=
     ∃ w, (⌜v = InjLV w⌝ ∧ HA w) ∨ (⌜v = InjRV w⌝ ∧ HB w).
@@ -881,26 +964,18 @@ Section sum_serialization.
   Definition sum_valid_val (v : val) : iProp Σ :=
     sum_valid_val' v (s_valid_val (g := g) A) (s_valid_val (g := g) B).
 
-  Definition sum_is_ser' (v : val) (s : string) (HA HB : val → string → iProp Σ) : iProp Σ :=
-    ∃ w s',
-      (⌜v = InjLV w ∧ s = inl_ser_str s'⌝ ∧ HA w s') ∨
-      (⌜v = InjRV w ∧ s = inr_ser_str s'⌝ ∧ HB w s').
-
-  Definition sum_is_ser (v : val) (s : string) : iProp Σ :=
-    sum_is_ser' v s (s_is_ser (g:= g) A) (s_is_ser (g:= g) B).
-
   Lemma sum_is_ser_inj v s1 s2 :
     sum_is_ser v s1 -∗ sum_is_ser v s2 -∗ ⌜s1 = s2⌝.
   Proof.
-    iIntros "(%v1 & %s1' & [((% & %) & Hs1) | ((% & %) & Hs1)])
-     (%v2 & %s2' & [((% & %) & Hs2) | ((% & %) & Hs2)])"; simplify_eq.
+    iIntros "(%v1 & %s1' & [(Hs1 & (% & %)) | (Hs1 & (% & %))])
+     (%v2 & %s2' & [(Hs2 & (% & %)) | (Hs2 & (% & %))])"; simplify_eq.
     - by iPoseProof (A.(s_is_ser_inj) with "Hs1 Hs2") as "->".
     - by iPoseProof (B.(s_is_ser_inj) with "Hs1 Hs2") as "->".
   Qed.
 
   Lemma sum_is_ser_valid v s : sum_is_ser v s ⊢ sum_valid_val v.
   Proof.
-    iIntros "(% & % & [((% & %) & ?) | ((% & %) & ?)])".
+    iIntros "(% & % & [(? & (% & %)) | (? & (% & %))])".
     - iExists _. iLeft. iSplit; [done|]. by iApply s_is_ser_valid.
     - iExists _. iRight. iSplit; [done|]. by iApply s_is_ser_valid.
   Qed.
@@ -923,12 +998,12 @@ Section sum_serialization.
     iDestruct "Hw" as "[[-> Hw]|[-> Hw]]"; gwp_pures.
     - iDestruct "Hsum" as "[% | %]"; simplify_eq.
       gwp_apply ("HA" with "Hw").
-      iIntros (s) "Hs"; simpl.
+      iIntros (s) "#Hs"; simpl.
       gwp_pures.
       iApply "HΦ"; eauto 10.
     - iDestruct "Hsum" as "[% | %]"; simplify_eq.
       gwp_apply ("HB" with "Hw").
-      iIntros (s) "Hs"; simpl.
+      iIntros (s) "#Hs"; simpl.
       gwp_pures.
       iApply "HΦ"; eauto 10.
   Qed.
@@ -973,9 +1048,11 @@ End sum_serialization.
 Program Definition sum_serialization (A B : serialization) : serialization :=
   {| s_valid_val := λ _ Σ, @sum_valid_val A B _ Σ;
      s_serializer := sum_ser' _ _;
-     s_is_ser := λ _ Σ, @sum_is_ser A B _ Σ;
+    s_is_ser := λ _ Σ, @sum_is_ser A B _ Σ;
+    s_is_ser' := λ _ Σ, @sum_is_ser'' A B _ Σ;
      s_is_ser_inj := λ _ Σ, @sum_is_ser_inj A B _ Σ;
-     s_is_ser_valid := λ _ Σ, @sum_is_ser_valid A B _ Σ;
+    s_is_ser_valid := λ _ Σ, @sum_is_ser_valid A B _ Σ;
+    s_is_ser_eq := @sum_is_ser_eq A B;
      s_ser_spec := @sum_ser'_spec_closed A B; |}.
 
 Section sum_deserialization.
@@ -1006,7 +1083,7 @@ Section sum_deserialization.
       iIntros ([a|]) "Ha"; gwp_pures; [|by iApply ("HΦ" $! None)].
       iApply ("HΦ" $! (Some _)).
       iModIntro. do 2 (iExists _).
-      iLeft. iSplitR "Ha"; [|iFrame].
+      iLeft. iSplitL "Ha"; [iFrame|].
       iPureIntro. split; [done|].
       rewrite /inl_ser_str -Hl.
       rewrite {1}(substring_split_from_O s 2).
@@ -1019,7 +1096,7 @@ Section sum_deserialization.
       iIntros ([b|]) "Hb"; gwp_pures; [|by iApply ("HΦ" $! None)].
       iApply ("HΦ" $! (Some _)).
       iModIntro. do 2 (iExists _).
-      iRight. iSplitR "Hb"; [|iFrame].
+      iRight. iSplitL "Hb"; [iFrame|].
       iPureIntro. split; [done|].
       rewrite /inr_ser_str -Hr.
       rewrite {1}(substring_split_from_O s 2).
@@ -1047,59 +1124,61 @@ Section sum_deserialization.
     by gwp_apply (sum_deser'_sound with "HA HB").
   Qed.
 
-  Lemma sum_deser'_complete (HA HB : val → string → iProp Σ) E v s c (deserA deserB : val) :
-    (∀ sA vA,
-       ⌜v = InjLV vA⌝ -∗
-       G{{{ HA vA sA }}}
+  Lemma sum_deser'_complete (HA HB : string → iProp Σ) (HA' HB' : val → string → iProp Σ) E s c (deserA deserB : val) :
+    (∀ sA,
+       ⌜s = inl_ser_str sA⌝ -∗
+       G{{{ HA sA }}}
         deserA #sA @ c; E
-       {{{ RET (SOMEV vA); True }}} ? gwp_laters g) -∗
-    (∀ sB vB,
-       ⌜v = InjRV vB⌝ -∗
-       G{{{ HB vB sB }}}
+       {{{ vA, RET (SOMEV vA); HA' vA sA }}} ? gwp_laters g) -∗
+    (∀ sB,
+       ⌜s = inr_ser_str sB⌝ -∗
+       G{{{ HB sB }}}
          deserB #sB @ c; E
-       {{{ RET (SOMEV vB); True }}} ? gwp_laters g) -∗
-    G{{{ sum_is_ser' v s HA HB }}}
+       {{{ vB, RET (SOMEV vB); HB' vB sB }}} ? gwp_laters g) -∗
+    G{{{ sum_is_ser''' s HA HB }}}
       sum_deser' deserA deserB #s @ c; E
-    {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+    {{{ v, RET (SOMEV v); sum_is_ser' v s HA' HB' }}} ? gwp_laters g.
   Proof.
-    iIntros "#HA #HB" (Φ) "!# (%w & %s' & Hw) HΦ";
+    iIntros "#HA #HB" (Φ) "!# Hw HΦ".
     rewrite /sum_deser' /sum_is_ser.
     gwp_pures.
     rewrite !Z2Nat.inj_0.
     replace (Z.to_nat 2) with 2; [|done].
-    iDestruct "Hw" as "[((-> & ->) &Hw)|((->&->)&Hw)]"; simplify_eq.
+    iDestruct "Hw" as "(% & [(Hw&->)|(Hw&->)])"; simplify_eq.
     - rewrite (substring_0_length_append "L_") /=.
       gwp_pure.
       replace (Z.to_nat (S (S (String.length s')) - 2)) with
           (String.length s') by lia.
       rewrite substring_0_length.
-      gwp_apply ("HA" with "[] [Hw]"); [done|done|]. iIntros "_".
+      gwp_apply ("HA" with "[] Hw"); [done| ]. iIntros (?) "Hx".
       gwp_pures.
-      by iApply "HΦ".
+      iApply "HΦ". rewrite /sum_is_ser'.
+      iExists vA, s'. iLeft. by iFrame.
     - rewrite (substring_0_length_append "R_") /=.
       gwp_pures.
       replace (Z.to_nat (S (S (String.length s')) - 2)) with
           (String.length s') by lia.
       rewrite substring_0_length.
-      gwp_apply ("HB" with "[] [Hw]"); [done|done|]; iIntros "_".
+      gwp_apply ("HB" with "[] Hw"); [done|]; iIntros (?) "Hx".
       gwp_pures.
-      iApply "HΦ"; done.
+      iApply "HΦ". rewrite /sum_is_ser'.
+      iExists vB, s'. iRight. by iFrame.
   Qed.
 
-  Lemma sum_deser_complete (HA HB : val → string → iProp Σ) E v s c (deserA deserB : val) :
-    (∀ sA vA,
-      ⌜v = InjLV vA⌝ -∗
-      G{{{ HA vA sA }}}
+  Lemma sum_deser_complete (HA HB : string → iProp Σ) (HA' HB' : val → string → iProp Σ) E s c (deserA deserB : val) :
+    (∀ sA,
+      ⌜s = inl_ser_str sA⌝ -∗
+      G{{{ HA sA }}}
         deserA #sA @ c; E
-       {{{ RET (SOMEV vA); True }}} ? gwp_laters g) -∗
-    (∀ sB vB,
-      ⌜v = InjRV vB⌝ -∗
-      G{{{ HB vB sB }}}
+       {{{ vA, RET (SOMEV vA); HA' vA sA }}} ? gwp_laters g) -∗
+    (∀ sB,
+      ⌜s = inr_ser_str sB⌝ -∗
+      G{{{ HB sB }}}
         deserB #sB @ c; E
-       {{{ RET (SOMEV vB); True }}} ? gwp_laters g) -∗
-    G{{{ sum_is_ser' v s HA HB }}}
+       {{{ vB, RET (SOMEV vB); HB' vB sB }}} ? gwp_laters g) -∗
+    G{{{ sum_is_ser''' s HA HB }}}
       sum_deser deserA deserB #s @ c; E
-    {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+    {{{ v, RET (SOMEV v); sum_is_ser' v s HA' HB' }}} ? gwp_laters g.
   Proof.
     iIntros "#HA #HB" (Φ) "!# Hw HΦ".
     rewrite /sum_deser. do 4 gwp_pure _.
@@ -1121,19 +1200,23 @@ Section sum_deserialization_closed.
   Proof.
     iIntros (?) "_ H".
     gwp_apply (sum_deser'_sound with "[] [] [//]"); [| |done].
-    - iIntros (??) "!# Hv H". by gwp_apply s_deser_sound.
-    - iIntros (??) "!# Hv H". by gwp_apply s_deser_sound.
+    - iIntros (??) "!# #Hv H". gwp_apply s_deser_sound; [done|].
+      iIntros (?) "#H1". iApply "H". destruct o; done.
+    - iIntros (??) "!# #Hv H". gwp_apply s_deser_sound; [done|].
+      iIntros (?) "#H1". iApply "H". destruct o; done.
   Qed.
 
-  Lemma sum_deser'_complete_closed E v s c :
-    G{{{ sum_is_ser (g := g) A B v s }}}
+  Lemma sum_deser'_complete_closed E s c :
+    G{{{ sum_is_ser'' (g:=g) A B s }}}
       sum_deser' dA.(s_deserializer) dB.(s_deserializer) #s @ c; E
-    {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+    {{{ v, RET (SOMEV v); sum_is_ser (g:=g) A B v s }}} ? gwp_laters g.
   Proof.
-    iIntros (?) "Hser H".
-    gwp_apply (sum_deser'_complete (s_is_ser A) (s_is_ser B) with "[] [] [Hser]"); [| |done|done].
-    - iIntros (??->?) "!# H1 H2". by gwp_apply (s_deser_complete with "H1").
-    - iIntros (??->?) "!# H1 H2". by gwp_apply (s_deser_complete with "H1").
+    iIntros (?) "#Hser H".
+    gwp_apply (sum_deser'_complete (s_is_ser' A) (s_is_ser' B)); [| |done|done].
+    - iIntros (???) "!# #Hser1 H". gwp_apply s_deser_complete; [done|].
+      iIntros (v) "#Hser2". by iApply "H".
+    - iIntros (???) "!# #Hser1 H". gwp_apply s_deser_complete; [done|].
+      iIntros (v) "#Hser2". by iApply "H".
   Qed.
 
 End sum_deserialization_closed.
@@ -1224,6 +1307,13 @@ Section option_serialization.
   Definition option_is_ser (v : val) (s : string) : iProp Σ :=
     option_is_ser' v s (s_is_ser (g:= g) A).
 
+  Definition option_is_ser''' (s : string) (HA : string → iProp Σ) : iProp Σ :=
+    (⌜s = none_ser_str⌝) ∨
+      (∃ s', ⌜s = some_ser_str s'⌝ ∧ HA s').
+
+  Definition option_is_ser'' (s : string) : iProp Σ :=
+    option_is_ser''' s (s_is_ser' (g:= g) A).
+
   Lemma option_is_ser_inj v s1 s2 :
     option_is_ser v s1 -∗ option_is_ser v s2 -∗ ⌜s1 = s2⌝.
   Proof.
@@ -1239,6 +1329,10 @@ Section option_serialization.
     - by iLeft.
     - iRight. iExists _. iSplit; [done|]. by iApply s_is_ser_valid.
   Qed.
+
+  Lemma option_is_ser_eq (v : val) (s : string) :
+    option_is_ser v s -∗ option_is_ser'' s.
+  Proof. Admitted.
 
   Lemma option_ser'_spec (HA : val → iProp Σ) E c (serA v vA : val) :
     ▷?(gwp_laters g) (⌜v = NONEV⌝ ∨ ⌜v = SOMEV vA⌝) -∗
@@ -1256,7 +1350,7 @@ Section option_serialization.
     - iApply "HΦ". eauto 10.
     - iDestruct "Hopt" as "[% | %]"; simplify_eq.
       gwp_apply ("HA" with "Hw").
-      iIntros (s) "Hs"; simpl.
+      iIntros (s) "#Hs"; simpl.
       gwp_pures.
       iApply "HΦ"; eauto 10.
   Qed.
@@ -1294,7 +1388,7 @@ Section option_serialization.
     - do 2 gwp_pure _. iDestruct "Hp" as "(-> & Hp)".
       gwp_pures.
       gwp_apply "HA"; [done|].
-      iIntros (s) "Hser". gwp_pures.
+      iIntros (s) "#Hser". gwp_pures.
       iApply "HΦ".
       iRight. iExists _, _. iFrame.
       iModIntro. eauto.
@@ -1304,9 +1398,11 @@ End option_serialization.
 Program Definition option_serialization (A : serialization) : serialization :=
   {| s_valid_val := λ _ Σ, @option_valid_val A _ Σ;
      s_serializer := option_ser' _;
-     s_is_ser := λ _ Σ, @option_is_ser A _ Σ;
+    s_is_ser := λ _ Σ, @option_is_ser A _ Σ;
+    s_is_ser' := λ _ Σ, @option_is_ser'' A _ Σ;
      s_is_ser_inj := λ _ Σ, @option_is_ser_inj A _ Σ;
-     s_is_ser_valid := λ _ Σ, @option_is_ser_valid A _ Σ;
+    s_is_ser_valid := λ _ Σ, @option_is_ser_valid A _ Σ;
+    s_is_ser_eq := @option_is_ser_eq A;
     s_ser_spec := @option_ser'_spec_closed A; |}.
 
 Section option_deserialization.
@@ -1382,49 +1478,49 @@ Section option_deserialization.
     by gwp_apply (option_deser'_sound with "HA").
   Qed.
 
-  Lemma option_deser'_complete (HA : val → string → iProp Σ) E v s c (deserA : val) :
-    (∀ sA vA,
-       ⌜v = SOMEV vA⌝ -∗
-       G{{{ HA vA sA }}}
+  Lemma option_deser'_complete (HA : string → iProp Σ) (HA' : val → string → iProp Σ) E s c (deserA : val) :
+    (∀ sA,
+       ⌜s = some_ser_str sA⌝ -∗
+       G{{{ HA sA }}}
         deserA #sA @ c; E
-       {{{ RET (SOMEV vA); True }}} ? gwp_laters g) -∗
-    G{{{ option_is_ser' v s HA }}}
+       {{{ vA, RET (SOMEV vA); HA' vA sA }}} ? gwp_laters g) -∗
+    G{{{ option_is_ser''' s HA }}}
       option_deser' deserA #s @ c; E
-    {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+    {{{ v, RET (SOMEV v); option_is_ser' v s HA' }}} ? gwp_laters g.
   Proof.
     iIntros "#HA" (Φ) "!# Hw HΦ";
     rewrite /option_deser' /option_is_ser.
     gwp_pures.
-    iDestruct "Hw" as "[(->&->)|(% & % & (->&->)&Hw)]"; simplify_eq; gwp_pures.
-    - by iApply "HΦ".
+    iDestruct "Hw" as "[->|(% & ->&Hw)]"; simplify_eq; gwp_pures.
+    - iApply "HΦ". by iLeft.
     - case_bool_decide; simplify_eq; gwp_pures.
       + case_bool_decide; simplify_eq; gwp_pures.
         * replace (Z.to_nat (S (S (String.length s')) - 2)) with
             (String.length s') by lia.
           rewrite substring_0_length.
-          gwp_apply ("HA" with "[] [Hw]"); [done|done|]; iIntros "_".
+          gwp_apply ("HA" with "[] [Hw]"); [done|done|]. iIntros (vA) "HAv".
           gwp_pures.
-          iApply "HΦ"; done.
+          iApply "HΦ". iRight. eauto.
         * lia.
       + case_bool_decide; simplify_eq; gwp_pures.
         * replace (Z.to_nat (S (S (String.length s')) - 2)) with
             (String.length s') by lia.
           rewrite substring_0_length.
-          gwp_apply ("HA" with "[] [Hw]"); [done|done|]; iIntros "_".
+          gwp_apply ("HA" with "[] [Hw]"); [done|done|]; iIntros (vB) "HBv".
           gwp_pures.
-          iApply "HΦ"; done.
+          iApply "HΦ". iRight. eauto.
         * exfalso. apply H1. by rewrite substring_n_0.
   Qed.
 
-  Lemma option_deser_complete (HA : val → string → iProp Σ) E v s c (deserA : val) :
-    (∀ sA vA,
-      ⌜v = SOMEV vA⌝ -∗
-      G{{{ HA vA sA }}}
+  Lemma option_deser_complete (HA : string → iProp Σ) (HA' : val → string → iProp Σ) E s c (deserA : val) :
+    (∀ sA,
+      ⌜s = some_ser_str sA⌝ -∗
+      G{{{ HA sA }}}
         deserA #sA @ c; E
-       {{{ RET (SOMEV vA); True }}} ? gwp_laters g) -∗
-    G{{{ option_is_ser' v s HA }}}
+       {{{ vA, RET (SOMEV vA); HA' vA sA }}} ? gwp_laters g) -∗
+    G{{{ option_is_ser''' s HA }}}
       option_deser deserA #s @ c; E
-    {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+    {{{ v, RET (SOMEV v); option_is_ser' v s HA' }}} ? gwp_laters g.
   Proof.
     iIntros "#HA" (Φ) "!# Hw HΦ".
     rewrite /option_deser. do 2 gwp_pure _.
@@ -1446,17 +1542,20 @@ Section option_deserialization_closed.
   Proof.
     iIntros (?) "_ H".
     gwp_apply (option_deser'_sound with "[] [//]"); [ |done].
-    - iIntros (??) "!# Hv H". by gwp_apply s_deser_sound.
+    - iIntros (??) "!# _ H". gwp_apply s_deser_sound; [done|].
+      iIntros (?) "#Hv". iApply "H".
+      destruct o; done.
   Qed.
 
-  Lemma option_deser'_complete_closed E v s c :
-    G{{{ option_is_ser (g := g) A v s }}}
+  Lemma option_deser'_complete_closed E s c :
+    G{{{ option_is_ser'' (g := g) A s }}}
       option_deser' dA.(s_deserializer) #s @ c; E
-    {{{ RET (SOMEV v); True }}} ? gwp_laters g.
+    {{{ v, RET (SOMEV v); option_is_ser (g := g) A v s }}} ? gwp_laters g.
   Proof.
     iIntros (?) "Hser H".
-    gwp_apply (option_deser'_complete (s_is_ser A) with "[] [Hser]"); [ |done|done].
-    - iIntros (??->?) "!# H1 H2". by gwp_apply (s_deser_complete with "H1").
+    gwp_apply (option_deser'_complete (s_is_ser' A) with "[] [Hser]"); [ |done|done].
+    - iIntros (?->?) "!# H1 H2". gwp_apply (s_deser_complete with "H1").
+      iIntros (?) "#Hser". by iApply "H2".
   Qed.
 
 End option_deserialization_closed.
