@@ -15,6 +15,12 @@ Definition sum_count : val :=
       InjL "vA" => "countA" "vA"
     | InjR "vB" => "countB" "vB"
     end.
+Definition option_count : val :=
+  λ: "countA" "v",
+    match: "v" with
+      InjL <> => #0
+    | InjR "vA" => "countA" "vA"
+    end.
 
 Definition auth_scheme : serialization_scheme :=
   option_serialization_scheme string_serialization_scheme.
@@ -23,6 +29,7 @@ Arguments s_deserializer : simpl never.
 
 Definition auth_ser_v : val :=
   λ: "v",
+    #1+#1;;
     match: "v" with
       InjL "h" => auth_scheme.(s_serializer) (SOME "h")
     | InjR "susp" =>
