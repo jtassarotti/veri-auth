@@ -111,7 +111,7 @@ Section authenticatable.
         iApply ("H" with "[Ht11 Ht21]").
         { iApply (IHt1_1 with "[Ht11] [Ht21]"); iFrame. }
         { iApply (IHt1_2 with "[Ht12] [Ht22]"); iFrame. }        
-      + iDestruct "Ht2" as (??) "[(%&Ht2)|(%&Ht2)]";
+      + iDestruct "Ht2" as (??) "[(Ht2&%)|(Ht2&%)]";
           destruct H. simplify_eq.
         * exfalso. by eapply prod_ser_inl_ser_neq.
         * exfalso. by eapply prod_ser_inr_ser_neq.
@@ -120,12 +120,12 @@ Section authenticatable.
       + iDestruct "Ht2" as (?) "(%&%)".
         iExFalso. by eapply prod_ser_int_ser_neq in H0.
     - iIntros "Ht1 Ht2".
-      iDestruct "Ht1" as (??) "[((%&%)&Ht1)|((%&%)&Ht1)]".
+      iDestruct "Ht1" as (??) "[(Ht1&(%&%))|(Ht1&(%&%))]".
       + destruct t2 => /=.
         * iDestruct "Ht2" as (????) "((%&%)&Ht21&Ht22)".
           simplify_eq.
           exfalso. symmetry in H2. by eapply prod_ser_inl_ser_neq in H2.
-        * iDestruct "Ht2" as (??) "[((%&%)&Ht2)|((%&%)&Ht2)]"; simplify_eq.
+        * iDestruct "Ht2" as (??) "[(Ht2&(%&%))|(Ht2&(%&%))]"; simplify_eq.
           iAssert (⌜w=w0⌝ -∗ ⌜InjLV w = InjLV w0⌝)%I as "H".
           { iIntros "%". iPureIntro. by f_equal. }
           iApply "H".
@@ -136,7 +136,7 @@ Section authenticatable.
         * iDestruct "Ht2" as (????) "((%&%)&Ht21&Ht22)".
           simplify_eq.
           exfalso. by eapply prod_ser_inr_ser_neq.
-        * iDestruct "Ht2" as (??) "[((%&%)&Ht2)|((%&%)&Ht2)]"; simplify_eq.
+        * iDestruct "Ht2" as (??) "[(Ht2&(%&%))|(Ht2&(%&%))]"; simplify_eq.
           iAssert (⌜w=w0⌝ -∗ ⌜InjRV w = InjRV w0⌝)%I as "H".
           { iIntros "%". iPureIntro. by f_equal. }
           iApply "H".
@@ -148,7 +148,7 @@ Section authenticatable.
       destruct t2 => /=.
       + iDestruct "Ht2" as (????) "((%&%)&Ht21&Ht22)".
         exfalso. simplify_eq. symmetry in H0. by eapply prod_ser_string_ser_neq.
-      + iDestruct "Ht2" as (??) "[((%&%)&Ht2)|((%&%)&Ht2)]"; simplify_eq.
+      + iDestruct "Ht2" as (??) "[(Ht2&(%&%))|(Ht2&(%&%))]"; simplify_eq.
       + iDestruct "Ht2" as (?) "(%&%)". simplify_eq. done.
       + iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
     - iIntros "Ht1 Ht2".
@@ -156,7 +156,7 @@ Section authenticatable.
       destruct t2 => /=.
       + iDestruct "Ht2" as (????) "((%&%)&Ht21&Ht22)".
         exfalso. symmetry in H0. by eapply prod_ser_int_ser_neq.
-      + iDestruct "Ht2" as (??) "[((%&%)&Ht2)|((%&%)&Ht2)]"; simplify_eq.
+      + iDestruct "Ht2" as (??) "[(Ht2&(%&%))|(Ht2&(%&%))]"; simplify_eq.
       + iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
       + iDestruct "Ht2" as (?) "(%&%)". simplify_eq. done.
   Qed.
