@@ -28,6 +28,33 @@ Definition v_auth : val :=
       let, ("serialize", "deserialize", "count") := "evi" in
       InjL (Hash ("serialize" "a")).
 
+Definition v_finish : val :=
+  λ: "susp_table" "a" "x" "serialize" <>,
+    let: "y" := "serialize" "x" in
+    match: "a" with
+      InjL "h" =>
+        if: Hash "y" = "h" then SOMEV #()
+        else NONEV
+    | InjR "susp" =>
+        match: !"susp" with
+          InjL "h" =>
+            if: Hash "y" = "h" then SOMEV #()
+            else NONEV
+        | InjR "pid" =>
+            let, ("ctr", "finish") :=
+              map.map_lookup "pid" (!"susp_table")
+            in
+            if: "ctr" = #1 then
+              "susp_table" <- map.map_remove "pid" (!"susp_table");;
+              "susp" <- InjR (Hash "y");;
+              "finish" #()
+            else
+              "susp" <- InjR (Hash "y");;
+              "susp_table" <- map.map_insert "pid" ("ctr" - #1, "finish") (!"susp_table");;
+              SOMEV #()
+        end
+    end.
+
 Definition v_unauth : val :=
   λ: "susp_table", Λ: λ: "evi" "a" "proof",
       match: list_head "proof" with
@@ -40,37 +67,16 @@ Definition v_unauth : val :=
             NONE => NONE
           | SOME "x" =>
               let: "nchild" := "count" "x" in
-              let: "finish" :=
-                λ: <>,
-                  let: "y" := "serialize" "x" in
-                  match: "a" with
-                    InjL "h" =>
-                      if: Hash "y" = "h" then SOMEV #()
-                      else NONEV
-                  | InjR "susp" =>
-                      match: !"susp" with
-                        InjL "h" =>
-                          if: Hash "y" = "h" then SOMEV #()
-                          else NONEV
-                      | InjR "pid" =>
-                          let, ("ctr", "finish") :=
-                            map.map_lookup "pid" (!"susp_table")
-                          in
-                          if: "ctr" = #1 then
-                            "susp_table" <- map.map_remove "pid" (!"susp_table");;
-                            "susp" <- InjR (Hash "y");;
-                            "finish" #()
-                          else
-                            "susp" <- InjR (Hash "y");;
-                            "susp_table" <- map.map_insert "pid" ("ctr" - #1, "finish") (!"susp_table")
-                      end
-                  end
-              in
-              (if: "nchild" = #0 then
-                 "finish" #()
-               else
-                 "susp_table" <- map.map_insert "pid" ("nchild", "finish") (!"susp_table"));;
-              SOME ((list_tail "proof", "id" + #1), "x")
+              let: "finish_opt" := (v_finish "susp_table" "a" "x" "serialize") in
+              match: "finish_opt" with
+                NONE => NONE
+              | SOME _ =>
+                  (if: "nchild" = #0 then
+                     "finish" #()
+                   else
+                     "susp_table" <- map.map_insert "pid" ("nchild", "finish") (!"susp_table"));;
+                  SOME ((list_tail "proof", "id" + #1), "x")
+              end
           end
       end.
 
