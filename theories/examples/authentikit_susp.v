@@ -70,7 +70,7 @@ Definition v_unauth : val :=
               let: "finish_opt" := (v_finish "susp_table" "a" "x" "serialize") in
               match: "finish_opt" with
                 NONE => NONE
-              | SOME _ =>
+              | SOME <> =>
                   (if: "nchild" = #0 then
                      "finish" #()
                    else
