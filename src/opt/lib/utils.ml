@@ -61,7 +61,7 @@ let list_split l =
   split_aux l [] l
 
 (** Serialization **)
-let marshal_flags = [Marshal.No_sharing]
+let marshal_flags = []
 
 (** Measurement **)
 let measured_time = ref 0.
