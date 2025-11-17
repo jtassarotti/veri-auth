@@ -1,0 +1,20 @@
+(test 
+ (name netffi_test) 
+ (libraries pav lwt.unix))
+
+(test
+ (name advrpc_test) 
+ (libraries pav lwt.unix)
+ (preprocess (pps lwt_ppx)))
+
+(test
+ (name cryptoffi_test)
+ (libraries pav))
+
+(test
+ (name hashchain_test)
+ (libraries pav))
+
+(test
+ (name merkle_test)
+ (libraries pav))
