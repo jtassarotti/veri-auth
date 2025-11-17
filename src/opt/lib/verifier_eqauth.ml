@@ -7,7 +7,7 @@ module Verifier : sig
   include AUTHENTIKIT2 with
   type 'a auth = string
   val make_auth : string -> 'a auth
-  val init : int array -> unit
+  val init : bytes -> unit
   val run : 'a authenticated_computation -> string -> 'a
 end = struct
   type proof_val = proof_value
@@ -17,7 +17,7 @@ end = struct
 
   type random = int64
 
-  let vrf_key: int array ref = ref [||]
+  let vrf_key: bytes ref = ref Bytes.empty
 
   let make_auth s = s
   let[@inline] return a = fun pf -> pf, a
@@ -60,7 +60,7 @@ end = struct
   let eqauth h1 h2 pf_stream = (pf_stream, h1=h2)
 
   let randomize evi obj pf_stream =
-    let str = evi.serialize obj in
+    let str = evi.serialize obj |> Bytes.of_string in
     match pf_stream with
     | [] -> failwith "Vrf proof failure"
     | prf_val :: ps ->

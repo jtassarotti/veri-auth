@@ -8,7 +8,7 @@ module SMap = Map.Make(struct type t = string let compare : string -> string -> 
 module Verifier_susp : sig
   include AUTHENTIKIT2
   val make_auth : string -> 'a auth
-  val init : int array -> unit
+  val init : bytes -> unit
   val run : 'a authenticated_computation -> string -> 'a
 end = struct
   type proof_val = proof_value
@@ -22,7 +22,7 @@ end = struct
 
   type random = int64
 
-  let vrf_key: int array ref = ref [||]
+  let vrf_key: bytes ref = ref (Bytes.empty)
   let counter: int ref = ref 0
   type finish_t = unit -> unit
   let susp_table: (int * finish_t) IMap.t ref = ref IMap.empty
@@ -145,7 +145,7 @@ end = struct
       if check () then eqauth_checks checks else failwith "check failed"
 
   let randomize evi obj prf_state =
-    let str = evi.serialize obj in
+    let str = evi.serialize obj |> Bytes.of_string in
     match prf_state.pf_stream with
     | [] -> failwith "Vrf proof failure"
     | prf_val :: ps ->

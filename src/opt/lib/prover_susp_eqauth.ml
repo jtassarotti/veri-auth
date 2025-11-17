@@ -7,7 +7,7 @@ module Prover_susp : sig
   include AUTHENTIKIT2
   (* type 'a authenticated_computation = proof_stream -> (proof_stream * 'a) *)
   val get_hash : 'a auth -> string
-  val init : int array -> unit
+  val init : bytes -> unit
   val run : 'a authenticated_computation -> (string * 'a)
 end = struct
   type proof_val = proof_value
@@ -20,7 +20,7 @@ end = struct
 
   type random = int64
 
-  let vrf_key: int array ref = ref [||]
+  let vrf_key: bytes ref = ref (Bytes.empty)
 
   (* let initial_id = Int.max_int
   let counter: int ref = ref 0
@@ -91,8 +91,8 @@ end = struct
     { prf_state with buffer = finish :: prf_state.buffer }, res
 
   let randomize evi obj prf_state =
-    let str = evi.serialize obj in
-    let random, proof = randomize_string !vrf_key str in
+    let str = evi.serialize obj |> Bytes.of_string in
+    let random, proof = prove !vrf_key str in
     let rand_int = Bytes.get_int64_le random 0 in
     let random_s = Bytes.to_string random in
     let proof_s = Marshal.to_string proof marshal_flags in

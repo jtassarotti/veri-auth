@@ -6,7 +6,7 @@ open Vrf
 module Prover_rev : sig
   include AUTHENTIKIT2
   val get_hash : 'a auth -> string
-  val init : int array -> unit
+  val init : bytes -> unit
   val run : 'a authenticated_computation -> (string * 'a)
 end = struct
   type proof_val = proof_value
@@ -16,7 +16,7 @@ end = struct
   
   type random = int64
 
-  let vrf_key: int array ref = ref [||]
+  let vrf_key: bytes ref = ref (Bytes.empty)
 
   let get_hash (a, h) = h
   let[@inline] return a = fun buf_state -> (buf_state, a)
@@ -52,8 +52,8 @@ end = struct
     (pf_stream, h1=h2)
 
   let randomize evi obj pf_stream =
-    let str = evi obj in
-    let random, proof = randomize_string !vrf_key str in
+    let str = evi obj |> Bytes.of_string in
+    let random, proof = prove !vrf_key str in
     let random_s = Bytes.to_string random in
     let rand_int = Bytes.get_int64_le random 0 in
     let proof_s = Marshal.to_string proof marshal_flags in
