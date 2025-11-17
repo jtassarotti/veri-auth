@@ -1,0 +1,8 @@
+(library
+ (name pav)
+ (libraries 
+  lwt.unix 
+  vrf
+  authentikit
+  digestif mirage-crypto-ec mirage-crypto-rng.unix)
+ (preprocess (pps lwt_ppx)))
