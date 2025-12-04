@@ -192,9 +192,11 @@ let self_mon (c: client): (int * bool) blame_ret =
 let audit (c: client) (adtr_addr: int64) (adtr_pk: pub_sig_key): (evid option * blame) =
   let cli = dial adtr_addr in
   let last = c.last in
+  print_endline "Calling get on auditor";
   match Auditor_rpc.call_get cli last.epoch with
   | `left b -> None, b
   | `right reply ->
+    print_endline "Checking audit";
     if check_audit c.serv.sig_pk adtr_pk last.epoch reply then
       None, blame_adtr_full
     else

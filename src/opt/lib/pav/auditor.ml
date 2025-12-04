@@ -153,6 +153,7 @@ let update (a: auditor): blame =
 let get (a: auditor) (epoch: int): get_reply =
   RWMutex.with_r_lock a.mu (fun () ->
     let num_epochs = a.start_ep + (Array.length a.hist) in
+    print_endline ((string_of_int (num_epochs))^" "^(string_of_int epoch));
     if epoch < a.start_ep then `left blame_unknown
     else if epoch >= num_epochs then `left blame_unknown
     else
@@ -169,6 +170,7 @@ let check_start (serv_pk: pub_sig_key) (reply: start_reply): (int * bytes * byte
     match Hashchain.verify reply.prev_link reply.chain_proof with
     | None -> None
     | Some (ext_len, dig, link) ->
+      print_endline (string_of_int ext_len);
       if ext_len = 0 then None
       else
         if check_overflow reply.prev_epoch_len (ext_len-1) then None

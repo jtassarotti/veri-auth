@@ -181,6 +181,7 @@ let get_bound: server -> int -> int -> non_memb =
 let start (s: server): start_reply =
   RWMutex.with_r_lock s.mu (fun () ->
     let pred_len = (Array.length s.hist.audits) - 1 in
+    print_endline (string_of_int pred_len);
     let pred_link, proof = bootstrap s.hist.chain in
     let last_sig = (Array.get s.hist.audits pred_len).link_sig in
     let pk = s.secs.vrf_key.pk in

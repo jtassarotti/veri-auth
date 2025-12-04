@@ -18,3 +18,7 @@
 (test
  (name merkle_test)
  (libraries pav))
+
+(test
+ (name alicebob_test)
+ (libraries pav))
