@@ -25,17 +25,22 @@ Definition option_count : val :=
 Definition auth_scheme : serialization_scheme :=
   option_serialization_scheme string_serialization_scheme.
 Arguments s_serializer : simpl never.
+Arguments s_serializer' : simpl never.
 Arguments s_deserializer : simpl never.
 
 Definition auth_ser_v : val :=
   λ: "v",
     #1+#1;;
     match: "v" with
-      InjL "h" => auth_scheme.(s_serializer) (SOME "h")
-    | InjR "susp" =>
-        match: !"susp" with
-          InjR "h" => auth_scheme.(s_serializer) (SOME "h")
-        | InjL <> => auth_scheme.(s_serializer) NONE
+      NONE => NONEV
+    | SOME "v" =>
+        match: "v" with
+          InjL "h" => auth_scheme.(s_serializer') (SOME "h")
+        | InjR "susp" =>
+            match: !"susp" with
+              InjR "h" => auth_scheme.(s_serializer') (SOME "h")
+            | InjL <> => NONEV
+            end
         end
     end.
 
@@ -45,16 +50,20 @@ Definition auth_deser_v : val :=
       NONE => NONE
     | SOME "v" =>
         match: "v" with
-          NONE => SOME (InjR (ref (InjL "pid")))
-        | SOME "h" => SOME (InjL "h")
+          NONE => SOME (SOME (InjR (ref (InjL "pid"))))
+        | SOME "h" => SOME (SOME (InjL "h"))
         end
     end.
 
 Definition auth_count : val :=
   λ: "v",
     match: "v" with
-      InjL <> => #1
-    | InjR <> => #0
+      NONE => #0
+    | SOME "a" =>
+        match: "a" with
+          InjL <> => #1
+        | InjR <> => #0
+        end
     end.
 
 (** type 'a evidence = {serialize : 'a -> string; deserialize : string -> 'a; count : 'a -> int} *)
@@ -71,7 +80,7 @@ Definition v_Auth_pair : val :=
   Λ: Λ: λ: "A" "B",
         let, ("ser_A", "deser_A", "count_A") := "A" in
         let, ("ser_B", "deser_B", "count_B") := "B" in
-        let: "ser" := prod_ser "ser_A" "ser_B" in
+        let: "ser" := prod_ser'' "ser_A" "ser_B" in
         let: "deser" := λ: "pid", prod_deser ("deser_A" "pid") ("deser_B" "pid") in
         let: "count" := prod_count "count_A" "count_B" in
         ("ser", "deser", "count").
@@ -79,14 +88,14 @@ Definition v_Auth_sum : val :=
   Λ: Λ: λ: "A" "B",
         let, ("ser_A", "deser_A", "count_A") := "A" in
         let, ("ser_B", "deser_B", "count_B") := "B" in
-        let: "ser" := sum_ser "ser_A" "ser_B" in
+        let: "ser" := sum_ser'' "ser_A" "ser_B" in
         let: "deser" := λ: "pid", sum_deser ("deser_A" "pid") ("deser_B" "pid") in
         let: "count" := sum_count "count_A" "count_B" in
         ("ser", "deser", "count").
 Definition v_Auth_string : val :=
-  (string_ser, λ: <>, string_deser, string_count).
+  (string_ser', λ: <>, string_deser, string_count).
 Definition v_Auth_int : val :=
-  (int_ser, λ: <>, int_deser, int_count).
+  (int_ser', λ: <>, int_deser, int_count).
 
 Definition auth_ser_p : val :=
   λ: "a",
@@ -140,7 +149,7 @@ Definition p_Auth_pair : val :=
   Λ: Λ: λ: "A" "B",
         let, ("ser_A", "suspend_A", "unsuspend_A") := "A" in
         let, ("ser_B", "suspend_B", "unsuspend_B") := "B" in
-        let: "ser" := prod_ser "ser_A" "ser_B" in
+        let: "ser" := prod_ser'' "ser_A" "ser_B" in
         let: "suspend" :=
           λ: "a",
             let, ("a", "b") := "a" in
@@ -156,7 +165,7 @@ Definition p_Auth_sum : val :=
   Λ: Λ: λ: "A" "B",
         let, ("ser_A", "suspend_A", "unsuspend_A") := "A" in
         let, ("ser_B", "suspend_B", "unsuspend_B") := "B" in
-        let: "ser" := sum_ser "ser_A" "ser_B" in
+        let: "ser" := sum_ser'' "ser_A" "ser_B" in
         let: "suspend" :=
           λ: "a",
             match: "a" with
@@ -173,6 +182,6 @@ Definition p_Auth_sum : val :=
         in
         ("ser", "suspend", "unsuspend").
 Definition id : val := λ: "x", "x".
-Definition p_Auth_string : val := (string_ser, id, id).
-Definition p_Auth_int : val := (int_ser, id, id).
+Definition p_Auth_string : val := (string_ser', id, id).
+Definition p_Auth_int : val := (int_ser', id, id).
 

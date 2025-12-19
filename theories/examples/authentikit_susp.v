@@ -26,7 +26,10 @@ Definition v_bind : val :=
 Definition v_auth : val :=
   Λ: λ: "evi" "a",
       let, ("serialize", "deserialize", "count") := "evi" in
-      InjL (Hash ("serialize" "a")).
+      match: "serialize" "a" with
+        NONE => NONEV
+      | SOME "sera" => SOME (InjL (Hash "sera"))
+      end.
 
 Definition v_finish : val :=
   λ: "susp_table" "a" "x" "serialize" <>,

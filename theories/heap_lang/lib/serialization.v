@@ -8,6 +8,7 @@ From auth.heap_lang.lib Require Export inject.
 Record serialization := Serialization {
   s_valid_val `{invGS_gen hlc Σ} `{g : !GenWp Σ} : val → iProp Σ;
   s_serializer : val;
+  s_serializer' : val;
   s_is_ser `{invGS_gen hlc Σ} `{g : !GenWp Σ} : val → string → iProp Σ;
   s_is_ser' `{invGS_gen hlc Σ} `{g : !GenWp Σ} : string → iProp Σ;
                             
@@ -28,6 +29,10 @@ Record serialization := Serialization {
     G{{{ ▷?(gwp_laters g) s_valid_val (g := g) v }}}
       s_serializer v @ a ; E
      {{{ s, RET #s; s_is_ser (g := g) v s }}} ? gwp_laters g;
+  s_ser_spec' `{invGS_gen hlc Σ} `{g : !GenWp Σ} E v (a : gwp_type g) :
+    G{{{ ▷?(gwp_laters g) s_valid_val (g := g) v }}}
+      s_serializer' v @ a ; E
+     {{{ o, RET $o; if o is Some s then s_is_ser (g := g) v s else True }}} ? gwp_laters g;
 }.
 
 Record deserialization (ser : serialization) := Deserialization {
@@ -66,6 +71,7 @@ Definition s_scheme `(s : serialization_scheme) : val := (s.(s_serializer), s.(s
 
 (** * Integer serialization *)
 Definition int_ser : val := λ: "v", #"i_" ^ z2s "v".
+Definition int_ser' : val := λ: "v", SOME (int_ser "v").
 Definition int_deser : val :=
   λ: "s",
     let: "tag" := strsub #0 #2 "s" in
@@ -133,6 +139,17 @@ Proof.
   gwp_pures. iApply "HΦ". iPureIntro. eauto.
  Qed.
 
+Lemma int_ser_spec' E v a :
+  G{{{ ▷?(gwp_laters g) int_valid_val v }}}
+    int_ser' v @ a ; E
+  {{{ o, RET $o; if o is Some s then int_is_ser v s else True }}} ? gwp_laters g.
+ Proof.
+  iIntros (Φ) "Hv HΦ".
+  rewrite /int_scheme /int_ser' /int_ser /int_is_ser.
+  gwp_pures. iDestruct "Hv" as "[% ->]".
+  gwp_pures. iApply ("HΦ" $! (Some _)). iPureIntro. eauto.
+ Qed.
+
 Lemma int_deser_spec E s a :
   G{{{ True }}}
     int_deser #(LitString s) @ a ; E
@@ -187,12 +204,14 @@ End int_specs.
 Definition int_serialization : serialization :=
   {| s_valid_val := λ _ Σ _ _, @int_valid_val Σ;
      s_serializer := int_ser;
+     s_serializer' := int_ser';
      s_is_ser := λ _ Σ _ _, @int_is_ser Σ;
      s_is_ser' := λ _ Σ _ _, @int_is_ser' Σ;
      s_is_ser_inj := λ _ Σ _ _, @int_is_ser_inj Σ;
      s_is_ser_valid := λ  _ Σ _ _, @int_is_ser_valid Σ ;
      s_is_ser_eq := @int_is_ser_eq;
      s_ser_spec := @int_ser_spec;
+     s_ser_spec' := @int_ser_spec';
   |}.
 
 Program Definition int_deserialization : deserialization int_serialization :=
@@ -207,6 +226,8 @@ Definition int_serialization_scheme :=
 (** * Boolean serialization *)
 Definition bool_ser : val :=
   λ: "b", if: "b" then #"b_1" else #"b_0" .
+Definition bool_ser' : val :=
+  λ: "b", SOME (bool_ser "b").
 Definition bool_deser : val :=
   λ: "v",
     if: "v" = #"b_1" then SOME #true else
@@ -265,6 +286,17 @@ Proof.
   destruct b; gwp_pures; iApply "HΦ"; eauto.
 Qed.
 
+Lemma bool_ser_spec' E v a :
+  G{{{ ▷?(gwp_laters g) bool_valid_val v }}}
+    bool_ser' v @ a ; E
+  {{{ o, RET $o; if o is Some s then bool_is_ser v s else True }}} ? gwp_laters g.
+Proof.
+  iIntros (Φ) "Hb HΦ".
+  rewrite /bool_scheme /bool_ser' /bool_ser /bool_is_ser.
+  gwp_pures. iDestruct "Hb" as "[% ->]".
+  destruct b; gwp_pures; iApply ("HΦ" $! (Some _)); eauto.
+Qed.
+
 Lemma bool_deser_spec E s a :
   G{{{ True }}}
     bool_deser #s @ a ; E
@@ -299,13 +331,15 @@ End bool_specs.
 
 Definition bool_serialization : serialization :=
   {| s_valid_val := λ _ _ Σ _, bool_valid_val;
-     s_serializer := bool_ser;
+    s_serializer := bool_ser;
+    s_serializer' := bool_ser';
      s_is_ser := λ _ _ Σ _, bool_is_ser;
      s_is_ser' := λ _ _ Σ _, bool_is_ser';
      s_is_ser_inj := λ _ _ Σ _, bool_is_ser_inj;
     s_is_ser_valid := λ _ Σ _ _, @bool_is_ser_valid Σ;
     s_is_ser_eq := @bool_is_ser_eq;
-     s_ser_spec := @bool_ser_spec;
+    s_ser_spec := @bool_ser_spec;
+    s_ser_spec' := @bool_ser_spec';
   |}.
 
 Program Definition bool_deserialization : deserialization bool_serialization :=
@@ -318,6 +352,7 @@ Definition bool_serialization_scheme :=
 
 (** * String serialization *)
 Definition string_ser : val := λ: "x", #"s_" ^ "x".
+Definition string_ser' : val := λ: "x", SOME (string_ser "x").
 Definition string_deser : val := λ: "s",
     let: "tag" := strsub #0 #2 "s" in
     let: "rest" := strsub #2 (strlen "s" - #2) "s" in
@@ -369,6 +404,17 @@ Proof.
   iApply "HΦ"; eauto.
 Qed.
 
+Lemma string_ser_spec' E v a :
+  G{{{ ▷?(gwp_laters g) string_valid_val v }}}
+    string_ser' v @ a; E
+  {{{ o, RET $o; if o is Some s then string_is_ser v s else True }}} ? gwp_laters g.
+Proof.
+  iIntros (Φ) "Hs HΦ".
+  rewrite /string_ser' /string_ser /string_is_ser.
+  gwp_pures. iDestruct "Hs" as "[% ->]". gwp_pures.
+  iApply ("HΦ" $! (Some _)); eauto.
+Qed.
+
 Lemma string_deser_spec E s a :
   G{{{ True }}}
     string_deser #s @ a; E
@@ -411,13 +457,16 @@ End string_specs.
 
 Definition string_serialization : serialization :=
   {| s_valid_val := λ _ Σ _ _, @string_valid_val Σ;
-     s_serializer := string_ser;
+    s_serializer := string_ser;
+    s_serializer' := string_ser';
     s_is_ser := λ _ Σ _ _, string_is_ser;
     s_is_ser' := λ _ Σ _ _, string_is_ser';
      s_is_ser_inj := λ _ Σ _ _, string_is_ser_inj;
     s_is_ser_valid := λ _ Σ _ _, @string_is_ser_valid Σ;
     s_is_ser_eq := @string_is_ser_eq;
-     s_ser_spec := @string_ser_spec; |}.
+    s_ser_spec := @string_ser_spec;
+    s_ser_spec' := @string_ser_spec';
+  |}.
 
 Program Definition string_deserialization : deserialization string_serialization :=
   {| s_deserializer := string_deser;
@@ -472,6 +521,28 @@ Definition prod_ser' (serA serB : val) : val :=
   let: "s1" := serA (Fst "v") in
   let: "s2" := serB (Snd "v") in
   (z2s (strlen "s1")) ^ (#"_" ^ ("s1" ^ "s2")).
+
+Definition prod_ser'' : val :=
+  λ: "serA" "serB" "v",
+    match: "serA" (Fst "v") with
+      NONE => NONEV
+    | SOME "s1" =>
+        match: "serB" (Snd "v") with
+          NONE => NONEV
+        | SOME "s2" => SOME ((z2s (strlen "s1")) ^ (#"_" ^ ("s1" ^ "s2")))
+        end
+    end.
+
+Definition prod_ser''' (serA serB : val) : val :=
+  λ: "v",
+    match: serA (Fst "v") with
+      NONE => NONEV
+    | SOME "s1" =>
+        match: serB (Snd "v") with
+          NONE => NONEV
+        | SOME "s2" => SOME ((z2s (strlen "s1")) ^ (#"_" ^ ("s1" ^ "s2")))
+        end
+    end.
 
 Definition prod_deser' (deserA deserB : val) : val :=
   λ: "s",
@@ -624,6 +695,12 @@ Section prod_serialization.
     - done.
   Qed.
 
+  Lemma prod_ser'_spec_closed' E v c :
+    G{{{ ▷?(gwp_laters g) prod_valid_val v }}}
+      prod_ser''' A.(s_serializer) B.(s_serializer) v @ c; E
+    {{{ o, RET $o; if o is Some s then prod_is_ser v s else True }}} ? gwp_laters g.
+  Proof. Admitted.
+
   Lemma prod_ser_spec E v c (serA serB : val) :
     (∀ vA,
       G{{{ ▷?(gwp_laters g) s_valid_val (g := g) A vA }}}
@@ -648,13 +725,16 @@ End prod_serialization.
 
 Program Definition prod_serialization (A B : serialization) : serialization :=
   {| s_valid_val := λ _ Σ, @prod_valid_val A B _ Σ;
-     s_serializer := prod_ser' _ _;
+    s_serializer := prod_ser' _ _;
+    s_serializer' := prod_ser''' _ _;
     s_is_ser := λ _ Σ, @prod_is_ser A B _ Σ;
     s_is_ser' := λ _ Σ, @prod_is_ser'' A B _ Σ;
      s_is_ser_inj := λ _ Σ, @prod_is_ser_inj A B _ Σ;
     s_is_ser_valid := λ _ Σ, @prod_is_ser_valid A B _ Σ;
     s_is_ser_eq := @prod_is_ser_eq A B;
-     s_ser_spec := @prod_ser'_spec_closed A B; |}.
+    s_ser_spec := @prod_ser'_spec_closed A B;
+    s_ser_spec' := @prod_ser'_spec_closed' A B;
+  |}.
 
 Section prod_deserialization.
   Context `{invGS_gen hlc Σ} `{g : !GenWp Σ}.
@@ -905,6 +985,36 @@ Definition sum_ser' (serA serB : val) : val :=
   | InjR "x" => #"R" ^ (#"_" ^ serB "x")
   end.
 
+Definition sum_ser'' : val :=
+  λ: "serA" "serB" "v",
+  match: "v" with
+    InjL "x" =>
+      match: "serA" "x" with
+        NONE => NONEV
+      | SOME "a" => SOME (#"L" ^ (#"_" ^ "a"))
+      end
+  | InjR "x" =>
+      match: "serB" "x" with
+        NONE => NONEV
+      | SOME "b" => SOME (#"R" ^ (#"_" ^ "b"))
+      end
+  end.
+
+Definition sum_ser''' (serA serB : val) : val :=
+  λ: "v",
+  match: "v" with
+    InjL "x" =>
+      match: serA "x" with
+        NONE => NONEV
+      | SOME "a" => SOME (#"L" ^ (#"_" ^ "a"))
+      end
+  | InjR "x" =>
+      match: serB "x" with
+        NONE => NONEV
+      | SOME "b" => SOME (#"R" ^ (#"_" ^ "b"))
+      end
+  end.
+
 Definition sum_deser' (deserA deserB : val) : val :=
   λ: "s",
   let: "tag" := strsub #0 #2 "s" in
@@ -1022,6 +1132,12 @@ Section sum_serialization.
     - done.
   Qed.
 
+  Lemma sum_ser'_spec_closed' E v c :
+    G{{{ ▷?(gwp_laters g) sum_valid_val v }}}
+      sum_ser''' A.(s_serializer) B.(s_serializer) v @ c; E
+    {{{ o, RET $o; if o is Some s then sum_is_ser v s else True }}} ? gwp_laters g.
+  Proof. Admitted.
+
   Lemma sum_ser_spec E v c (serA serB : val) :
     (∀ vA,
       G{{{ ▷?(gwp_laters g) s_valid_val (g := g) A vA }}}
@@ -1047,13 +1163,16 @@ End sum_serialization.
 
 Program Definition sum_serialization (A B : serialization) : serialization :=
   {| s_valid_val := λ _ Σ, @sum_valid_val A B _ Σ;
-     s_serializer := sum_ser' _ _;
+    s_serializer := sum_ser' _ _;
+    s_serializer' := sum_ser''' _ _;
     s_is_ser := λ _ Σ, @sum_is_ser A B _ Σ;
     s_is_ser' := λ _ Σ, @sum_is_ser'' A B _ Σ;
      s_is_ser_inj := λ _ Σ, @sum_is_ser_inj A B _ Σ;
     s_is_ser_valid := λ _ Σ, @sum_is_ser_valid A B _ Σ;
     s_is_ser_eq := @sum_is_ser_eq A B;
-     s_ser_spec := @sum_ser'_spec_closed A B; |}.
+    s_ser_spec := @sum_ser'_spec_closed A B;
+    s_ser_spec' := @sum_ser'_spec_closed' A B;
+  |}.
 
 Section sum_deserialization.
   Context `{invGS_gen hlc Σ} `{g : !GenWp Σ}.
@@ -1268,6 +1387,28 @@ Definition option_ser' (serA : val) : val :=
     | InjR "x" => #"S_" ^ (serA "x")
     end.
 
+Definition option_ser'' : val :=
+  λ: "serA" "v",
+    match: "v" with
+      InjL "x" => #"N"
+    | InjR "x" =>
+        match: "serA" "x" with
+          NONE => NONEV
+        | SOME "a" => #"S_" ^ "a"
+        end
+    end.
+
+Definition option_ser''' (serA : val) : val :=
+  λ: "v",
+    match: "v" with
+      InjL "x" => #"N"
+    | InjR "x" =>
+        match: serA "x" with
+          NONE => NONEV
+        | SOME "a" => #"S_" ^ "a"
+        end
+    end.
+
 Definition option_deser' (deserA : val) : val :=
   λ: "s",
     if: (BinOp AndOp (strlen "s" = #1) ("s" = #"N"))
@@ -1372,6 +1513,12 @@ Section option_serialization.
       Unshelve. done.
   Qed.
 
+  Lemma option_ser'_spec_closed' E v c :
+    G{{{ ▷?(gwp_laters g) option_valid_val v }}}
+      option_ser''' A.(s_serializer) v @ c; E
+    {{{ o, RET $o; if o is Some s then option_is_ser v s else True }}} ? gwp_laters g.
+  Proof. Admitted.
+
   Lemma option_ser_spec E v c (serA : val) :
     (∀ vA,
       G{{{ ▷?(gwp_laters g) s_valid_val (g := g) A vA }}}
@@ -1397,13 +1544,16 @@ End option_serialization.
 
 Program Definition option_serialization (A : serialization) : serialization :=
   {| s_valid_val := λ _ Σ, @option_valid_val A _ Σ;
-     s_serializer := option_ser' _;
+    s_serializer := option_ser' _;
+    s_serializer' := option_ser''' _;
     s_is_ser := λ _ Σ, @option_is_ser A _ Σ;
     s_is_ser' := λ _ Σ, @option_is_ser'' A _ Σ;
      s_is_ser_inj := λ _ Σ, @option_is_ser_inj A _ Σ;
     s_is_ser_valid := λ _ Σ, @option_is_ser_valid A _ Σ;
     s_is_ser_eq := @option_is_ser_eq A;
-    s_ser_spec := @option_ser'_spec_closed A; |}.
+    s_ser_spec := @option_ser'_spec_closed A;
+    s_ser_spec' := @option_ser'_spec_closed' A;
+  |}.
 
 Section option_deserialization.
   Context `{invGS_gen hlc Σ} `{g : !GenWp Σ}.
