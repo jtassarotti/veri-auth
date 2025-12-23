@@ -7,8 +7,7 @@ Definition int_count : val :=
 Definition string_count : val := int_count.
 Definition prod_count : val :=
   λ: "countA" "countB" "v",
-    let, ("vA", "vB") := "v" in
-    "countA" "vA" + "countB" "vB".
+    "countA" (Fst "v") + "countB" (Snd "v").
 Definition sum_count : val :=
   λ: "countA" "countB" "v",
     match: "v" with
@@ -30,7 +29,6 @@ Arguments s_deserializer : simpl never.
 
 Definition auth_ser_v : val :=
   λ: "v",
-    #1+#1;;
     match: "v" with
       NONE => NONEV
     | SOME "v" =>
@@ -61,8 +59,12 @@ Definition auth_count : val :=
       NONE => #0
     | SOME "a" =>
         match: "a" with
-          InjL <> => #1
-        | InjR <> => #0
+          InjL <> => #0
+        | InjR "susp" =>
+            match: !"susp" with
+              InjR "h" => #0
+            | InjL <> => #1
+            end
         end
     end.
 

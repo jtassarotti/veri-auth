@@ -60,10 +60,10 @@ Definition v_finish : val :=
 
 Definition v_unauth : val :=
   λ: "susp_table", Λ: λ: "evi" "a" "proof",
-      match: list_head "proof" with
+      let, ("pf_stream", "counter") := "proof" in
+      match: list_head "pf_stream" with
         NONE => NONE
       | SOME "p" =>
-          let, ("pf_stream", "counter") := "proof" in
           let: "id" := "counter" in
           let, ("serialize", "deserialize", "count") := "evi" in
           match: "deserialize" "id" "p" with

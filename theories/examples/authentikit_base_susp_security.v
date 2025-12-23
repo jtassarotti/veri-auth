@@ -236,12 +236,13 @@ Section authenticatable.
   Definition auth_is_ser (v : val) (s : string) : iProp Σ :=
     auth_is_ser_1 v s ∨ auth_is_ser_2 v s.
 
-  Definition auth_valid_val (v : val) : iProp Σ :=
-    ((∃ (h : string), ⌜v = InjLV #h⌝) ∨
-       (∃ (susp : loc),
-           ⌜v = InjRV #susp⌝ ∗
-             (∃ (h : string), susp ↦{DfracDiscarded} (InjRV #h) ∨
-                (∃ (pid : nat), susp ↦ (InjLV #pid))))).
+  Definition auth_valid_val (v1 : val) : iProp Σ :=
+    ∃ v, ⌜v1 = SOMEV v⌝ ∧
+           ((∃ (h : string), ⌜v = InjLV #h⌝) ∨
+              (∃ (susp : loc),
+                  ⌜v = InjRV #susp⌝ ∗
+                    ((∃ (h : string), susp ↦{DfracDiscarded} (InjRV #h)) ∨
+                                       (∃ (pid : nat), susp ↦ (InjLV #pid))))).
 
   Definition auth_ser_valid_val (v : val) : iProp Σ :=
     ((∃ (h : string), ⌜v = InjLV #h⌝) ∨
@@ -280,14 +281,14 @@ Section authenticatable.
     | tauth => ∃ v1, ⌜v = SOMEV v1⌝ ∗ (auth_is_ser_1 v1 s ∨ auth_is_ser_2 v1 s)
     end.
 
-  Fixpoint s_ser_valid_val (t: evi_type) (v: val) : iProp Σ :=
+  Fixpoint s_valid_val (t: evi_type) (v: val) : iProp Σ :=
     match t with
-    | tprod t1 t2 => prod_valid_val' v (s_ser_valid_val t1) (s_ser_valid_val t2)
-    | tsum t1 t2 => sum_valid_val' v (s_ser_valid_val t1) (s_ser_valid_val t2)
-    | toption t1 => option_valid_val' v (s_ser_valid_val t1)
+    | tprod t1 t2 => prod_valid_val' v (s_valid_val t1) (s_valid_val t2)
+    | tsum t1 t2 => sum_valid_val' v (s_valid_val t1) (s_valid_val t2)
+    | toption t1 => option_valid_val' v (s_valid_val t1)
     | tstring => string_valid_val v
     | tint => int_valid_val v
-    | tauth => auth_ser_valid_val v
+    | tauth => auth_valid_val v
     end.
 
   #[global] Instance s_is_ser''_persistent t v s: Persistent (s_is_ser'' t v s).
@@ -315,20 +316,26 @@ Section authenticatable.
     | tauth => auth_count
     end.
 
-  Fixpoint count_is_correct (t : evi_type) (v : val) (c : nat) :=
+  Fixpoint count_is_correct (t : evi_type) (v : val) (c : nat) : iProp Σ :=
     match t with
     | tprod t1 t2 =>
         ∃ (c1 c2 : nat) (v1 v2 : val),
-          v = (v1, v2)%V ∧ count_is_correct t1 v1 c1 ∧ count_is_correct t2 v2 c2 ∧ (c1 + c2) = c
+          ⌜v = (v1, v2)%V⌝ ∧ count_is_correct t1 v1 c1 ∧ count_is_correct t2 v2 c2 ∧ ⌜(c1 + c2)%nat = c⌝
     | tsum t1 t2 =>
-        (∃ (v1 : val), v = InjLV v1 ∧ count_is_correct t1 v1 c) ∨
-          (∃ (v2 : val), v = InjRV v2 ∧ count_is_correct t2 v2 c)
+        (∃ (v1 : val), ⌜v = InjLV v1⌝ ∧ count_is_correct t1 v1 c) ∨
+          (∃ (v2 : val), ⌜v = InjRV v2⌝ ∧ count_is_correct t2 v2 c)
     | toption t1 =>
-        (v = NONEV ∧ c = 0) ∨ (∃ (v1 : val), v = SOMEV v1 ∧ count_is_correct t1 v1 c)
-    | tstring | tint => c = 0
+        ⌜(v = NONEV ∧ c = 0)⌝ ∨ (∃ (v1 : val), ⌜v = SOMEV v1⌝ ∧ count_is_correct t1 v1 c)
+    | tstring | tint => ⌜c = 0⌝
     | tauth =>
-        (v = NONEV ∧ c = 0) ∨ ∃ v1, v = SOMEV v1 ∧
-          (∃ (l : val), v1 = InjLV l ∧ c = 1) ∨ (∃ (r : val), v1 = InjRV r ∧ c = 0)
+        (⌜v = NONEV ∧ c = 0⌝) ∨
+          (∃ v1,
+              ⌜v = SOMEV v1⌝ ∧
+                (∃ (l : val), ⌜v1 = InjLV l ∧ c = 0⌝) ∨ 
+                (∃ (susp : loc),
+                    ⌜v1 = InjRV #susp⌝ ∧
+                      ((∃ (h : string), susp ↦{DfracDiscarded} (InjRV #h) ∧ ⌜c = 0⌝) ∨
+                         (∃ (pid: nat), susp ↦ (InjLV #pid) ∧ ⌜c = 1⌝))))
     end.
                                                  
   Definition ser_spec (ser : val) (t : evi_type) (A : lrel Σ) : iProp Σ :=
@@ -354,16 +361,16 @@ Section authenticatable.
          deser_partial #s
       {{{ o, RET $o; if o is Some v then s_is_ser_deser t v s else True }}}).
 
-  Definition count_spec (count : val) (t : evi_type) (A : lrel Σ): iProp Σ :=
-    ∀ (v1 v2 : val),
-      {{{ ▷ A v1 v2 }}}
+  Definition count_spec (count : val) (t : evi_type): iProp Σ :=
+    ∀ (v1 : val),
+      {{{ ▷ s_valid_val t v1 }}}
         count v1
-      {{{ v, RET v; ∃ (c : nat), ⌜v = #c ∧ count_is_correct t v1 c⌝ }}}.
+      {{{ v, RET v; ∃ (c : nat), ⌜v = #c⌝ ∧ count_is_correct t v1 c }}}.
 
   Definition lrel_evidence' (A : lrel Σ) : lrel Σ :=
     LRel (λ v1 v2,
         ∃ (t : evi_type) (ser deser count : val),
-          ⌜v1 = (ser, deser, count)%V⌝ ∗ ser_spec ser t A ∗ count_spec count t A ∗
+          ⌜v1 = (ser, deser, count)%V⌝ ∗ ser_spec ser t A ∗ count_spec count t ∗
             deser_spec deser t)%I.
 
   Program Definition lrel_evidence : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_evidence' A.
@@ -448,27 +455,28 @@ Section proof.
       { iIntros (?) "!# _ H". by wp_apply ("HserA" with "HA"). }
       { iIntros (?) "!# _ H". by wp_apply ("HserB" with "HB"). }
       iExists _, _. eauto.
-    - iIntros (???) "!# Hp HΨ".
-      iDestruct "Hp" as (w1 w2 u1 u2) "(>-> & >-> & #HA & #HB)".
+    - iIntros (??) "!# Hp HΨ". wp_pures.
+      iDestruct "Hp" as (?? ->) "(HA & HB)".
+      wp_pures. rewrite /count_spec.
+      wp_bind (countB _).
+      wp_apply ("HcountB" $! v2 with "HB").
+      iIntros (?) "(% & -> & HcountsB)".
       wp_pures.
-      wp_apply "HcountB"; [done|].
-      iIntros (?) "(% & -> & %HcountB)".
-      wp_apply "HcountA"; [done|].
-      iIntros (?) "(% & -> & %HcountA)".
+      wp_apply ("HcountA" $! v0 with "HA").
+      iIntros (?) "(% & -> & HcountsA)".
       wp_pures. iModIntro.
       iApply "HΨ".
-      iExists (c0+c).
-      iPureIntro. split.
-      { f_equal. by rewrite Nat2Z.inj_add. }
-      eexists _, _, _, _.
-      split; done.
+      iExists (c0+c). iSplit; [iPureIntro; f_equal|].
+      { by rewrite Nat2Z.inj_add. }
+      iExists _, _, _, _.
+      iSplit; eauto.
     - iIntros (pid ?) "!# _ HΨ".
       wp_pures.
       wp_apply "HdeserB"; [done|]. iIntros "%deparB #HdeparB".
       wp_apply "HdeserA"; [done|]. iIntros "%deparA #HdeparA".
       wp_pures. iModIntro. iApply "HΨ".
       iIntros (s ?) "!# _ HΨ".
-      by wp_apply prod_deser'_sound.
+      wp_apply prod_deser'_sound; done.       
   Qed.
   
   Lemma refines_Auth_sum Θ (Δ : ctxO Σ Θ) :
@@ -508,10 +516,8 @@ Section proof.
       rewrite interp_rec_star_unfold.
       rewrite interp_unseal /=.
       by wp_apply ("Hser" with "Hs").
-    - iIntros (???) "!# #Hp HΨ". wp_pures.
-      rewrite interp_rec_star_unfold.
-      rewrite interp_unseal /=.
-      by iApply "Hcount".
+    - iIntros (??) "!# Hp HΨ". wp_pures.
+      by iApply ("Hcount" with "Hp").
     - iIntros (pid Ψ) "!# _ HΨ". wp_pures.
       iApply "HΨ". iModIntro.
       iIntros (s ?) "!# _ HΨ". wp_pures.
@@ -591,16 +597,43 @@ Section proof.
           { iRight. eauto. }
           iModIntro. wp_pures.
           by iApply ("H" $! None).
-    - iIntros (???) "!# #Hauth H".
+    - iIntros (??) "!# Hauth H".
       rewrite /auth_count. wp_pures.
-      iDestruct "Hauth" as "[(% & -> & Hauth)|->]"; wp_pures; last first.
-      { iApply "H". iExists 0. iModIntro. iSplit; [done|]. simpl. eauto. }
-      iDestruct "Hauth" as "[(%&%&%&Hser&HA&Hhash&%)|(%&%&Hinv)]";
-        simplify_eq; wp_pures; iApply "H"; iModIntro.
-      + iExists 1. iPureIntro. split; [f_equal|].
-        right. exists (InjLV #(hash s1)). eauto.
-      + iExists 0. iPureIntro. split; [f_equal|].
-        right. exists (InjRV #susp). eauto.
+      iDestruct "Hauth" as "(% & -> & [(% & ->)|Hauth])"; wp_pures.
+      { iApply "H". iExists 0. iModIntro. iSplit; [done|].
+        iRight. iExists _. eauto. }
+      iDestruct "Hauth" as "(% & -> & [(% & Hsusp)|(% & Hsusp)])";
+        simplify_eq; wp_pures.
+      + wp_load. wp_pures.
+        iApply "H". iExists 0. iModIntro.
+        iSplit; [iPureIntro; f_equal|].
+        iRight. iExists _. iRight. iExists _. eauto.
+      + wp_load. wp_pures.
+        iApply "H".
+        iExists 1.
+        iModIntro. iSplit; [iPureIntro; f_equal|].
+        iRight. iExists _. iRight. iExists _. eauto.
+        
+        (* iInv "Hinv" as "[(%&%&%&Hser&HA&Hhash&#Hsusp)|(%&Hsusp)]" "Hclose";
+          wp_load.
+        * iMod ("Hclose" with "[Hser HA Hhash Hsusp]") as "_".
+          { iLeft. iFrame "#∗". }
+          iModIntro. wp_pures.
+          iApply "H". iExists 0.
+          iModIntro. iSplit; [done|].
+          iRight.
+          iExists _. iRight. iExists susp.
+          iSplit; [done|]. iLeft.
+          iExists s1. eauto.
+        * iMod ("Hclose" with "[Hsusp]") as "_".
+          { iRight. iFrame "#∗". }
+          iModIntro. wp_pures.
+          iApply "H".
+          
+          iExists 1.
+          iModIntro. iSplit; [iPureIntro; f_equal|].
+          iRight. *)
+          
     - iIntros (??) "!# _ H".
       rewrite /auth_deser_v. wp_pures.
       iModIntro. iApply "H".
@@ -656,6 +689,6 @@ Section proof.
     iModIntro. iSplit; [done|]. iLeft.    
     iExists _,_,_. 
     by iFrame "# %".
-  Qed.    
+  Qed.
 
 End proof.
