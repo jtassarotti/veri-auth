@@ -1,11 +1,12 @@
 From auth.heap_lang Require Import adequacy.
 From auth.rel_logic_bin Require Import model.
+From iris.base_logic.lib Require Export na_invariants.
 
-Lemma refines_adequate Σ `{authPreG Σ}
-  (A : ∀ `{authG Σ}, lrel Σ)
+Lemma refines_adequate Σ `{authPreG Σ, na_invG Σ}
+  (A : ∀ `{authG Σ, seqG Σ}, lrel Σ)
   (φ : val → val → Prop) (eᵥ eᵢ : expr) σ :
-  (∀ `{authG Σ}, ∀ vᵥ vᵢ, A vᵥ vᵢ -∗ ⌜φ vᵥ vᵢ⌝) →
-  (∀ `{authG Σ}, ⊢ REL eᵥ << eᵢ : A) →
+  (∀ `{authG Σ, seqG Σ}, ∀ vᵥ vᵢ, A vᵥ vᵢ -∗ ⌜φ vᵥ vᵢ⌝) →
+  (∀ `{authG Σ, seqG Σ}, ⊢ REL eᵥ << eᵢ : A) →
   adequate hash_collision NotStuck eᵥ σ
     (λ vᵥ σᵥ, ∃ thpᵢ hᵢ vᵢ,
         rtc erased_step ([eᵢ], σ) (of_val vᵢ :: thpᵢ, hᵢ) ∧
@@ -19,11 +20,13 @@ Proof.
   iMod (inv_alloc specN _ (spec_inv ([eᵢ], σ)) with "[Hauthᵢ]") as "#Hcfg".
   { iNext. iExists _, _. iFrame "# ∗ %". eauto. }
   iAssert (spec_ctx) as "#Hctx"; [by iExists _|].
-  iApply wp_fupd. iApply wp_wand_r.
-  iSplitL.
-  { iApply (Hlog _ $! [] _ with "[$Heᵢ $Hctx]"). }
+  iMod na_alloc as (np) "Htok".
+  set (Hseq := Build_seqG _ _ np).
+  iApply wp_fupd.
+  wp_apply (wp_wand with "[-]").
+  { iApply (Hlog _ Hseq $! [] _ with "[$Heᵢ $Hctx $Htok]"). }
   iIntros (v).
-  iIntros "(%vᵢ & [_ Hi] & Hinterp) /=".
+  iIntros "(%vᵢ & [_ Hi] & Hinterp & Htok) /=".
   iDestruct (HA with "Hinterp") as %Hφ.
   iInv specN as (tpᵢ σᵢ) ">(Hauthᵢ & %)" "Hclose".
   iDestruct (cfg_auth_tpool_agree with "Hauthᵢ Hi") as %?.

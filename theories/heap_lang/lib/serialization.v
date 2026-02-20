@@ -102,10 +102,8 @@ Definition int_is_ser' (s : string) : iProp Σ :=
 Lemma int_is_ser_eq (v : val) (s : string) :
   int_is_ser v s -∗ int_is_ser' s.
 Proof.
-  (* - iIntros (?). exists #x.
-    rewrite /int_is_ser. by exists x.
-  - intros (? & (? & -> & ->)).                                 
-    by exists x0. *) Admitted.
+  iIntros "(%z & % & ->)". iPureIntro. by exists z.
+Qed.
 
 Lemma int_is_ser_inj v s1 s2 :
   int_is_ser v s1 -∗ int_is_ser v s2 -∗ ⌜s1 = s2⌝.
@@ -209,7 +207,7 @@ Definition int_serialization : serialization :=
      s_is_ser' := λ _ Σ _ _, @int_is_ser' Σ;
      s_is_ser_inj := λ _ Σ _ _, @int_is_ser_inj Σ;
      s_is_ser_valid := λ  _ Σ _ _, @int_is_ser_valid Σ ;
-     s_is_ser_eq := @int_is_ser_eq;
+     s_is_ser_eq := λ _ Σ _ _, @int_is_ser_eq Σ;
      s_ser_spec := @int_ser_spec;
      s_ser_spec' := @int_ser_spec';
   |}.
@@ -252,7 +250,9 @@ Definition bool_is_ser' (s : string) : iProp Σ :=
 
 Lemma bool_is_ser_eq (v : val) (s : string) :
   bool_is_ser v s -∗ bool_is_ser' s.
-Proof. Admitted.
+Proof.
+  iIntros "(%b & % & ->)". iPureIntro. by exists b.
+Qed.
 
 Lemma bool_is_ser_inj v s1 s2 :
   bool_is_ser v s1 -∗ bool_is_ser v s2 -∗ ⌜s1 = s2⌝.
@@ -337,7 +337,7 @@ Definition bool_serialization : serialization :=
      s_is_ser' := λ _ _ Σ _, bool_is_ser';
      s_is_ser_inj := λ _ _ Σ _, bool_is_ser_inj;
     s_is_ser_valid := λ _ Σ _ _, @bool_is_ser_valid Σ;
-    s_is_ser_eq := @bool_is_ser_eq;
+    s_is_ser_eq := λ _ Σ _ _, @bool_is_ser_eq Σ;
     s_ser_spec := @bool_ser_spec;
     s_ser_spec' := @bool_ser_spec';
   |}.
@@ -373,7 +373,8 @@ Definition string_is_ser' (s : string) : iProp Σ :=
 Lemma string_is_ser_eq (v : val) (s : string) :
   string_is_ser v s -∗ string_is_ser' s.
 Proof.
-  Admitted.
+  iIntros "(%s' & % & ->)". iPureIntro. by exists s'.
+Qed.
 
 Lemma string_is_ser_inj v s1 s2 :
   string_is_ser v s1 -∗ string_is_ser v s2 -∗ ⌜s1 = s2⌝.
@@ -463,7 +464,7 @@ Definition string_serialization : serialization :=
     s_is_ser' := λ _ Σ _ _, string_is_ser';
      s_is_ser_inj := λ _ Σ _ _, string_is_ser_inj;
     s_is_ser_valid := λ _ Σ _ _, @string_is_ser_valid Σ;
-    s_is_ser_eq := @string_is_ser_eq;
+    s_is_ser_eq := λ _ Σ _ _, @string_is_ser_eq Σ;
     s_ser_spec := @string_ser_spec;
     s_ser_spec' := @string_ser_spec';
   |}.
@@ -620,7 +621,12 @@ Section prod_serialization.
 
   Lemma prod_is_ser_eq (v : val) (s : string) :
     prod_is_ser v s -∗ prod_is_ser'' s.
-  Proof. Admitted.
+  Proof.
+    iIntros "(%v1 & %v2 & %s1 & %s2 & [% ->] & HA & HB)".
+    iPoseProof (A.(s_is_ser_eq) with "HA") as "HA'".
+    iPoseProof (B.(s_is_ser_eq) with "HB") as "HB'".
+    iExists s1, s2. iFrame. done.
+  Qed.
 (*    split.
     - intros (? & ? & ? & ? & ?).
       apply s_is_ser_eq in H as (? & HA).
@@ -697,7 +703,7 @@ Section prod_serialization.
 
   Lemma prod_ser'_spec_closed' E v c :
     G{{{ ▷?(gwp_laters g) prod_valid_val v }}}
-      prod_ser''' A.(s_serializer) B.(s_serializer) v @ c; E
+      prod_ser''' A.(s_serializer') B.(s_serializer') v @ c; E
     {{{ o, RET $o; if o is Some s then prod_is_ser v s else True }}} ? gwp_laters g.
   Proof. Admitted.
 
@@ -1065,8 +1071,13 @@ Section sum_serialization.
 
   Lemma sum_is_ser_eq (v : val) (s : string) :
     sum_is_ser v s -∗ sum_is_ser'' s.
-  Proof. 
-  Admitted.
+  Proof.
+    iIntros "(%w & %s' & [(HA & (% & %)) | (HB & (% & %))])"; simplify_eq.
+    - iPoseProof (A.(s_is_ser_eq) with "HA") as "HA'".
+      iExists s'. iLeft. iSplit; [iFrame|done].
+    - iPoseProof (B.(s_is_ser_eq) with "HB") as "HB'".
+      iExists s'. iRight. iSplit; [iFrame|done].
+  Qed.
 
   Definition sum_valid_val' (v : val) (HA HB : val → iProp Σ) : iProp Σ :=
     ∃ w, (⌜v = InjLV w⌝ ∧ HA w) ∨ (⌜v = InjRV w⌝ ∧ HB w).
@@ -1134,7 +1145,7 @@ Section sum_serialization.
 
   Lemma sum_ser'_spec_closed' E v c :
     G{{{ ▷?(gwp_laters g) sum_valid_val v }}}
-      sum_ser''' A.(s_serializer) B.(s_serializer) v @ c; E
+      sum_ser''' A.(s_serializer') B.(s_serializer') v @ c; E
     {{{ o, RET $o; if o is Some s then sum_is_ser v s else True }}} ? gwp_laters g.
   Proof. Admitted.
 
@@ -1473,7 +1484,12 @@ Section option_serialization.
 
   Lemma option_is_ser_eq (v : val) (s : string) :
     option_is_ser v s -∗ option_is_ser'' s.
-  Proof. Admitted.
+  Proof.
+    iIntros "[(% & %) | (%w & %s' & (% & %) & HA)]"; simplify_eq.
+    - iLeft. done.
+    - iPoseProof (A.(s_is_ser_eq) with "HA") as "HA'".
+      iRight. iExists s'. iSplit; [done|]. iFrame.
+  Qed.
 
   Lemma option_ser'_spec (HA : val → iProp Σ) E c (serA v vA : val) :
     ▷?(gwp_laters g) (⌜v = NONEV⌝ ∨ ⌜v = SOMEV vA⌝) -∗
@@ -1515,7 +1531,7 @@ Section option_serialization.
 
   Lemma option_ser'_spec_closed' E v c :
     G{{{ ▷?(gwp_laters g) option_valid_val v }}}
-      option_ser''' A.(s_serializer) v @ c; E
+      option_ser''' A.(s_serializer') v @ c; E
     {{{ o, RET $o; if o is Some s then option_is_ser v s else True }}} ? gwp_laters g.
   Proof. Admitted.
 
@@ -1755,6 +1771,62 @@ Proof.
   { eapply get_StringOfZ_ne; [|done]. done. }
   apply StringOfZ_length.
 Qed.
+
+Lemma prod_ser_some_ser_neq s s1 s2 :
+  prod_ser_str s1 s2 ≠ some_ser_str s.
+Proof.
+  rewrite -String.get_correct => H.
+  specialize (H 0). simpl in H.
+  rewrite -String.append_correct1 in H.
+  { eapply get_StringOfZ_ne; [|done]. done. }
+  apply StringOfZ_length.
+Qed.
+
+Lemma prod_ser_none_ser_neq s1 s2 :
+  prod_ser_str s1 s2 ≠ none_ser_str.
+Proof.
+  rewrite -String.get_correct => H.
+  specialize (H 0). simpl in H.
+  rewrite -String.append_correct1 in H.
+  { eapply get_StringOfZ_ne; [|done]. done. }
+  apply StringOfZ_length.
+Qed.
+
+Lemma some_ser_inl_ser_neq s s' :
+  some_ser_str s ≠ inl_ser_str s'.
+Proof. rewrite -String.get_correct => H. specialize (H 0). simplify_eq. Qed.
+
+Lemma some_ser_inr_ser_neq s s' :
+  some_ser_str s ≠ inr_ser_str s'.
+Proof. rewrite -String.get_correct => H. specialize (H 0). simplify_eq. Qed.
+
+Lemma some_ser_int_ser_neq z s :
+  some_ser_str s ≠ int_ser_str z.
+Proof. rewrite -String.get_correct => H. specialize (H 0). simplify_eq. Qed.
+
+Lemma some_ser_string_ser_neq z s :
+  some_ser_str s ≠ string_ser_str z.
+Proof. rewrite -String.get_correct => H. specialize (H 0). simplify_eq. Qed.
+
+Lemma some_ser_none_ser s :
+  some_ser_str s ≠ none_ser_str.
+Proof. rewrite -String.get_correct => H. specialize (H 0). simplify_eq. Qed.
+
+Lemma none_ser_inl_ser_neq s' :
+  none_ser_str ≠ inl_ser_str s'.
+Proof. rewrite -String.get_correct => H. specialize (H 0). simplify_eq. Qed.
+
+Lemma none_ser_inr_ser_neq s' :
+  none_ser_str ≠ inr_ser_str s'.
+Proof. rewrite -String.get_correct => H. specialize (H 0). simplify_eq. Qed.
+
+Lemma none_ser_int_ser_neq s :
+  none_ser_str ≠ int_ser_str s.
+Proof. rewrite -String.get_correct => H. specialize (H 0). simplify_eq. Qed.
+
+Lemma none_ser_string_ser_neq z :
+  none_ser_str ≠ string_ser_str z.
+Proof. rewrite -String.get_correct => H. specialize (H 0). simplify_eq. Qed.
 
 Lemma inl_ser_int_ser_neq z s :
   inl_ser_str s ≠ int_ser_str z.

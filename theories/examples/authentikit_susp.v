@@ -33,52 +33,57 @@ Definition v_auth : val :=
 
 Definition v_finish : val :=
   λ: "susp_table" "a" "x" "serialize" <>,
-    let: "y" := "serialize" "x" in
-    match: "a" with
-      InjL "h" =>
-        if: Hash "y" = "h" then SOMEV #()
-        else NONEV
-    | InjR "susp" =>
-        match: !"susp" with
-          InjL "h" =>
-            if: Hash "y" = "h" then SOMEV #()
-            else NONEV
-        | InjR "pid" =>
-            let, ("ctr", "finish") :=
-              map.map_lookup "pid" (!"susp_table")
-            in
-            if: "ctr" = #1 then
-              "susp_table" <- map.map_remove "pid" (!"susp_table");;
-              "susp" <- InjR (Hash "y");;
-              "finish" #()
-            else
-              "susp" <- InjR (Hash "y");;
-              "susp_table" <- map.map_insert "pid" ("ctr" - #1, "finish") (!"susp_table");;
-              SOMEV #()
+    match: "serialize" "x" with
+      NONE => NONE
+    | SOME "y" =>
+        match: "a" with
+          InjL "h" => if: Hash "y" = "h" then ((*resolve_proph: "p" to: SOMEV #();;*) SOMEV #()) else NONEV
+        | InjR "susp" =>
+            match: !"susp" with
+              InjR "h" => if: Hash "y" = "h" then ((*resolve_proph: "p" to: SOMEV #();;*) SOMEV #()) else NONEV
+            | InjL "pid" =>
+                match: map.map_lookup "pid" (!"susp_table") with
+                  NONE => NONEV
+                | SOME "res" =>
+                  let, ("ctr", "finish") := "res" in
+                  if: "ctr" = #1 then
+                    "susp_table" <- map.map_remove "pid" (!"susp_table");;
+                    "susp" <- InjR (Hash "y");;
+                    "finish" #()
+                  else
+                    "susp" <- InjR (Hash "y");;
+                    "susp_table" <- map.map_remove "pid" (!"susp_table");;
+                    "susp_table" <- map.map_insert "pid" (("ctr" - #1), "finish") (!"susp_table");;
+                    SOMEV #()
+                end
+            end
         end
     end.
 
 Definition v_unauth : val :=
   λ: "susp_table", Λ: λ: "evi" "a" "proof",
-      let, ("pf_stream", "counter") := "proof" in
-      match: list_head "pf_stream" with
+      match: "a" with
         NONE => NONE
-      | SOME "p" =>
-          let: "id" := "counter" in
-          let, ("serialize", "deserialize", "count") := "evi" in
-          match: "deserialize" "id" "p" with
+      | SOME "a" =>
+          let, ("pf_stream", "counter") := "proof" in
+          match: list_head "pf_stream" with
             NONE => NONE
-          | SOME "x" =>
-              let: "nchild" := "count" "x" in
-              let: "finish_opt" := (v_finish "susp_table" "a" "x" "serialize") in
-              match: "finish_opt" with
+          | SOME "p" =>
+              let: "id" := "counter" in
+              let, ("serialize", "deserialize", "count") := "evi" in
+              match: "deserialize" "id" "p" with
                 NONE => NONE
-              | SOME <> =>
-                  (if: "nchild" = #0 then
-                     "finish" #()
-                   else
-                     "susp_table" <- map.map_insert "pid" ("nchild", "finish") (!"susp_table"));;
-                  SOME ((list_tail "proof", "id" + #1), "x")
+              | SOME "x" =>
+                  let: "nchild" := "count" "x" in
+                  let: "finish" := (v_finish "susp_table" "a" "x" "serialize") in
+                  match: if: "nchild" = #0 then
+                           "finish" #()
+                         else
+                           ("susp_table" <- map.map_insert "pid" ("nchild", "finish") (!"susp_table");; SOMEV #())
+                  with
+                    NONE => NONE
+                  | SOME <> => SOME ((list_tail "pf_stream", "id" + #1), "x")
+                  end
               end
           end
       end.
@@ -92,7 +97,7 @@ Definition v_run : val :=
       end.
 
 Definition v_Authenticable : expr :=
-  let: "init_susp" := map.map_empty #() in
+  let: "init_susp" := ref (map.map_empty #()) in
   (v_Auth_auth, v_Auth_mu, v_Auth_pair, v_Auth_sum, v_Auth_string, v_Auth_int, v_auth, v_unauth "init_susp").
 Definition v_Authentikit : expr := (v_return, v_bind, v_Authenticable).
 

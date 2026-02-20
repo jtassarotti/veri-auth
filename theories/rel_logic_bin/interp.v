@@ -48,7 +48,7 @@ End interp_ctx.
 
 (** * Interpretation of types *)
 Section semtypes.
-  Context `{authG Σ}.
+  Context `{authG Σ, seqG Σ}.
 
   Definition empty_ctx : ctxO Σ ε := λ x, match x with end.
 
@@ -146,7 +146,7 @@ End semtypes.
 Notation "⟦ τ ⟧" := (interp τ).
 
 Section semtypes_lemmas.
-  Context `{!authG Σ}.
+  Context `{!authG Σ, !seqG Σ}.
 
   Lemma unboxed_type_sound Θ (τ : type Θ ⋆) Δ v v' :
     UnboxedType τ →
@@ -208,7 +208,7 @@ Section semtypes_lemmas.
 End semtypes_lemmas.
 
 Section semtype_unfold_lemmas.
-  Context `{!authG Σ}.
+  Context `{!authG Σ, !seqG Σ}.
   Context {Θ : Ctx kind} (Δ : ctxO Σ Θ).
 
   Lemma interp_unit_unfold :
@@ -302,49 +302,49 @@ Tactic Notation "interp_unfold" "!" "in" constr(H) := iEval (repeat interp_unfol
 (** * Proof mode instances that will allow us to avoid manually unsealing/unfolding [interp] in many situations *)
 
 (** unit  *)
-#[global] Instance into_and_interp_t_unit `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) b :
+#[global] Instance into_and_interp_t_unit `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) b :
   IntoAnd b (⟦ () ⟧ Δ w1 w2)%I (⌜w1 = #()⌝)%I (⌜w2 = #()⌝)%I.
 Proof. rewrite /IntoAnd. rewrite interp_unit_unfold/=.
        by destruct b => /=; try iModIntro; iIntros "[-> ->]".
 Qed.
-#[global] Instance from_and_interp_t_unit `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) :
+#[global] Instance from_and_interp_t_unit `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) :
   FromAnd (⟦ () ⟧ Δ w1 w2)%I (⌜w1 = #()⌝)%I (⌜w2 = #()⌝)%I .
 Proof. rewrite /FromAnd. rewrite interp_unit_unfold/=. by iIntros "#[-> ->]". Qed.
 
 (** bool *)
-#[global] Instance into_exist_interp_t_bool `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) name :
+#[global] Instance into_exist_interp_t_bool `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) name :
   AsIdentName (λ (b : bool), ⌜w1 = #b ∧ w2 = #b⌝ : iProp Σ)%I name →
   IntoExist (⟦ t_bool ⟧ Δ w1 w2)%I (λ (b : bool), ⌜w1 = #b ∧ w2 = #b⌝)%I name.
 Proof. rewrite /IntoExist. rewrite interp_bool_unfold //. Qed.
-#[global] Instance from_exist_interp_t_bool `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) :
+#[global] Instance from_exist_interp_t_bool `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) :
   FromExist (⟦ t_bool ⟧ Δ w1 w2)%I (λ (b : bool), ⌜w1 = #b ∧ w2 = #b⌝)%I.
 Proof. rewrite /FromExist. rewrite interp_bool_unfold //. Qed.
 
 (** nat *)
-#[global] Instance into_exist_interp_t_nat `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) name :
+#[global] Instance into_exist_interp_t_nat `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) name :
   AsIdentName (λ (b : Z), ⌜w1 = #b ∧ w2 = #b⌝ : iProp Σ)%I name →
   IntoExist (⟦ t_nat ⟧ Δ w1 w2)%I (λ (b : Z), ⌜w1 = #b ∧ w2 = #b⌝)%I name.
 Proof. rewrite /IntoExist. rewrite interp_nat_unfold //. Qed.
-#[global] Instance from_exist_interp_t_nat `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) :
+#[global] Instance from_exist_interp_t_nat `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) :
   FromExist (⟦ t_nat ⟧ Δ w1 w2)%I (λ (b : Z), ⌜w1 = #b ∧ w2 = #b⌝)%I.
 Proof. rewrite /FromExist. rewrite interp_nat_unfold //. Qed.
 
 (** nat *)
-#[global] Instance into_exist_interp_t_string `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) name :
+#[global] Instance into_exist_interp_t_string `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) name :
   AsIdentName (λ (b : string), ⌜w1 = #b ∧ w2 = #b⌝ : iProp Σ)%I name →
   IntoExist (⟦ t_string ⟧ Δ w1 w2)%I (λ (b : string), ⌜w1 = #b ∧ w2 = #b⌝)%I name.
 Proof. rewrite /IntoExist. rewrite interp_string_unfold //. Qed.
-#[global] Instance from_exist_interp_t_string `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) :
+#[global] Instance from_exist_interp_t_string `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (w1 w2 : val) :
   FromExist (⟦ t_string ⟧ Δ w1 w2)%I (λ (b : string), ⌜w1 = #b ∧ w2 = #b⌝)%I.
 Proof. rewrite /FromExist. rewrite interp_string_unfold //. Qed.
 
 (** arrow *)
-#[global] Instance into_forall_interp_t_arr `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (τ1 τ2 : type Θ ⋆) (w1 w2 : val) :
+#[global] Instance into_forall_interp_t_arr `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (τ1 τ2 : type Θ ⋆) (w1 w2 : val) :
   IntoForall (⟦ τ1 → τ2 ⟧ Δ w1 w2)
     (λ (v1 : val), □ ∀ v2, ⟦ τ1 ⟧ Δ v1 v2 -∗ REL App w1 v1 << App w2 v2 @ ⊤ : (⟦ τ2 ⟧ Δ))%I.
 Proof. rewrite /IntoForall. rewrite interp_arr_unfold. eauto. Qed.
 
-#[global] Instance from_forall_interp_t_arr `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (τ1 τ2 : type Θ ⋆) (w1 w2 : val) name:
+#[global] Instance from_forall_interp_t_arr `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (τ1 τ2 : type Θ ⋆) (w1 w2 : val) name:
   AsIdentName (λ (v1 : val), □ ∀ v2, ⟦ τ1 ⟧ Δ v1 v2 -∗ REL App w1 v1 << App w2 v2 @ ⊤ : (⟦ τ2 ⟧ Δ))%I name →
   FromForall (⟦ τ1 → τ2 ⟧ Δ w1 w2)
     (λ (v1 : val), □ ∀ v2, ⟦ τ1 ⟧ Δ v1 v2 -∗ REL App w1 v1 << App w2 v2 @ ⊤ : (⟦ τ2 ⟧ Δ))%I name.
@@ -354,58 +354,58 @@ Proof.
 Qed.
 
 (** product *)
-#[global] Instance into_exist_interp_t_prod `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (τ1 τ2 : type Θ ⋆) (w1 w2 : val) name :
+#[global] Instance into_exist_interp_t_prod `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (τ1 τ2 : type Θ ⋆) (w1 w2 : val) name :
   AsIdentName (λ (v1 : val), ∃ v2 v1' v2',
         ⌜w1 = (v1,v1')%V⌝ ∧ ⌜w2 = (v2,v2')%V⌝ ∧ ⟦ τ1 ⟧ Δ v1 v2 ∗ ⟦ τ2 ⟧ Δ v1' v2')%I name →
   IntoExist (⟦ τ1 * τ2 ⟧ Δ w1 w2)
     (λ (v1 : val), ∃ v2 v1' v2', ⌜w1 = (v1,v1')%V⌝ ∧ ⌜w2 = (v2,v2')%V⌝ ∧ ⟦ τ1 ⟧ Δ v1 v2 ∗ ⟦ τ2 ⟧ Δ v1' v2')%I name.
 Proof. rewrite /IntoExist. rewrite interp_prod_unfold //. Qed.
-#[global] Instance from_exist_interp_t_prod `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (τ1 τ2 : type Θ ⋆) (w1 w2 : val):
+#[global] Instance from_exist_interp_t_prod `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (τ1 τ2 : type Θ ⋆) (w1 w2 : val):
   FromExist (⟦ τ1 * τ2 ⟧ Δ w1 w2) (λ (v1 : val),
       ∃ v2 v1' v2', ⌜w1 = (v1,v1')%V⌝ ∧ ⌜w2 = (v2,v2')%V⌝ ∧ ⟦ τ1 ⟧ Δ v1 v2 ∗ ⟦ τ2 ⟧ Δ v1' v2')%I.
 Proof. rewrite /FromExist. rewrite interp_prod_unfold //. Qed.
 
 (** sum *)
-#[global] Instance into_exist_interp_t_sum `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (τ1 τ2 : type Θ ⋆) (w1 w2 : val) name :
+#[global] Instance into_exist_interp_t_sum `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (τ1 τ2 : type Θ ⋆) (w1 w2 : val) name :
   AsIdentName (λ (v1 : val), ∃ v2,
       (⌜w1 = InjLV v1⌝ ∧ ⌜w2 = InjLV v2⌝ ∧ ⟦ τ1 ⟧ Δ v1 v2) ∨ (⌜w1 = InjRV v1⌝ ∧ ⌜w2 = InjRV v2⌝ ∧ ⟦ τ2 ⟧ Δ v1 v2))%I name →
   IntoExist (⟦ τ1 + τ2 ⟧ Δ w1 w2)
     (λ (v1 : val), ∃ v2,
       (⌜w1 = InjLV v1⌝ ∧ ⌜w2 = InjLV v2⌝ ∧ ⟦ τ1 ⟧ Δ v1 v2) ∨ (⌜w1 = InjRV v1⌝ ∧ ⌜w2 = InjRV v2⌝ ∧ ⟦ τ2 ⟧ Δ v1 v2))%I name.
 Proof. rewrite /IntoExist. rewrite interp_sum_unfold //. Qed.
-#[global] Instance from_exist_interp_t_sum `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (τ1 τ2 : type Θ ⋆) (w1 w2 : val) :
+#[global] Instance from_exist_interp_t_sum `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (τ1 τ2 : type Θ ⋆) (w1 w2 : val) :
   FromExist (⟦ τ1 + τ2 ⟧ Δ w1 w2)
     (λ (v1 : val), ∃ v2,
       (⌜w1 = InjLV v1⌝ ∧ ⌜w2 = InjLV v2⌝ ∧ ⟦ τ1 ⟧ Δ v1 v2) ∨ (⌜w1 = InjRV v1⌝ ∧ ⌜w2 = InjRV v2⌝ ∧ ⟦ τ2 ⟧ Δ v1 v2))%I.
 Proof. rewrite /FromExist. rewrite interp_sum_unfold //. Qed.
 
 (** forall *)
-#[global] Instance into_forall_interp_t_forall `{authG Σ} {Θ} (Δ : ctxO Σ Θ) κ (τ : type (Θ ▹ κ) ⋆) (v1 v2 : val) :
+#[global] Instance into_forall_interp_t_forall `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) κ (τ : type (Θ ▹ κ) ⋆) (v1 v2 : val) :
   IntoForall (⟦ ∀: κ, τ ⟧ Δ v1 v2) (λ A, (lrel_true → (⟦ τ ⟧ (ext Δ A)))%lrel v1 v2).
 Proof. rewrite /IntoForall. rewrite interp_forall_unfold //. Qed.
-#[global] Instance from_forall_interp_t_forall `{authG Σ} {Θ} (Δ : ctxO Σ Θ) κ (τ : type (Θ ▹ κ) ⋆) (v1 v2 : val) name :
+#[global] Instance from_forall_interp_t_forall `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) κ (τ : type (Θ ▹ κ) ⋆) (v1 v2 : val) name :
   AsIdentName (λ A, (lrel_true → (⟦ τ ⟧ (ext Δ A)))%lrel v1 v2) name →
   FromForall (⟦ ∀: κ, τ ⟧ Δ v1 v2) (λ A, (lrel_true → (⟦ τ ⟧ (ext Δ A)))%lrel v1 v2) name.
 Proof. rewrite /FromForall. rewrite interp_forall_unfold //. Qed.
 
 (** exist *)
-#[global] Instance into_exist_interp_t_exists `{authG Σ} {Θ} (Δ : ctxO Σ Θ) κ (τ : type (Θ ▹ κ) ⋆) (v1 v2 : val) name :
+#[global] Instance into_exist_interp_t_exists `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) κ (τ : type (Θ ▹ κ) ⋆) (v1 v2 : val) name :
   AsIdentName (λ A, ⟦ τ ⟧ (ext Δ A) v1 v2) name →
   IntoExist (⟦ ∃: κ, τ ⟧ Δ v1 v2) (λ A, ⟦ τ ⟧ (ext Δ A) v1 v2) name.
 Proof. rewrite /IntoExist. rewrite interp_exists_unfold //. Qed.
-#[global] Instance from_exist_interp_t_exists `{authG Σ} {Θ} (Δ : ctxO Σ Θ) κ (τ : type (Θ ▹ κ) ⋆) (v1 v2 : val):
+#[global] Instance from_exist_interp_t_exists `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) κ (τ : type (Θ ▹ κ) ⋆) (v1 v2 : val):
   FromExist (⟦ ∃: κ, τ ⟧ Δ v1 v2) (λ A, ⟦ τ ⟧ (ext Δ A) v1 v2).
 Proof. rewrite /FromExist. rewrite interp_exists_unfold //. Qed.
 
 (** ref  *)
-#[global] Instance into_exist_interp_t_ref `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (τ : type Θ ⋆) (w1 w2 : val) name :
+#[global] Instance into_exist_interp_t_ref `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (τ : type Θ ⋆) (w1 w2 : val) name :
   AsIdentName (λ (l1 : loc), ∃ l2 : loc, ⌜w1 = #l1⌝ ∧ ⌜w2 = #l2⌝ ∧
       inv (authN .@ "ref" .@ (l1,l2)) (∃ v1 v2, l1 ↦ v1 ∗ l2 ↦ᵢ v2 ∗ ⟦ τ ⟧ Δ v1 v2))%I name →
   IntoExist (⟦ ref τ ⟧ Δ w1 w2)
     (λ (l1 : loc), ∃ l2 : loc, ⌜w1 = #l1⌝ ∧ ⌜w2 = #l2⌝ ∧
       inv (authN .@ "ref" .@ (l1,l2)) (∃ v1 v2, l1 ↦ v1 ∗ l2 ↦ᵢ v2 ∗ ⟦ τ ⟧ Δ v1 v2))%I name.
 Proof. rewrite /IntoExist. rewrite interp_ref_unfold //. Qed.
-#[global] Instance from_exist_interp_t_ref `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (τ : type Θ ⋆) (w1 w2 : val) :
+#[global] Instance from_exist_interp_t_ref `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) (τ : type Θ ⋆) (w1 w2 : val) :
   FromExist (⟦ ref τ ⟧ Δ w1 w2)
     (λ (l1 : loc), ∃ l2 : loc, ⌜w1 = #l1⌝ ∧ ⌜w2 = #l2⌝ ∧
       inv (authN .@ "ref" .@ (l1,l2)) (∃ v1 v2, l1 ↦ v1 ∗ l2 ↦ᵢ v2 ∗ ⟦ τ ⟧ Δ v1 v2))%I.
@@ -413,7 +413,7 @@ Proof. rewrite /FromExist. rewrite interp_ref_unfold //. Qed.
 
 (** ** Properties of the type interpretation w.r.t. the substitutions *)
 Section interp_subst.
-  Context `{authG Σ}.
+  Context `{authG Σ, seqG Σ}.
 
   Definition eqCK {κ₁ κ₂} (EQ : κ₁ = κ₂) : kindO Σ κ₁ → kindO Σ κ₂ → Prop :=
     match EQ with
@@ -503,7 +503,7 @@ End interp_subst.
 
 (** * Interpretation of the variable environment *)
 Section env_typed.
-  Context `{authG Σ}.
+  Context `{authG Σ, seqG Σ}.
   Implicit Types A B : lrel Σ.
   Implicit Types Γ : gmap string (lrel Σ).
 
@@ -560,7 +560,7 @@ Notation "⟦ Γ ⟧*" := (env_ltyped Γ).
 
 (** * The semantic typing judgement *)
 Section bin_log_related.
-  Context `{authG Σ}.
+  Context `{authG Σ, seqG Σ}.
 
   Definition bin_log_related (E : coPset) (Θ : Ctx kind)
     (Δ : ctxO Σ Θ) (Γ : stringmap (type Θ ⋆)) (e e' : expr) (τ : type Θ ⋆) : iProp Σ :=

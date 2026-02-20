@@ -1,6 +1,7 @@
 From auth.heap_lang Require Export lang notation derived_laws_upto_bad metatheory adequacy_upto_bad.
 From auth.heap_lang Require Export proofmode_upto_bad lib.inject.
 From auth.base_logic Require Export spec_ra.
+From iris.base_logic.lib Require Export na_invariants.
 
 Class authPreG Σ := AuthPreG {
   auth_preG_heapGpreS :: heapGpreS Σ;
@@ -22,6 +23,16 @@ Proof. solve_inG. Qed.
    (at level 20, dq custom dfrac at level 1, format "l  ↦ᵢ dq  v") : bi_scope.
 #[global] Notation "j ⤇ᵢ e" :=
   (@tpool_pointsto _ authG_idealG j e) (at level 20) : bi_scope.
+
+Class seqG (Σ: gFunctors) := {
+  seqG_na_invG :: na_invG Σ;
+  seqG_name : gname;  
+}.
+
+Definition seq_inv `{!invGS_gen hlc Σ} `{!seqG Σ} (N : namespace) (P : iProp Σ) :=
+  na_inv seqG_name N P.
+Definition seq_tok `{!invGS_gen hlc Σ} `{!seqG Σ} (E : coPset) :=
+  na_own seqG_name E.
 
 (** Semantic intepretation of types *)
 Record lrel Σ := LRel {
@@ -87,7 +98,7 @@ Arguments lrelC : clear implicits.
 
 (** Relational judgment *)
 Section refines.
-  Context `{!authG Σ}.
+  Context `{!authG Σ, !seqG Σ}.
 
   Definition spec_inv (ρᵢ: cfg heap_lang) : iProp Σ :=
     (∃ tpᵢ σᵢ,
@@ -106,8 +117,8 @@ Section refines.
 
   Definition refines (E : coPset) (eᵥ eᵢ : expr) (A : lrel Σ) : iProp Σ :=
     (∀ Kᵢ tᵢ,
-        spec_ideal tᵢ (fill Kᵢ eᵢ) -∗
-        WP eᵥ @ E {{ vᵥ, ∃ (vᵢ : val), spec_ideal tᵢ (fill Kᵢ vᵢ) ∗ A vᵥ vᵢ }})%I.
+        spec_ideal tᵢ (fill Kᵢ eᵢ) ∗ seq_tok ⊤ -∗
+        WP eᵥ @ E {{ vᵥ, ∃ (vᵢ : val), spec_ideal tᵢ (fill Kᵢ vᵢ) ∗ A vᵥ vᵢ ∗ seq_tok ⊤ }})%I.
 
   Definition refines_Some (E : coPset) (eᵥ eᵢ : expr) (A : lrel Σ) : iProp Σ :=
     (∀ Kᵢ tᵢ,
@@ -142,7 +153,7 @@ Notation "'REL' e1 '<<' e2 ':' A" :=
     format "'REL'  e1  '/ ' '<<'  e2  '/ ' :  A").
 
 Section semtypes.
-  Context `{authG Σ}.
+  Context `{authG Σ, seqG Σ}.
 
   Implicit Types e : expr.
   Implicit Types E : coPset.

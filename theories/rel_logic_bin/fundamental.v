@@ -5,11 +5,11 @@ From auth.rel_logic_bin Require Export compatibility interp.
 From iris.proofmode Require Export proofmode.
 
 Section fundamental.
-  Context `{authG Σ}.
+  Context `{authG Σ, seqG Σ}.
   Hint Resolve to_of_val : core.
 
   Local Ltac intro_clause := progress (iIntros (vs) "#Hvs /=").
-  Local Ltac intro_clause' := intro_clause; iIntros (??) "Hi".
+  Local Ltac intro_clause' := intro_clause; iIntros (??) "(Hi & Htok)".
   Local Ltac pures :=
     wp_pures; i_pures.
 
@@ -29,7 +29,7 @@ Section fundamental.
     { rewrite lookup_fmap Hx //. }
     rewrite !lookup_fmap.
     iDestruct "Hvs" as (v1 v2 ->) "HA". simpl.
-    iIntros (??) "Hi".
+    iIntros (??) "(Hi & Htok)".
     wp_pures. by iFrame.
   Qed.
 
@@ -52,7 +52,7 @@ Section fundamental.
   Proof.
     iIntros "IH".
     intro_clause'.
-    rel_bind_ap e e' "IH" v u "(Hi & H)".
+    rel_bind_ap e e' "IH" v u "(Hi & H & Htok)".
     iDestruct "H" as (??) "(% & % & % & % & IHw & IHw')". simplify_eq/=.
     pures. by iFrame.
   Qed.
@@ -63,7 +63,7 @@ Section fundamental.
   Proof.
     iIntros "IH".
     intro_clause'.
-    rel_bind_ap e e' "IH" v u "(Hi & H)".
+    rel_bind_ap e e' "IH" v u "(Hi & H & Htok)".
     iDestruct "H" as (??) "(% & % & % & % & IHw & IHw')". simplify_eq/=.
     pures. by iFrame.
   Qed.
@@ -91,7 +91,7 @@ Section fundamental.
     iFrame. iModIntro. iLöb as "IH".
     clear.
     iIntros (v1 v2) "!# #Hτ1".
-    iIntros (??) "Hi". pures.
+    iIntros (??) "(Hi & Htok)". pures.
     set (r := (RecV f x (subst_map (binder_delete x (binder_delete f (fst <$> vs))) e),
                RecV f x (subst_map (binder_delete x (binder_delete f (snd <$> vs))) e')) : val * val).
     set (vvs' := binder_insert f r (binder_insert x (v1,v2) vs)).
@@ -113,7 +113,7 @@ Section fundamental.
       by iApply ("Ht" with "[$]").
   Qed.
 
-  Lemma bin_log_related_fork Θ Δ Γ e e' :
+(*   Lemma bin_log_related_fork Θ Δ Γ e e' :
     ({Θ;Δ;Γ} ⊨ e ≤log≤ e' : ()) -∗
     {Θ;Δ;Γ} ⊨ Fork e ≤log≤ Fork e' : ().
   Proof.
@@ -123,7 +123,7 @@ Section fundamental.
     setoid_rewrite interp_unit_unfold.
     iApply refines_fork.
     by iApply "IH".
-  Qed.
+  Qed. *)
 
   Lemma bin_log_related_tlam Θ (Δ : ctxO Σ Θ) Γ κ (e e' : expr) τ :
     (∀ (A : kindO Σ κ),
@@ -135,10 +135,10 @@ Section fundamental.
     pures. iFrame.
     iIntros "!#" (A) "!#".
     iIntros (v1 v2 _); simplify_eq.
-    iIntros (??) "Hi".
+    iIntros (??) "(Hi & Htok)".
     pures.
     iDestruct ("IH" $! A) as "#H".
-    iApply ("H" with "[] Hi").
+    iApply ("H" with "[] [$Hi $Htok]").
     rewrite -shift_env_eq //.
   Qed.
 
@@ -148,7 +148,7 @@ Section fundamental.
   Proof.
     iIntros "IH".
     intro_clause'.
-    rel_bind_ap e e' "IH" v v' "(Hp & IH)"; fold kindO.
+    rel_bind_ap e e' "IH" v v' "(Hp & IH & Htok)"; fold kindO.
     iDestruct ("IH" $! (interp τ' Δ)) as "#IH".
     iSpecialize ("IH" with "[//]").
     simpl.
@@ -162,8 +162,8 @@ Section fundamental.
   Proof.
     iIntros "IH". intro_clause'.
     rewrite -shift_env_eq.
-    rel_bind_ap e e' "IH" v v' "(Hp & IH)"; fold kindO.
-    iApply ("IH" $! _ #~ #~ with "[//] Hp").
+    rel_bind_ap e e' "IH" v v' "(Hp & IH & Htok)"; fold kindO.
+    iApply ("IH" $! _ #~ #~ with "[//] [$Hp $Htok]").
   Qed.
 
   Lemma bin_log_related_seq Θ κ (A : kindO Σ κ) τ1 τ2 Δ Γ e1 e2 e1' e2' :
@@ -196,7 +196,7 @@ Section fundamental.
   Proof.
     iIntros "IH".
     intro_clause'.
-    rel_bind_ap e e' "IH" v v' "(? & H)".
+    rel_bind_ap e e' "IH" v v' "(? & H & Htok)".
     pures. iFrame. iModIntro.
     iExists _, _. eauto.
   Qed.
@@ -207,7 +207,7 @@ Section fundamental.
   Proof.
     iIntros "IH".
     intro_clause'.
-    rel_bind_ap e e' "IH" v v' "(? & Hvv)".
+    rel_bind_ap e e' "IH" v v' "(? & Hvv & Htok)".
     pures. iFrame. iModIntro.
     iExists _, _. eauto.
   Qed.
@@ -220,14 +220,14 @@ Section fundamental.
   Proof.
     iIntros "IH1 IH2 IH3".
     intro_clause'.
-    rel_bind_ap e0 e0' "IH1" v0 v0' "(Hi & IH1)".
+    rel_bind_ap e0 e0' "IH1" v0 v0' "(Hi & IH1 & Htok)".
     iDestruct "IH1" as (w w') "[(% & % & #Hw) | (% & % & #Hw)]";
       simplify_eq/=; pures.
-    - iApply (bin_log_related_app _ Δ Γ _ w _ w'  with "IH2 [] Hvs Hi").
-      iIntros (?) "?". iIntros (??) "Hi".
+    - iApply (bin_log_related_app _ Δ Γ _ w _ w'  with "IH2 [] Hvs [$]").
+      iIntros (?) "?". iIntros (??) "(Hi & Htok)".
       wp_pures. by iFrame.
-    - iApply (bin_log_related_app _ Δ Γ _ w _ w' with "IH3 [] Hvs Hi").
-      iIntros (?) "?"; iIntros (??) "Hi".
+    - iApply (bin_log_related_app _ Δ Γ _ w _ w' with "IH3 [] Hvs [$]").
+      iIntros (?) "?"; iIntros (??) "(Hi & Htok)".
       wp_pures. by iFrame.
   Qed.
 
@@ -239,7 +239,7 @@ Section fundamental.
   Proof.
     iIntros "IH1 IH2 IH3".
     intro_clause'.
-    rel_bind_ap e0 e0' "IH1" v0 v0' "(Hi & IH1)".
+    rel_bind_ap e0 e0' "IH1" v0 v0' "(Hi & IH1 & Htok)".
     iDestruct "IH1" as ([]) "(% & %)"; simplify_eq/=; pures.
     - by iApply ("IH2" with "[$] [$]") .
     - by iApply ("IH3" with "[$] [$]") .
@@ -290,8 +290,8 @@ Section fundamental.
   Proof.
     iIntros "IH1 IH2".
     intro_clause'.
-    rel_bind_ap e2 e2' "IH2" v2 v2' "(Hi & IH2)".
-    rel_bind_ap e1 e1' "IH1" v1 v1' "(Hi & IH1)".
+    rel_bind_ap e2 e2' "IH2" v2 v2' "(Hi & IH2 & Htok)".
+    rel_bind_ap e1 e1' "IH1" v1 v1' "(Hi & IH1 & Htok)".
     rewrite interp_ref_unfold {1}interp_nat_unfold.
     iDestruct "IH1" as (l l') "(% & % & Hinv)"; simplify_eq/=.
     iDestruct "IH2" as (n) "(% & %)"; simplify_eq.
@@ -313,9 +313,9 @@ Section fundamental.
   Proof.
     iIntros "IH1 IH2 IH3".
     intro_clause'.
-    rel_bind_ap e3 e3' "IH3" v3 v3' "(? & #IH3)".
-    rel_bind_ap e2 e2' "IH2" v2 v2' "(? & #IH2)".
-    rel_bind_ap e1 e1' "IH1" v1 v1' "(? & #IH1)".
+    rel_bind_ap e3 e3' "IH3" v3 v3' "(? & #IH3 & Htok)".
+    rel_bind_ap e2 e2' "IH2" v2 v2' "(? & #IH2 & Htok)".
+    rel_bind_ap e1 e1' "IH1" v1 v1' "(? & #IH1 & Htok)".
     iDestruct "IH1" as (l l') "(% & % & Hinv)"; simplify_eq/=.
     iDestruct (unboxed_type_sound with "IH2") as "(% & %)"; try fast_done.
     iDestruct (eq_type_sound with "IH2") as "<-"; first fast_done.
@@ -363,7 +363,7 @@ Section fundamental.
   Proof.
     iIntros "IH".
     intro_clause'.
-    rel_bind_ap e e' "IH" v v' "(? & IH)".
+    rel_bind_ap e e' "IH" v v' "(? & IH & Htok)".
     i_alloc as li "Hli". wp_alloc l as "Hl".
     iMod (inv_alloc (authN .@ "ref" .@ (l,li)) _ (∃ w1 w2,
             l ↦ w1 ∗ li ↦ᵢ w2 ∗ interp τ Δ w1 w2)%I with "[$Hl $Hli $IH]") as "HN".
@@ -378,8 +378,8 @@ Section fundamental.
   Proof.
     iIntros (Hτ) "IH1 IH2".
     intro_clause'.
-    rel_bind_ap e2 e2' "IH2" v2 v2' "(? & #IH2)".
-    rel_bind_ap e1 e1' "IH1" v1 v1' "(? & #IH1)".
+    rel_bind_ap e2 e2' "IH2" v2 v2' "(? & #IH2 & Htok)".
+    rel_bind_ap e1 e1' "IH1" v1 v1' "(? & #IH1 & Htok)".
     iAssert (⌜val_is_unboxed v1⌝ ∧ ⌜val_is_unboxed v1'⌝)%I as "(%&%)".
     { rewrite !unboxed_type_sound //.
       by iDestruct "IH1" as "(%&%)". }
@@ -402,8 +402,8 @@ Section fundamental.
   Proof.
     iIntros (Hopτ) "IH1 IH2".
     intro_clause'.
-    rel_bind_ap e2 e2' "IH2" v2 v2' "(?&IH2)".
-    rel_bind_ap e1 e1' "IH1" v1 v1' "(?&IH1)".
+    rel_bind_ap e2 e2' "IH2" v2 v2' "(?&IH2&Htok)".
+    rel_bind_ap e1 e1' "IH1" v1 v1' "(?&IH1&Htok)".
     iDestruct "IH1" as (n) "(% & %)"; simplify_eq/=.
     iDestruct "IH2" as (n') "(% & %)"; simplify_eq/=.
     destruct (binop_nat_typed_safe _ op n n' _ Hopτ) as [v' Hopv'].
@@ -421,8 +421,8 @@ Section fundamental.
   Proof.
     iIntros (Hopτ) "IH1 IH2".
     intro_clause'.
-    rel_bind_ap e2 e2' "IH2" v2 v2' "(?&IH2)".
-    rel_bind_ap e1 e1' "IH1" v1 v1' "(?&IH1)".
+    rel_bind_ap e2 e2' "IH2" v2 v2' "(?&IH2&Htok)".
+    rel_bind_ap e1 e1' "IH1" v1 v1' "(?&IH1&Htok)".
     iDestruct "IH1" as (n) "(% & %)"; simplify_eq/=.
     iDestruct "IH2" as (n') "(% & %)"; simplify_eq/=.
     destruct (binop_bool_typed_safe _ op n n' _ Hopτ) as [v' Hopv'].
@@ -438,9 +438,9 @@ Section fundamental.
   Proof.
     iIntros "IH1 IH2 IH3".
     intro_clause'.
-    rel_bind_ap e3 e3' "IH3" v3 v3' "(?&IH3)".
-    rel_bind_ap e2 e2' "IH2" w2 w2' "(?&IH2)".
-    rel_bind_ap e1 e1' "IH1" u1 u1' "(?&IH1)".
+    rel_bind_ap e3 e3' "IH3" v3 v3' "(?&IH3&Htok)".
+    rel_bind_ap e2 e2' "IH2" w2 w2' "(?&IH2&Htok)".
+    rel_bind_ap e1 e1' "IH1" u1 u1' "(?&IH1&Htok)".
     iDestruct "IH1" as (n) "(% & %)"; simplify_eq/=.
     iDestruct "IH2" as (s) "(% & %)"; simplify_eq/=.
     iDestruct "IH3" as (s') "(% & %)"; simplify_eq/=.
@@ -458,9 +458,9 @@ Section fundamental.
   Proof.
     iIntros "IH1 IH2 IH3".
     intro_clause'.
-    rel_bind_ap e3 e3' "IH3" v3 v3' "(?&IH3)".
-    rel_bind_ap e2 e2' "IH2" w2 w2' "(?&IH2)".
-    rel_bind_ap e1 e1' "IH1" u1 u1' "(?&IH1)".
+    rel_bind_ap e3 e3' "IH3" v3 v3' "(?&IH3&Htok)".
+    rel_bind_ap e2 e2' "IH2" w2 w2' "(?&IH2&Htok)".
+    rel_bind_ap e1 e1' "IH1" u1 u1' "(?&IH1&Htok)".
     iDestruct "IH1" as (n) "(% & %)"; simplify_eq/=.
     iDestruct "IH2" as (s) "(% & %)"; simplify_eq/=.
     iDestruct "IH3" as (s') "(% & %)"; simplify_eq/=.
@@ -474,7 +474,7 @@ Section fundamental.
   Proof.
     iIntros (Hopτ) "IH".
     intro_clause'.
-    rel_bind_ap e e' "IH" v v' "(? & IH)".
+    rel_bind_ap e e' "IH" v v' "(? & IH & Htok)".
     iDestruct "IH" as (n) "(% & %)"; simplify_eq/=.
     destruct (unop_nat_typed_safe _ op n _ Hopτ) as [v' Hopv'].
     i_pures; eauto; wp_pures. iFrame.
@@ -488,7 +488,7 @@ Section fundamental.
   Proof.
     iIntros (Hopτ) "IH".
     intro_clause'.
-    rel_bind_ap e e' "IH" v v' "(? & IH)".
+    rel_bind_ap e e' "IH" v v' "(? & IH & Htok)".
     iDestruct "IH" as (n) "(% & %)"; simplify_eq/=.
     destruct (unop_bool_typed_safe _ op n _ Hopτ) as [v' Hopv'].
     eauto; i_pures; eauto; wp_pures. iFrame.
@@ -502,7 +502,7 @@ Section fundamental.
   Proof.
     iIntros (Hopτ) "IH".
     intro_clause'.
-    rel_bind_ap e e' "IH" v v' "(? & IH)".
+    rel_bind_ap e e' "IH" v v' "(? & IH & Htok)".
     iDestruct "IH" as (s) "(% & %)"; simplify_eq/=.
     destruct (unop_string_typed_safe _ op s _ Hopτ) as [v' Hopv'].
     i_pures; eauto; wp_pures. iFrame.
@@ -516,7 +516,7 @@ Section fundamental.
   Proof.
     iIntros "IH".
     intro_clause'.
-    rel_bind_ap e e' "IH" v v' "(? & IH)".
+    rel_bind_ap e e' "IH" v v' "(? & IH & Htok)".
     rewrite tfill_rec_eq. i_rec tᵢ. wp_rec.
     by iFrame.
   Qed.
@@ -527,7 +527,7 @@ Section fundamental.
   Proof.
     iIntros "IH".
     intro_clause'.
-    rel_bind_ap e e' "IH" v v' "(?&IH)".
+    rel_bind_ap e e' "IH" v v' "(?&IH&Htok)".
     i_rec tᵢ. wp_rec. iFrame.
     rewrite tfill_rec_eq //.
   Qed.
@@ -538,7 +538,7 @@ Section fundamental.
   Proof.
     iIntros "IH".
     intro_clause'; fold kindO.
-    rel_bind_ap e e' "IH" v v' "(? & #IH)".
+    rel_bind_ap e e' "IH" v v' "(? & #IH & Htok)".
     iFrame.
     iExists (interp τ' Δ) => /=.
     rewrite subst_eq //.
@@ -552,10 +552,10 @@ Section fundamental.
     intro_clause'.
     iSpecialize ("IH" with "[Hvs]"); fold kindO.
     { rewrite -shift_env_eq //. }
-    iSpecialize ("IH" with "Hi").
+    iSpecialize ("IH" with "[$]").
     iApply wp_wand_r.
     iSplitL "IH"; [iApply "IH"|].
-    iIntros (?) "(% & $ & ?)".
+    iIntros (?) "(% & $ & ? & Htok)". iFrame.
     by iExists _.
   Qed.
 
@@ -570,7 +570,7 @@ Section fundamental.
     intro_clause'.
     pures.
     rewrite /bin_log_related.
-    rel_bind_ap e1 e1' "IH1" v v' "(? & Hex)".
+    rel_bind_ap e1 e1' "IH1" v v' "(? & Hex & Htok)".
     iDestruct "Hex" as (A) "#IH1".
     rewrite /unpack; pures.
     iSpecialize ("IH2" $! A (binder_insert x (v,v') vs) with "[Hvs]").
@@ -588,7 +588,7 @@ Section fundamental.
   Proof.
     iIntros "IH".
     intro_clause'.
-    rel_bind_ap e e' "IH" v v' "([#Hctx Hi] & Hs)".
+    rel_bind_ap e e' "IH" v v' "([#Hctx Hi] & Hs & Htok)".
     simplify_eq.
     iDestruct "Hs" as "(% & -> & ->)".
     iMod (step_ideal_hash with "[$]") as "(_ & Hi)"; [done|].
@@ -615,7 +615,7 @@ Section fundamental.
     - intros Ht. destruct Ht.
       + by iApply bin_log_related_var.
       + iIntros (γ) "#H /=".
-        iIntros (??) "Hi". wp_pures. iFrame.
+        iIntros (??) "(Hi & Htok)". wp_pures. iFrame.
         iModIntro. by iApply fundamental_val.
       + iApply bin_log_related_nat_binop; first done;
           by iApply fundamental.
@@ -659,7 +659,7 @@ Section fundamental.
       + iApply bin_log_related_pack'; by iApply fundamental.
       + iApply bin_log_related_unpack; try by iApply fundamental.
         iIntros (A). by iApply fundamental.
-      + iApply bin_log_related_fork; by iApply fundamental.
+      (* + iApply bin_log_related_fork; by iApply fundamental.*)
       + iApply bin_log_related_alloc; by iApply fundamental.
       + iApply bin_log_related_load; by iApply fundamental.
       + iApply bin_log_related_store; by iApply fundamental.
@@ -685,7 +685,7 @@ Section fundamental.
         pose (Γ := (<[f:=(τ1 → τ2)%ty]> (<[x:=τ1]> ∅)):stringmap (typ ⋆ Θ)).
         pose (γ := (binder_insert f ((rec: f x := e)%V,(rec: f x := e)%V)
                       (binder_insert x (v1, v2) ∅)):stringmap (val*val)).
-        iIntros (??) "Hi".
+        iIntros (??) "(Hi & Htok)".
         pures.
         iPoseProof (fundamental Θ Δ Γ e τ2 $! γ with "[] ") as "H"; eauto.
         { rewrite /γ /Γ. rewrite !binder_insert_fmap fmap_empty.
@@ -696,7 +696,7 @@ Section fundamental.
         rewrite !subst_map_binder_insert_2_empty.
         iApply ("H" with "[$]").
       + rewrite interp_forall_unfold. iIntros (A). iModIntro. iIntros (v1 v2) "_".
-        iIntros (??) "Hi"; pures.
+        iIntros (??) "(Hi & Htok)"; pures.
         iPoseProof (fundamental _ (ext Δ A) ∅ e τ $! ∅ with "[]") as "H"; eauto.
         { rewrite fmap_empty. iApply env_ltyped_empty. }
         rewrite !fmap_empty subst_map_empty.

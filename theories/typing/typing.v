@@ -170,7 +170,7 @@ Inductive typed (Θ : Ctx kind) : stringmap (typ ⋆ Θ) → expr → (typ ⋆ �
   Θ |ₜ Γ ⊢ₜ e1 : (∃: κ, τ) →
   Θ ▹ κ |ₜ <[x:=τ]>(⤉ Γ) ⊢ₜ e2 : Core.shift τ2 →
   Θ |ₜ Γ ⊢ₜ (unpack: x := e1 in e2) : τ2
-| TFork Γ e : Θ |ₜ Γ ⊢ₜ e : () → Θ |ₜ Γ ⊢ₜ Fork e : ()
+(* | TFork Γ e : Θ |ₜ Γ ⊢ₜ e : () → Θ |ₜ Γ ⊢ₜ Fork e : () *)
 | TAlloc Γ e τ : Θ |ₜ Γ ⊢ₜ e : τ → Θ |ₜ Γ ⊢ₜ Alloc e : ref τ
 | TLoad Γ e τ : Θ |ₜ Γ ⊢ₜ e : ref τ → Θ |ₜ Γ ⊢ₜ Load e : τ
 | TStore Γ e e' τ : Θ |ₜ Γ ⊢ₜ e : ref τ → Θ |ₜ Γ ⊢ₜ e' : τ → Θ |ₜ Γ ⊢ₜ Store e e' : ()
@@ -311,7 +311,8 @@ Local Fixpoint is_closed_expr_set (X : stringset) (e : expr) : bool :=
   | Val v => is_closed_val_set v
   | Var x => bool_decide (x ∈ X)
   | Rec f x e => is_closed_expr_set (maybe_insert_binder f (maybe_insert_binder x X)) e
-  | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Fork e | Free e | Load e | Hash e =>
+  | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Fork e
+  | Free e | Load e | Hash e =>
      is_closed_expr_set X e
   | App e1 e2 | BinOp _ e1 e2 | Pair e1 e2 | AllocN e1 e2 | Store e1 e2 | FAA e1 e2 | Xchg e1 e2 =>
      is_closed_expr_set X e1 && is_closed_expr_set X e2

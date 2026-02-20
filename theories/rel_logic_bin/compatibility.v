@@ -5,7 +5,7 @@ From auth.heap_lang Require Import proofmode_upto_bad.
 From auth.rel_logic_bin Require Export model spec_rules spec_tactics.
 
 Section compatibility.
-  Context `{!authG Σ}.
+  Context `{!authG Σ, !seqG Σ}.
   Implicit Types e : expr.
 
   Local Ltac value_case :=
@@ -32,9 +32,9 @@ Section compatibility.
     (REL e2 << e2' : B) -∗
     REL (e1, e2) << (e1', e2') : A * B.
   Proof.
-    iIntros "IH1 IH2" (??) "Hi".
-    rel_bind_ap e2 e2' "IH2" v1 v2 "(Hi & HB)".
-    rel_bind_ap e1 e1' "IH1" w1 w2 "(Hi & HA)".
+    iIntros "IH1 IH2" (??) "(Hi & Htok)".
+    rel_bind_ap e2 e2' "IH2" v1 v2 "(Hi & HB & Htok)".
+    rel_bind_ap e1 e1' "IH1" w1 w2 "(Hi & HA & Htok)".
     value_case.
     iModIntro. by iFrame.
   Qed.
@@ -44,10 +44,10 @@ Section compatibility.
     (REL e2 << e2' : A) -∗
     REL App e1 e2 << App e1' e2' : B.
   Proof.
-    iIntros "IH1 IH2" (??) "Hi".
-    rel_bind_ap e2 e2' "IH2" v v' "(Hi & HA)".
-    rel_bind_ap e1 e1' "IH1" f f' "(Hi & HAB)".
-    iApply ("HAB" with "HA Hi").
+    iIntros "IH1 IH2" (??) "(Hi & Htok)".
+    rel_bind_ap e2 e2' "IH2" v v' "(Hi & HA & Htok)".
+    rel_bind_ap e1 e1' "IH1" f f' "(Hi & HAB & Htok)".
+    iApply ("HAB" with "[$]"). iFrame.
   Qed.
 
   Lemma refines_seq A e1 e2 e1' e2' B :
@@ -55,8 +55,8 @@ Section compatibility.
     (REL e2 << e2' : B) -∗
     REL (e1;; e2) << (e1';; e2') : B.
   Proof.
-    iIntros "IH1 IH2" (??) "Hi".
-    rel_bind_ap e1 e1' "IH1" v v' "(Hi & Hvv)".
+    iIntros "IH1 IH2" (??) "(Hi & Htok)".
+    rel_bind_ap e1 e1' "IH1" v v' "(Hi & Hvv & Htok)".
     i_pures. wp_pures.
     iApply ("IH2" with "[$]").
   Qed.
@@ -67,19 +67,19 @@ Section compatibility.
     (∃ (a : A), REL e << e' : C a) -∗
     REL e << e' : ∃; (a : A), C a.
   Proof.
-    iIntros "[%a H]" (??) "Hi".
-    rel_bind_ap e e' "H" v v' "($ & $)".
+    iIntros "[%a H]" (??) "(Hi & Htok)".
+    rel_bind_ap e e' "H" v v' "($ & $ & $)".
   Qed.
 
   Lemma refines_forall A e e' (C : A -n> lrel Σ) :
     □ (∀ (a : A), REL e << e' : C a) -∗
     REL (λ: <>, e)%V << (λ: <>, e')%V : ∀; (a : A), C a.
   Proof.
-    iIntros "#H" (??) "Hi".
+    iIntros "#H" (??) "(Hi & Htok)".
     wp_pures.
     iFrame.
     iIntros "!#" (a ?) "!#".
-    iIntros (????) "Hi".
+    iIntros (????) "(Hi & Htok)".
     i_pures; wp_pures.
     iApply ("H" with "[$]").
   Qed.
@@ -89,14 +89,14 @@ Section compatibility.
     (REL e2 << e2' : A) -∗
     REL e1 <- e2 << e1' <- e2' : ().
   Proof.
-    iIntros "IH1 IH2" (??) "Hi".
-    rel_bind_ap e2 e2' "IH2" w w' "(Hi & #HAw)".
-    rel_bind_ap e1 e1' "IH1" v v' "(Hi & #Hr)".
+    iIntros "IH1 IH2" (??) "(Hi & Htok)".
+    rel_bind_ap e2 e2' "IH2" w w' "(Hi & #HAw & Htok)".
+    rel_bind_ap e1 e1' "IH1" v v' "(Hi & #Hr & Htok)".
     iDestruct "Hr" as (l l') "(-> & -> & Hr)".
     iInv (authN .@ "ref" .@ (l,l')) as (v v') "(>Hv & >Hv' & #HAv)" "Hclose".
     wp_store.
     i_store.
-    iMod ("Hclose" with "[$Hv $Hv' $HAw]") as "_".
+    iMod ("Hclose" with "[$]") as "_".
     by iFrame.
   Qed.
 
@@ -105,14 +105,14 @@ Section compatibility.
     (REL e2 << e2' : A) -∗
     REL Xchg e1 e2 << Xchg e1' e2' : A.
   Proof.
-    iIntros "IH1 IH2" (??) "Hi".
-    rel_bind_ap e2 e2' "IH2" w w' "(Hi & #HAw)".
-    rel_bind_ap e1 e1' "IH1" v v' "(Hi & #Hr)".
+    iIntros "IH1 IH2" (??) "(Hi & Htok)".
+    rel_bind_ap e2 e2' "IH2" w w' "(Hi & #HAw & Htok)".
+    rel_bind_ap e1 e1' "IH1" v v' "(Hi & #Hr & Htok)".
     iDestruct "Hr" as (l l') "(-> & -> & Hr)".
     iInv (authN .@ "ref" .@ (l,l')) as (v v') "(>Hv & >Hv' & #HAv)" "Hclose".
     wp_xchg.
     i_xchg.
-    iMod ("Hclose" with "[$Hv $Hv' $HAw]") as "_".
+    iMod ("Hclose" with "[$]") as "_".
     by iFrame.
   Qed.
 
@@ -120,28 +120,33 @@ Section compatibility.
     (REL e << e' : ref A) -∗
     REL !e << !e' : A.
   Proof.
-    iIntros "IH" (??) "Hi".
-    rel_bind_ap e e' "IH" v v' "(Hi & #Hr)".
+    iIntros "IH" (??) "(Hi & Htok)".
+    rel_bind_ap e e' "IH" v v' "(Hi & #Hr & Htok)".
     iDestruct "Hr" as (l l' -> ->) "#H".
     iInv (authN .@ "ref" .@ (l,l')) as (v v') "(>Hv & >Hv' & #HAv)" "Hclose".
     wp_load.
     i_load.
-    iMod ("Hclose" with "[$Hv $Hv' $HAv]") as "_".
+    iMod ("Hclose" with "[$]") as "_".
     by iFrame.
   Qed.
 
-  Lemma refines_fork e e' :
+ (* Lemma refines_fork e e' :
     (REL e << e' : ()%lrel) -∗
     REL Fork e << Fork e' : ().
   Proof.
-    iIntros "IH" (??) "Hi".
+    iIntros "IH" (??) "(Hi & Htok)".
     i_fork as tᵢ' "Hi'".
-    iSpecialize ("IH" $! [] _ with "Hi'").
-    iApply (wp_fork with "[IH]"); [|by iFrame].
+    wp_bind e.
+    iSpecialize ("IH" $! [] _ with "[$Hi' $Htok]").
+    rel_bind_ap
+    iApply (wp_fork with "[IH]").
+    { iModIntro.
+      iApply (wp_wand with "IH").
+      by iIntros (?) "_". }
     iModIntro.
     iApply (wp_wand with "IH").
     by iIntros (?) "_".
-  Qed.
+  Qed. *)
 
   Lemma refines_cmpxchg_ref A e1 e2 e3 e1' e2' e3' :
     (REL e1 << e1' : ref (ref A))%lrel -∗
@@ -149,10 +154,10 @@ Section compatibility.
     (REL e3 << e3' : ref A) -∗
     REL (CmpXchg e1 e2 e3) << (CmpXchg e1' e2' e3') : (ref A * lrel_bool)%lrel.
   Proof.
-    iIntros "IH1 IH2 IH3" (??) "Hi".
-    rel_bind_ap e3 e3' "IH3" u u' "(Hi & #IH3)".
-    rel_bind_ap e2 e2' "IH2" v2 v2' "(Hi & #IH2)".
-    rel_bind_ap e1 e1' "IH1" v1 v1' "(Hi & #IH1)".
+    iIntros "IH1 IH2 IH3" (??) "(Hi & Htok)".
+    rel_bind_ap e3 e3' "IH3" u u' "(Hi & #IH3 & Htok)".
+    rel_bind_ap e2 e2' "IH2" v2 v2' "(Hi & #IH2 & Htok)".
+    rel_bind_ap e1 e1' "IH1" v1 v1' "(Hi & #IH1 & Htok)".
     iDestruct "IH1" as (l1 l2 -> ->) "Hinv".
     iDestruct "IH2" as (r1 r2 -> ->) "Hr".
     iInv (authN .@ "ref" .@ (l1,l2)) as (v1 v2) "(>Hl1 & >Hl2 & #Hv)" "Hclose".
