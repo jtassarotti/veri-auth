@@ -1,10 +1,11 @@
 From auth.prelude Require Import stdpp.
 From auth.rel_logic_bin Require Export model spec_rules spec_tactics interp lib adequacy fundamental.
-From auth.heap_lang Require Import gen_weakestpre.
+From auth.heap_lang Require Import gen_weakestpre typedproph.
 From auth.heap_lang.lib Require Import list serialization.
 From auth.examples Require Export authentikit_susp authenticatable_base_susp.
 From iris.base_logic.lib Require Export invariants na_invariants.
-  
+From iris.algebra Require Import gmap agree.
+
 (* Section auth_serialization.
   Context `{invGS_gen hlc Σ} `{g : !GenWp Σ} (N : namespace).
 
@@ -210,37 +211,356 @@ Program Definition auth_deserialization : deserialization :=
     s_deser_sound := ;
     s_deser_complete := ;
   |}. *)
+  
+Inductive evi_type : Type :=
+| tprod (t1 t2 : evi_type)
+| tsum (t1 t2 : evi_type)
+| tstring
+| tint
+| tauth.
+
+Definition mapUR := gmapUR nat (agreeR (prodO
+                                          (prodO
+                                             (prodO
+                                                (prodO (leibnizO evi_type) valO)
+                                                valO)
+                                             (optionO locO))
+                                          (leibnizO bool))).
+
+Definition locPidMapUR := gmapUR locO nat.
+
+Definition stateUR := authUR (prodUR (prodUR max_natUR mapUR) locPidMapUR).
+Class stateG Σ := StateG { state_inG :> inG Σ stateUR; stateG_name : gname }.
+
+(* Definition counterUR := gmapUR nat (authR natUR).
+Class counterG Σ := CounterG { counter_inG :> inG Σ counterUR; counterG_name : gname }. *)
+
+Definition authSerProofSet (N : namespace) : namespace := N .@ "auth_ser_proof".
+Definition authSerProofN (N : namespace) (v : val) : namespace := (authSerProofSet N) .@ v.
 
 Section authenticatable.
-  Context `{!heapGS_gen hlc Σ, !seqG Σ} (N : namespace).
+  Context `{!stateG Σ, !heapGS_gen hlc Σ, !seqG Σ} (N : namespace).
 
-  Definition authSerN (v: val) : namespace := N .@ "auth_ser" .@ v.
-  Definition authValidN (v: val) : namespace := N .@ "auth_valid" .@ v.
-  Definition authCountN (v: val) : namespace := N .@ "auth_count" .@ v.
+  Definition authSerSet : namespace := N .@ "auth_ser".
+  Definition authSerN (v: val) : namespace := authSerSet .@ v.
+  Definition authValidSet : namespace := N .@ "auth_valid".
+  Definition authValidN (v: val) : namespace := authValidSet .@ v.
+  (* Definition authCountSet : namespace := N .@ "auth_count".
+  Definition authCountN (l: loc) : namespace := authCountSet .@ l.
+  Definition authInSet : namespace := N .@ "auth_in".
+  Definition authInN (l : loc) : namespace := authInSet .@ l. *)
+
+  Definition single_instance (id : nat) (t : evi_type) (x vᵥ : val) (susp_option : option loc) (b : bool)  : iProp Σ :=
+    own stateG_name (◯ (MaxNat id, ({[ id := to_agree (t, x, vᵥ, susp_option, b) ]} : mapUR),
+                         ((if susp_option is Some susp then {[ susp := id ]} else ∅) : locPidMapUR))).
+
+  (* Definition count (pid c : nat) : iProp Σ :=
+    own counterG_name ({[ pid := ● c ]}).
+
+  Definition token (pid : nat) : iProp Σ :=
+    own counterG_name ({[ pid := ◯ 1 ]}).
+
+  Definition used_token (pid : nat) : iProp Σ :=
+    □ (own counterG_name ({[ pid := ◯ 1 ]})). *)
+
+  Definition suspended_loc (susp : loc) : iProp Σ :=
+    ∀ (h: string), susp ↦□ InjRV #h -∗ False.
+
+  (* Definition count_auth_inv (susp : loc) (c : nat) : iProp Σ :=
+    ((∃ (h : string), susp ↦□ (InjRV #h) ∗ ⌜c = 0⌝) ∨
+       (suspended_loc susp ∗ ⌜c = 1⌝)). *)
   
-  Inductive evi_type : Type :=
-  | tprod (t1 t2 : evi_type)
-  | tsum (t1 t2 : evi_type)
-  | tstring
-  | tint
-  | tauth.
+  Fixpoint count_is_correct (t : evi_type) (v : val) (c : nat) : iProp Σ :=
+    match t with
+    | tprod t1 t2 =>
+        ∃ (c1 c2 : nat) (v1 v2 : val),
+          ⌜v = (v1, v2)%V ∧ (c1 + c2)%nat = c⌝ ∗ count_is_correct t1 v1 c1 ∗ count_is_correct t2 v2 c2
+    | tsum t1 t2 =>
+        (∃ (v1 : val), ⌜v = InjLV v1⌝ ∗ count_is_correct t1 v1 c) ∨
+          (∃ (v2 : val), ⌜v = InjRV v2⌝ ∗ count_is_correct t2 v2 c)
+    | tstring => string_valid_val v ∧ ⌜c = 0⌝
+    | tint => int_valid_val v ∧ ⌜c = 0⌝
+    | tauth =>
+        (∃ v1, ⌜v = SOMEV v1⌝ ∧
+                 ((∃ (h : string), ⌜v1 = InjLV #h ∧ c = 0⌝) ∨ 
+                    (∃ (susp : loc),
+                        ⌜v1 = InjRV #susp⌝ ∗
+                          ((∃ (h : string), susp ↦□ (InjRV #h) ∗ ⌜c = 0⌝) ∨
+                             (∃ (pid : nat), susp ↦{#1/4} InjLV #pid ∗ ⌜c = 1⌝)))))
+  end.
 
+  #[global] Instance count_is_correct_timeless t v c: Timeless (count_is_correct t v c).
+  Proof. revert v c; induction t => v c; simpl; apply _. Qed.
+
+  Fixpoint susp_in_v (t : evi_type) (v : val) (susp : loc) : iProp Σ :=
+    match t with
+    | tprod t1 t2 =>
+        ∃ (v1 v2 : val), ⌜v = (v1, v2)%V⌝ ∧ (susp_in_v t1 v1 susp ∨ susp_in_v t2 v2 susp)
+    | tsum t1 t2 =>
+        ∃ (v' : val), (⌜v = InjLV v'⌝ ∧ susp_in_v t1 v' susp) ∨ (⌜v = InjRV v'⌝ ∧ susp_in_v t2 v' susp)
+    | tstring | tint => False
+    | tauth => ∃ v1, ⌜v = SOMEV v1 ∧ v1 = InjRV #susp⌝ ∗
+                       ((∃ (pid : nat), susp ↦{#1/4} InjLV #pid) ∨ False)
+  end.
+
+  Fixpoint sub_obj (v sv: val) (t : evi_type) :=
+    match t with
+    | tprod t1 t2 =>
+        ∃ v1 v2, v = (v1, v2)%V ∧ (sv = v1 ∨ sv = v2 ∨ sub_obj v1 sv t1 ∨ sub_obj v2 sv t2)
+    | tsum t1 t2 =>
+        ∃ v', ((v = InjLV v' ∧ sub_obj v' sv t1 ∧ v = v') ∨
+                 (v = InjRV v' ∧ sub_obj v' sv t2 ∧ v = v'))
+    | tstring => False
+    | tint => False
+    | tauth =>
+        ∃ v', (v = SOMEV (InjLV v') ∨ (v = SOMEV (InjRV v'))) ∧ v' = sv
+  end.
+
+  Definition subeq_obj (v sv: val) :=
+    (∃ t, sub_obj v sv t) ∨ v = sv.
+
+  Lemma subeq_obj_trans (v sv ssv : val) :
+    subeq_obj v sv → subeq_obj sv ssv → subeq_obj v ssv.
+  Proof. Admitted.
+
+  Fixpoint sub_obj_bin (v1 v2 sv1 sv2 : val) (t : evi_type) :=
+    match t with
+    | tprod t1 t2 =>
+        ∃ v11 v12 v21 v22, v1 = (v11, v12)%V ∧ v2 = (v21, v22)%V ∧
+                             ((sv1 = v11 ∧ sv2 = v21) ∨ (sv1 = v12 ∧ sv2 = v22) ∨
+                                (sub_obj_bin v11 v21 sv1 sv2 t1) ∨
+                                (sub_obj_bin v12 v22 sv1 sv2 t2))
+    | tsum t1 t2 =>
+        ∃ v1' v2', ((v1 = InjLV v1' ∧ v2 = InjLV v2' ∧
+                       sub_obj_bin v1' v2' sv1 sv2 t1) ∨
+                      (v1 = InjRV v1' ∧ v2 = InjRV v2' ∧
+                         sub_obj_bin v1' v2' sv1 sv2 t2))
+    | tstring => False
+    | tint => False
+    | tauth => False
+  end.
+
+  Definition subeq_obj_bin (v1 v2 sv1 sv2 : val) :=
+    (∃ t, sub_obj_bin v1 v2 sv1 sv2 t) ∨ (v1 = sv1 ∧ v2 = sv2).
+
+  Lemma subeq_obj_bin_trans (v1 v2 sv1 sv2 ssv1 ssv2 : val) :
+    subeq_obj_bin v1 v2 sv1 sv2 → subeq_obj_bin sv1 sv2 ssv1 ssv2 → subeq_obj_bin v1 v2 ssv1 ssv2.
+  Proof. Admitted.
+    
+  Lemma subeq_obj_bin_to_unary (v1 v2 sv1 sv2 : val) :
+    subeq_obj_bin v1 v2 sv1 sv2 → subeq_obj v1 sv1 ∧ subeq_obj v2 sv2.
+  Proof. Admitted.
+                                                        
+  Fixpoint val_eq (t : evi_type) (v1 v2 : val) : iProp Σ :=
+    match t with
+    | tprod t1 t2 =>
+        ∃ v11 v12 v21 v22,
+          ⌜v1 = (v11, v12)%V ∧ v2 = (v21, v22)%V⌝ ∗ val_eq t1 v11 v21 ∗ val_eq t2 v12 v22
+    | tsum t1 t2 => 
+        ∃ v1' v2',
+          (⌜v1 = InjLV v1' ∧ v2 = InjLV v2'⌝ ∗ val_eq t1 v1' v2') ∨
+            (⌜v1 = InjRV v1' ∧ v2 = InjRV v2'⌝ ∗ val_eq t2 v1' v2')
+    | tstring => ∃ (s: string), ⌜v1 = #s ∧ v2 = #s⌝
+    | tint => ∃ (i: nat), ⌜v1 = #i ∧ v2 = #i⌝
+    | tauth =>
+        ⌜v1 = NONEV ∧ v2 = NONEV⌝ ∨
+          (∃ (h: string), (⌜v1 = SOMEV (InjLV #h)⌝ ∨
+                   (∃ (susp : loc), ⌜v1 = SOMEV (InjRV #susp)⌝ ∗ susp ↦□ InjRV #h)) ∧
+                  (⌜v2 = SOMEV (InjLV #h)⌝ ∨
+                     (∃ (susp : loc), ⌜v2 = SOMEV (InjRV #susp)⌝ ∗ susp ↦□ InjRV #h)))
+  end.
+
+  #[global] Instance val_eq_persistent t v1 v2 : Persistent (val_eq t v1 v2).
+  Proof. revert v1 v2. induction t => v1 v2; simpl; apply _. Qed.
+
+  Lemma val_eq_sym t v1 v2 :
+    val_eq t v1 v2 ⊣⊢ val_eq t v2 v1.
+  Proof. Admitted.
+
+  Lemma val_eq_trans t1 t2 v1 v2 v3 :
+    val_eq t1 v1 v2 ∗ val_eq t2 v2 v3 -∗ val_eq t1 v1 v3.
+  Proof. Admitted.
+
+  Lemma val_eq_inj_t t1 t2 v1 v2 :
+    val_eq v1 v2 t1 ∗ val_eq v1 v2 t2 -∗ ⌜t1 = t2⌝.
+  Proof. Admitted.
+
+  Lemma sub_obj_bin_val_eq_agree_t (v1 v2 sv1 sv2 : val) (t1 t2 : evi_type) :
+    ⌜sub_obj_bin v1 v2 sv1 sv2 t1⌝ ∗ val_eq t2 v1 v2 -∗ ⌜t1 = t2⌝.
+  Proof.
+    iIntros "[%Hbinsub #Heq]".
+    destruct t1, t2; simpl in Hbinsub; iSimpl in "Heq".
+  Admitted.
+
+  Lemma val_eq_sub_eq (v1 v2 sv1 sv2 : val) (t : evi_type) :
+    ⌜subeq_obj_bin v1 v2 sv1 sv2⌝ ∗ val_eq t v1 v2 -∗ ∃ st, val_eq st sv1 sv2.
+  Proof.
+    iInduction t as [| | | |]
+                      forall (v1 v2 sv1 sv2);
+                             iIntros "[%Hbinsubeq #Heq]";
+                             simpl in Hbinsubeq.
+      - destruct Hbinsubeq as [[t Hbinsub]|Hbineq];
+          iPoseProof "Heq" as (?????) "(#Heq1 & #Heq2)"; last first.
+        { destruct! H. destruct! Hbineq. simplify_eq.
+          iExists (tprod t1 t2). by iFrame "#". }
+        destruct! H. simplify_eq.
+        iPoseProof (sub_obj_bin_val_eq_agree_t with "[$Heq //]") as "->".
+        destruct Hbinsub as (?&?&?&? & ?&? & [[-> ->]|[[-> ->]|[Hbinsub1|Hbinsub2]]]).
+        + simplify_eq. iFrame "#".
+        + simplify_eq. iFrame "#".
+        + simplify_eq. iApply "IHt1". iFrame "#".
+          iPureIntro. left. eauto.
+        + simplify_eq. iApply "IHt2". iFrame "#".
+          iPureIntro. left. eauto.
+      - destruct Hbinsubeq as [[t Hbinsub]|Hbineq]; last first;
+          iPoseProof "Heq" as (??) "[(% & Heq1)|(% & Heq2)]".
+        { destruct! Hbineq. destruct! H. simplify_eq.
+          iExists (tsum t1 t2). iExists _, _.
+          iLeft. iFrame "#". eauto. }
+        { destruct! Hbineq. destruct! H. simplify_eq.
+          iExists (tsum t1 t2). iExists _, _.
+          iRight. iFrame "#". eauto. }
+        + iPoseProof (sub_obj_bin_val_eq_agree_t with "[$Heq //]") as "->".
+          destruct Hbinsub as (?&? & [(-> & -> & Hbinsub1)|(-> & -> & Hbinsub2)]);
+            destruct! H; simplify_eq.
+          iApply "IHt1". iFrame "#".
+          iPureIntro. left. eauto.
+        + iPoseProof (sub_obj_bin_val_eq_agree_t with "[$Heq //]") as "->".
+          destruct Hbinsub as (?&? & [(-> & -> & Hbinsub1)|(-> & -> & Hbinsub2)]);
+            destruct! H; simplify_eq.
+          iApply "IHt2". iFrame "#".
+          iPureIntro. left. eauto.
+      - destruct Hbinsubeq as [[t Hbinsub]|Hbineq]; last first.
+        { destruct! Hbineq. simplify_eq. iFrame "#". }
+        by iPoseProof (sub_obj_bin_val_eq_agree_t with "[$Heq //]") as "->".
+      - destruct Hbinsubeq as [[t Hbinsub]|Hbineq]; last first.
+        { destruct! Hbineq. simplify_eq. iFrame "#". }
+        by iPoseProof (sub_obj_bin_val_eq_agree_t with "[$Heq //]") as "->".
+      - destruct Hbinsubeq as [[t Hbinsub]|Hbineq]; last first.
+        { destruct! Hbineq. simplify_eq. iFrame "#". }
+        by iPoseProof (sub_obj_bin_val_eq_agree_t with "[$Heq //]") as "->".
+  Qed.
+
+  Lemma sub_obj_susp_in (v : val) (susp : loc) (pid : nat) (t : evi_type) :
+    ⌜sub_obj v (InjRV (InjRV #susp)) t⌝ ∗ susp ↦{#1/4} (InjLV #pid) -∗ susp_in_v t v susp.
+  Proof. Admitted.
+
+  #[global] Instance susp_in_v_timeless t v l: Timeless (susp_in_v t v l).
+  Proof. revert v l; induction t => v l; simpl; apply _. Qed.
+
+  Lemma count_gt0 (t : evi_type) (v : val) (susp : loc) (c : nat) :
+    susp_in_v t v susp ∗ count_is_correct t v c -∗ ⌜c > 0⌝ ∗ susp_in_v t v susp ∗ count_is_correct t v c.
+  Proof.
+    iIntros "[Hin Hcount]".
+    iInduction t as [| | | |] forall (v c).
+    - iDestruct "Hin" as (???) "[Hin|Hin]";
+        iDestruct "Hcount" as (????[??]) "(Hcount1 & Hcount2)";
+        simplify_eq.
+      + iPoseProof ("IHt1" with "Hin Hcount1") as "(%&Hin1&Hcount1)".
+        iFrame. iSplit; [|eauto]. iPureIntro. lia.
+      + iPoseProof ("IHt2" with "Hin Hcount2") as "(%&Hin2&Hcount2)".
+        iFrame. iSplit; [|eauto]. iPureIntro. lia.
+    - iDestruct "Hin" as (?) "[(%&Hin)|(%&Hin)]";
+        iDestruct "Hcount" as "[(%&%&Hcount)|(%&%&Hcount)]";
+        simplify_eq.
+      + iPoseProof ("IHt1" with "Hin Hcount") as "(%&Hin&Hcount)".
+        iSplit; [done|]. iSplitL "Hin".
+        { iExists _. iLeft. eauto. }
+        { iLeft. eauto. }
+      + iPoseProof ("IHt2" with "Hin Hcount") as "(%&Hin&Hcount)".
+        iSplit; [done|]. iSplitL "Hin".
+        { iExists _. iRight. eauto. }
+        { iRight. eauto. }
+    - done.
+    - done.
+    - iDestruct "Hin" as (?[??]) "Hin";
+        iDestruct "Hcount" as (??) "[(%&%&%)|(%&%&Hcount)]";
+        simplify_eq.
+      iDestruct "Hin" as "[(% & Hin)|Hin]";
+        iDestruct "Hcount"  as "[(%&Hcount&%)|(%&Hcount&%)]";
+        eauto; simplify_eq.
+      + by iPoseProof (pointsto_agree with "Hin Hcount") as "%Hf".
+      + iSplit; [iPureIntro; lia|].
+        iSplitL "Hin".
+        { iExists _. eauto. }
+        { iExists _. iSplit; [done|].
+          iRight. iExists _. iSplit; [done|]. iRight. eauto. }
+  Qed.
+    
+  (* Lemma count_update (v : val) (t : evi_type) (susp : loc) (c : nat) (h : string):
+    susp ↦□ InjRV #h -∗ susp_in_v t v susp -∗ count_is_correct t v c -∗ count_is_correct t v (c-1).
+  Proof.
+    iIntros "#Hsusp Hin Hcount".
+    iPoseProof (count_gt0 with "[$Hin $Hcount]") as "(%Hc&Hin&Hcount)".
+    iInduction t as [| | | |] forall (v c Hc).
+    - iDestruct "Hcount" as (????[??]) "(Hcount1 & Hcount2)".
+      iDestruct "Hin" as (v1' v2' ?)  "[Hin|Hin]"; simplify_eq.
+      + iPoseProof (count_gt0 with "[$Hin $Hcount1]") as (?) "[Hin Hcount1]".
+        iPoseProof ("IHt1" with "[//] Hin Hcount1") as "Hcount1'".
+        iFrame "∗ #". iPureIntro. split; [done|lia].
+      + iPoseProof (count_gt0 with "[$Hin $Hcount2]") as (?) "[Hin Hcount2]".
+        iPoseProof ("IHt2" with "[//] Hin Hcount2") as "Hcount2'".
+        iFrame "∗ #". iPureIntro. split; [done|lia].
+    - iDestruct "Hin" as (?) "[(%&Hin)|(%&Hin)]";
+        iDestruct "Hcount" as "[(%&%&Hcount)|(%&%&Hcount)]";
+        simplify_eq.
+      + iPoseProof ("IHt1" with "[//] Hin Hcount") as "Hcount'".
+        iFrame. iLeft. eauto.
+      + iPoseProof ("IHt2" with "[//] Hin Hcount") as "Hcount'".
+        iFrame. iRight. eauto.
+    - done.
+    - done.
+    - iDestruct "Hin" as (?[??]) "Hin";
+        iDestruct "Hcount" as (??) "[(%&%&%)|(%&%&Hcount)]";
+        simplify_eq.
+      iDestruct "Hin" as "[Hin|Hin]";
+        iDestruct "Hcount" as "[(%&Hinvc'&%)|(Hinvc'&%)]";
+        simplify_eq; try lia.
+      + iExists _. iSplit; [done|].
+        iRight. iExists _. iSplit; [done|]. eauto.
+      + iExFalso. by iApply "Hin".
+  Qed. *)
+
+  (* Definition proph_susp (p : proph_id) (h : string) : iProp Σ :=
+    (typed_proph1_prop StringTypedProph) p h. *)
+                                             
   Definition auth_is_ser_1 (v : val) (s : string) : iProp Σ :=
     ∃ (h : string), ⌜v = InjLV #h⌝ ∗ s_is_ser (g:=gwp_upto_bad) auth_scheme (SOMEV #h) s.
 
-  Definition auth_is_ser_2 (v : val) (s : string) : iProp Σ :=
-    ∃ (susp : loc) (h : string),
+  Definition auth_is_ser_2 (v : val) (s : string) (susp : loc) : iProp Σ :=
+    ∃ (h : string),
       ⌜v = InjRV #susp⌝ ∗ susp ↦□ InjRV #h ∗ s_is_ser (g:=gwp_upto_bad) auth_scheme (SOMEV #h) s.
 
-  Definition auth_is_ser_3 (v : val) (s : string) : iProp Σ :=
-    ∃ (susp : loc) (pid: nat), ⌜v = InjRV #susp⌝ ∗ susp ↦ (InjLV #pid) ∗ s_is_ser (g:=gwp_upto_bad) auth_scheme NONEV s.
+  Definition auth_is_ser_3 (v : val) (s : string) (susp : loc) : iProp Σ :=
+    ∃ (pid: nat),
+      ⌜v = InjRV #susp⌝ ∗ susp ↦ InjLV #pid ∗
+        s_is_ser (g:=gwp_upto_bad) auth_scheme NONEV s.
 
-  (* Definition auth_is_ser (v : val) (s : string) : iProp Σ :=
+  (* Definition auth_is_ser_3_proph (v : val) (s : string) (susp : loc) : iProp Σ :=
+    ∃ (pid: nat) (p : proph_id) (h : string),
+      ⌜v = InjRV #susp⌝ ∗ susp ↦{#1/4} InjLV (#pid, #p) ∗ s_is_ser (g:=gwp_upto_bad) auth_scheme (SOMEV #h) s
+        ∗ proph_susp p h.
+
+  Definition auth_ser_inv (v : val) (s : string) (susp : loc) : iProp Σ :=
+    auth_is_ser_2 v s susp ∨ auth_is_ser_3_proph v s susp.
+  
+  Definition auth_is_ser (v : val) (s : string) : iProp Σ :=
     auth_is_ser_1 v s ∨ auth_is_ser_2 v s. *)
 
+  Definition auth_valid_val_2 (susp : loc) : iProp Σ :=
+    ∃ (h : string) (t : evi_type) (ax avᵥ : val),
+      susp ↦□ InjRV #h ∗
+        ((∃ aid, single_instance aid t ax avᵥ None true ∗ val_eq t ax avᵥ)  (* Most recent pre-filled ancestor *)
+         -∗ (∃ vᵥ, (∃ px pvᵥ, ⌜subeq_obj_bin px pvᵥ (SOMEV (InjRV #susp)) vᵥ⌝) -∗ val_eq tauth (SOMEV (InjRV #susp)) vᵥ)).                         
+  Definition auth_valid_val_3 (susp : loc) (dq : dfrac) : iProp Σ :=
+    (∃ (pid : nat) (pt t : evi_type) (px pvᵥ ax avᵥ : val),
+        susp ↦{dq} (InjLV #pid) ∗
+          ((∃ b so, single_instance pid pt px pvᵥ so b) -∗ susp_in_v pt px susp) ∗ (* Parent's instance *)
+          ((∃ aid, single_instance aid t ax avᵥ None true ∗ val_eq t ax avᵥ )  (* Most recent pre-filled ancestor *)
+           -∗ (∃ vᵥ, ⌜subeq_obj_bin px pvᵥ (SOMEV (InjRV #susp)) vᵥ⌝ -∗ val_eq tauth (SOMEV (InjRV #susp)) vᵥ))).
+
   Definition valid_auth_inv (susp : loc) : iProp Σ :=
-    ((∃ (h : string), susp ↦□ InjRV #h) ∨
-       (∃ (pid : nat), susp ↦ (InjLV #pid))).
+    (auth_valid_val_2 susp ∨ auth_valid_val_3 susp (DfracOwn (1/2))).
 
   Definition auth_valid_val (v1 : val) : iProp Σ :=
     ∃ v, ⌜v1 = SOMEV v⌝ ∧
@@ -248,11 +568,18 @@ Section authenticatable.
               (∃ (susp : loc),
                   ⌜v = InjRV #susp⌝ ∗ seq_inv (authValidN #susp) (valid_auth_inv susp))).
 
-  Definition auth_deser_valid_val (v1 : val) : iProp Σ :=
+  Definition auth_deser_valid_val (dq : dfrac) (v1 : val) : iProp Σ :=
     ∃ v, ⌜v1 = SOMEV v⌝ ∧
            ((∃ (h : string), ⌜v = InjLV #h⌝) ∨
               (∃ (susp : loc),
-                  ⌜v = InjRV #susp⌝ ∗ (∃ (pid : nat), susp ↦ (InjLV #pid)))).
+                  ⌜v = InjRV #susp⌝ ∗ auth_valid_val_3 susp dq)). 
+
+  (* Definition auth_deser_valid_val_tok (v1 : val) : iProp Σ :=
+    ∃ v, ⌜v1 = SOMEV v⌝ ∧
+           ((∃ (h : string), ⌜v = InjLV #h⌝) ∨
+              (∃ (susp : loc),
+                  ⌜v = InjRV #susp⌝ ∗
+                    (∃ (pid : nat), susp ↦ (InjLV #pid) ∗ token pid))). *)
              
   
   (* Fixpoint s_is_ser_ser (t : evi_type) (v : val) (s : string) : iProp Σ :=
@@ -271,7 +598,7 @@ Section authenticatable.
     | tsum t1 t2 => sum_is_ser' v s (s_is_ser_deser t1) (s_is_ser_deser t2)
     | tstring => string_is_ser v s
     | tint => int_is_ser v s
-    | tauth => ∃ v1, ⌜v = SOMEV v1⌝ ∗ (auth_is_ser_1 v1 s ∨ auth_is_ser_3 v1 s)
+    | tauth => ∃ v1, ⌜v = SOMEV v1⌝ ∗ (auth_is_ser_1 v1 s ∨ (∃ susp, auth_is_ser_3 v1 s susp))
     end.
 
   Fixpoint s_is_ser'' (t : evi_type) (v : val) (s : string) : iProp Σ :=
@@ -280,8 +607,22 @@ Section authenticatable.
     | tsum t1 t2 => sum_is_ser' v s (s_is_ser'' t1) (s_is_ser'' t2)
     | tstring => string_is_ser v s
     | tint => int_is_ser v s
-    | tauth => ∃ v1, ⌜v = SOMEV v1⌝ ∗ (auth_is_ser_1 v1 s ∨ auth_is_ser_2 v1 s)
-    end.
+    | tauth => ∃ v1, ⌜v = SOMEV v1⌝ ∗ (auth_is_ser_1 v1 s ∨ (∃ susp, auth_is_ser_2 v1 s susp))
+  end.
+
+  (* Fixpoint s_is_ser_proph (t : evi_type) (v : val) (s : string) : iProp Σ :=
+    match t with
+    | tprod t1 t2 => prod_is_ser' v s (s_is_ser_proph t1) (s_is_ser_proph t2)
+    | tsum t1 t2 => sum_is_ser' v s (s_is_ser_proph t1) (s_is_ser_proph t2)
+    | tstring => string_is_ser v s
+    | tint => int_is_ser v s
+    | tauth => ∃ v1, ⌜v = SOMEV v1⌝ ∗
+                       (auth_is_ser_1 v1 s ∨
+                          (∃ (susp : loc), seq_inv (authSerN #susp) (auth_ser_inv v1 s susp)))
+  end.
+
+  #[global] Instance s_is_ser_proph_persistent t v s : Persistent (s_is_ser_proph t v s).
+  Proof. revert v s. induction t => v s; simpl; apply _. Qed. *)
 
   Fixpoint s_valid_val (t: evi_type) (v: val) : iProp Σ :=
     match t with
@@ -292,37 +633,152 @@ Section authenticatable.
     | tauth => auth_valid_val v
     end.
 
-  Fixpoint s_deser_valid_val (t : evi_type) (v : val) : iProp Σ :=
+  #[global] Instance s_valid_val_persistent t v : Persistent (s_valid_val t v).
+  Proof. revert v. induction t => v; simpl; apply _. Qed.
+
+  Fixpoint s_deser_valid_val (dq : dfrac) (t : evi_type) (v : val) : iProp Σ :=
+    match t with
+    | tprod t1 t2 => prod_valid_val' v (s_deser_valid_val dq t1) (s_deser_valid_val dq t2)
+    | tsum t1 t2 => sum_valid_val' v (s_deser_valid_val dq t1) (s_deser_valid_val dq t2)
+    | tstring => string_valid_val v
+    | tint => int_valid_val v
+    | tauth => auth_deser_valid_val dq v
+    end.
+
+  Definition s_deser_valid_val_bef := s_deser_valid_val (DfracOwn (3/4)).
+
+  Definition s_deser_valid_val_aft := s_deser_valid_val (DfracOwn (1/2)).
+
+  (* Fixpoint s_deser_valid_val_tok (t : evi_type) (v : val) : iProp Σ :=
     match t with
     | tprod t1 t2 => prod_valid_val' v (s_deser_valid_val t1) (s_deser_valid_val t2)
     | tsum t1 t2 => sum_valid_val' v (s_deser_valid_val t1) (s_deser_valid_val t2)
     | tstring => string_valid_val v
     | tint => int_valid_val v
-    | tauth => auth_deser_valid_val v
-    end.
+    | tauth => auth_deser_valid_val_tok v
+    end. *)
 
-  #[global] Instance s_valid_val_persistent t v: Persistent (s_valid_val t v).
-  Proof. revert v; induction t => v; simpl; apply _. Qed.
+  (* #[global] Instance s_valid_val_persistent t v: Persistent (s_valid_val t v).
+  Proof. revert v; induction t => v; simpl; apply _. Qed. *)
 
-  Fixpoint val_eq (t : evi_type) (v1 v2 : val) : iProp Σ :=
+  #[global] Instance s_is_ser''_persistent t v s: Persistent (s_is_ser'' t v s).
+  Proof. revert v s; induction t => v s; simpl; apply _. Qed.
+
+  (* Fixpoint susp_list (t : evi_type) (v : val) (susp_l : list loc) : iProp Σ :=
     match t with
     | tprod t1 t2 =>
-        ∃ v11 v12 v21 v22,
-          ⌜v1 = (v11, v12)%V ∧ v2 = (v21, v22)%V⌝ ∗ val_eq t1 v11 v21 ∗ val_eq t2 v12 v22
-    | tsum t1 t2 => 
-        ∃ v1' v2',
-          (⌜v1 = InjLV v1' ∧ v2 = InjLV v2'⌝ ∗ val_eq t1 v1' v2') ∨
-            (⌜v1 = InjRV v1' ∧ v2 = InjRV v2'⌝ ∗ val_eq t2 v1' v2')
-    | tstring => ∃ (s: string), ⌜v1 = #s ∧ v2 = #s⌝
-    | tint => ∃ (i: nat), ⌜v1 = #i ∧ v2 = #i⌝
+        ∃ v1 v2 susp_v1 susp_v2,
+          ⌜v = (v1, v2)%V ∧ susp_l = susp_v1 ++ susp_v2⌝ ∗ susp_list t1 v1 susp_v1 ∗ susp_list t2 v2 susp_v2
+    | tsum t1 t2 =>
+        ∃ v',
+          (⌜v = InjLV v'⌝ ∗ susp_list t1 v' susp_l) ∨ (⌜v = InjRV v'⌝ ∗ susp_list t2 v' susp_l) 
+    | tstring => ∃ (s: string), ⌜v = #s ∧ susp_l = []⌝
+    | tint => ∃ (i: nat), ⌜v = #i ∧ susp_l = []⌝
     | tauth =>
-        ⌜v1 = NONEV ∧ v2 = NONEV⌝ ∨
-          (∃ (h: string), (⌜v1 = SOMEV (InjLV #h)⌝ ∨
-                   (∃ (susp : loc), ⌜v1 = SOMEV (InjRV #susp)⌝ ∗ susp ↦□ InjRV #h)) ∧
-                  (⌜v2 = SOMEV (InjLV #h)⌝ ∨
-                     (∃ (susp : loc), ⌜v2 = SOMEV (InjRV #susp)⌝ ∗ susp ↦□ InjRV #h)))
-    end.
-        
+        (∃ v', ⌜v = SOMEV v'⌝ ∧
+                 ((∃ (h : string), ⌜v' = InjLV #h ∧ susp_l = []⌝) ∨ 
+                    (∃ (susp : loc), ⌜v' = InjRV #susp ∧ susp_l = [susp]⌝)))
+    end. *)
+
+  (* ((∃ b so, single_instance pid pt px pvᵥ so b) -∗ susp_in_v pt px susp) ∗ (* Parent's instance *)
+                          ((∃ aid ax avᵥ t, single_instance aid t ax avᵥ None true ∗ val_eq t ax avᵥ) -∗ (* Most recent pre-filled ancestor *)
+                             (∃ aid cx cvᵥ ct, single_instance aid ct cx cvᵥ (Some susp) false -∗ val_eq ct cx cvᵥ)) *)
+  
+  Lemma deser_valid :
+    ∀ ct v vᵥ s ax avᵥ t px pvᵥ pt,
+      ⌜subeq_obj_bin px pvᵥ v vᵥ ⌝ -∗ □(val_eq t ax avᵥ -∗ val_eq pt px pvᵥ) -∗ s_is_ser_deser ct v s -∗ s_deser_valid_val_bef ct v.
+  Proof.
+    iIntros (??????????) "%Hsubeqbin #Heq_trans Hser".
+    pose proof (subeq_obj_bin_to_unary _ _ _ _ Hsubeqbin) as [Hsubeqx Hsubeqv].
+    iInduction ct as [| | | |] forall (v vᵥ s Hsubeqx Hsubeqv Hsubeqbin); iSimpl; iSimpl in "Hser".
+    - iDestruct "Hser" as (????) "((-> & ->) & H1 & H2)".
+      assert (H1: subeq_obj (v1, v2) v1).
+      { left. eexists (tprod ct1 ct2).
+        exists v1, v2. eauto. }
+      assert (H1': subeq_obj px v1).
+      { by apply (subeq_obj_trans px (v1, v2) v1). }
+      assert (H2: subeq_obj (v1, v2) v2).
+      { left. eexists (tprod ct1 ct2).
+        exists v1, v2. eauto. }
+      assert (H2': subeq_obj px v2).
+      { by apply (subeq_obj_trans px (v1, v2) v2). }
+      iPoseProof ("IHct1" with "[] [] [] H1") as "H1"; [done|done|admit| ].
+      iPoseProof ("IHct2" with "[] [] [] H2") as "H2"; [done|done|admit| ].
+      iExists v1, v2. by iFrame.
+    - iDestruct "Hser" as (??) "[(H & %)|(H & %)]".
+      + destruct H as [-> _]. iExists _. iLeft. iSplit; first done.
+        iPoseProof ("IHct1" with "[] [] [] H") as "H"; admit.
+      + destruct H as [-> _]. iExists _. iRight. iSplit; first done.
+        iPoseProof ("IHct2" with "[] [] [] H") as "H"; admit.
+    - iDestruct "Hser" as "%Hser". destruct Hser as (? & -> & _). iExists _. done.
+    - iDestruct "Hser" as "%Hser". destruct Hser as (? & -> & _). iExists _. done.
+    - iDestruct "Hser" as (? ->) "[(% & -> & Hser)|(%&% & -> & Hsusp & Hser)]".
+      + iExists _. iSplit; [done|].
+        iLeft. eauto.
+      + iExists _. iSplit; [done|].
+        iRight. iExists _. iSplit; [done|].
+        iDestruct (fractional_split _ (λ q, susp ↦{DfracOwn q} InjLV #pid)%I (3/4) (1/4) with "Hsusp") as "[Hsusp1 Hsusp2]".
+        { admit. }
+        iExists pid.
+        destruct Hsubeqx as [[ct Hsub]|Heq]; last first.
+        * iExists tauth, t, px, pvᵥ, ax, avᵥ. iFrame. iSplitL.
+          { iIntros "_". iExists _. iSplit; eauto. }
+          iIntros "(%ancid & _ & Hanceq)".
+          iExists vᵥ. iIntros "_".
+          iPoseProof ("Heq_trans" with "Hanceq") as "#Hpeq".
+          iPoseProof (val_eq_sub_eq with "[$Hpeq //]") as "#Heq".
+          iDestruct "Heq" as (?) "Heq".
+          destruct st.
+          { by iDestruct "Heq" as (????[? ->]) "_". }
+          { iDestruct "Heq" as (??) "[([%  %] & _)|([%  %] & Heq)]"; try done.
+            simplify_eq.
+            destruct st2.
+            { by iDestruct "Heq" as (????[? ->]) "_". }
+            { iDestruct "Heq" as (??) "[([%  %] & _)|([%  %] & Heq)]"; try done.
+              simplify_eq.
+              destruct st2_2; iSimpl in "Heq".
+              { by iDestruct "Heq" as (????[? ->]) "_". }
+              { by iDestruct "Heq" as (??) "[([%  %] & _)|([%  %] & Heq)]". }
+              { by iDestruct "Heq" as (?) "[% %]". }
+              { by iDestruct "Heq" as (?) "[% %]". }
+              { admit. } }
+            { by iDestruct "Heq" as (?) "[% %]". }
+            { by iDestruct "Heq" as (?) "[% %]". }
+            { iDestruct "Heq" as "[[% %]|(% & H)]"; try done.
+              admit. } }
+          { by iDestruct "Heq" as (?) "[% %]". }
+          { by iDestruct "Heq" as (?) "[% %]". }
+          { iFrame "#". }
+        * iExists pt, t, px, pvᵥ, ax, avᵥ. iFrame. iSplitL.
+          { iIntros "_". iApply (sub_obj_susp_in with "[$Hsusp2]"). admit. }
+          iIntros "Heq". iDestruct "Heq" as (?) "[_ Hanceq]".
+          iPoseProof ("Heq_trans" with "Hanceq") as "#Hpeq".
+          iPoseProof (val_eq_sub_eq with "[$Hpeq //]") as "#Heq".
+          iExists vᵥ. iIntros "_".
+          iDestruct "Heq" as (?) "Heq".
+          destruct st.
+          { by iDestruct "Heq" as (????[? ->]) "_". }
+          { iDestruct "Heq" as (??) "[([%  %] & _)|([%  %] & Heq)]"; try done.
+            simplify_eq.
+            destruct st2.
+            { by iDestruct "Heq" as (????[? ->]) "_". }
+            { iDestruct "Heq" as (??) "[([%  %] & _)|([%  %] & Heq)]"; try done.
+              simplify_eq.
+              destruct st2_2; iSimpl in "Heq".
+              { by iDestruct "Heq" as (????[? ->]) "_". }
+              { by iDestruct "Heq" as (??) "[([%  %] & _)|([%  %] & Heq)]". }
+              { by iDestruct "Heq" as (?) "[% %]". }
+              { by iDestruct "Heq" as (?) "[% %]". }
+              { admit. } }
+            { by iDestruct "Heq" as (?) "[% %]". }
+            { by iDestruct "Heq" as (?) "[% %]". }
+            { iDestruct "Heq" as "[[% %]|(% & H)]"; try done.
+              admit. } }
+          { by iDestruct "Heq" as (?) "[% %]". }
+          { by iDestruct "Heq" as (?) "[% %]". }
+          { iFrame "#". }
+  Admitted.
+      
   Lemma evi_type_ser''_inj (t1 t2 : evi_type) v1 v2 s :
     (s_is_ser'' t1 v1 s ∨ s_is_ser_deser t1 v1 s) -∗ s_is_ser'' t2 v2 s -∗ val_eq t1 v1 v2.
   Proof. 
@@ -346,7 +802,7 @@ Section authenticatable.
           { exfalso. by eapply prod_ser_inr_ser_neq. }
         * iDestruct "Ht2" as (?) "(%&%)".
           iExFalso. by eapply prod_ser_string_ser_neq in H0.
-        * iDestruct "Ht2" as (?) "(%&%)".
+         * iDestruct "Ht2" as (?) "(%&%)".
           iExFalso. by eapply prod_ser_int_ser_neq in H0.
         * admit.
       + iDestruct "Ht1" as (?????) "(Ht11 & Ht12)".
@@ -395,7 +851,7 @@ Section authenticatable.
              iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
           -- iDestruct "Ht1" as "[(% & ->)|(% & % & (% & %) & (% & -> & ->))]"; [done|].
              simplify_eq.
-             iDestruct "Ht2" as (?->) "[(% & -> & Ht2)|(% & % & -> & #Hloc & Ht2)]"; iFrame.
+             iDestruct "Ht2" as (?->) "[(% & -> & Ht2)|(%&% & -> & #Hloc & Ht2)]"; iFrame.
              { iDestruct "Ht2" as "[(% & %)|(% & % & (% & %) & (% & -> & ->))]"; [done|].
                simplify_eq. iRight. iExists _. iSplit; iLeft; eauto. }            
              iRight. iExists _. iSplit.
@@ -422,7 +878,7 @@ Section authenticatable.
              iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
           -- iDestruct "Ht1" as "[(% & ->)|(% & % & (% & %) & (% & -> & ->))]"; [done|].
              simplify_eq.
-             iDestruct "Ht2" as (?->) "[(% & -> & Ht2)|(% & % & -> & #Hloc1 & Ht2)]"; iFrame.
+             iDestruct "Ht2" as (?->) "[(% & -> & Ht2)|(%&% & -> & #Hloc1 & Ht2)]"; iFrame.
              { iDestruct "Ht2" as "[(% & %)|(% & % & (% & %) & (% & -> & ->))]"; [done|].
                simplify_eq. iRight. iExists _. iSplit; [iRight|iLeft]; eauto. }
              iRight. iExists _. iSplit.
@@ -450,7 +906,7 @@ Section authenticatable.
              iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
           -- iDestruct "Ht1" as "[(% & ->)|(% & % & (% & %) & (% & -> & ->))]"; [done|].
              simplify_eq.
-             iDestruct "Ht2" as (?->) "[(% & -> & Ht2)|(% & % & -> & #Hloc & Ht2)]"; iFrame.
+             iDestruct "Ht2" as (?->) "[(% & -> & Ht2)|(%&% & -> & #Hloc & Ht2)]"; iFrame.
              { iDestruct "Ht2" as "[(% & %)|(% & % & (% & %) & (% & -> & ->))]"; [done|].
                simplify_eq. iRight. iExists _. iSplit; iLeft; eauto. }            
              iRight. iExists _. iSplit.
@@ -476,37 +932,12 @@ Section authenticatable.
              iDestruct "Ht2" as (?) "(%&%)". simplify_eq.
           -- iDestruct "Ht1" as "[(% & ->)|(% & % & (% & %) & (% & -> & ->))]"; [|done].
              simplify_eq.
-             iDestruct "Ht2" as (?->) "[(% & -> & Ht2)|(% & % & -> & #Hloc1 & Ht2)]"; iFrame;
+             iDestruct "Ht2" as (?->) "[(% & -> & Ht2)|(%&% & -> & #Hloc1 & Ht2)]"; iFrame;
                iDestruct "Ht2" as "[(% & %)|(% & % & (% & %) & (% & -> & ->))]"; done.
   Admitted.
 
-  Lemma deser_valid :
-    ∀ t v s, s_is_ser_deser t v s -∗ s_deser_valid_val t v.
-  Proof.
-    iIntros (???) "Hser".
-    iInduction t as [| | | |] forall (v s); iSimpl; iSimpl in "Hser".
-    - iDestruct "Hser" as (????) "((-> & ->) & H1 & H2)".
-      iPoseProof ("IHt1" with "H1") as "H1".
-      iPoseProof ("IHt2" with "H2") as "H2".
-      iExists v1, v2.
-      iSplit; [done|iFrame].
-    - iDestruct "Hser" as (??) "[(H & %)|(H & %)]".
-      + destruct H as [-> _]. iExists _. iLeft. iSplit; [done|].
-        iApply ("IHt1" with "H").
-      + destruct H as [-> _]. iExists _. iRight. iSplit; [done|].
-        iApply ("IHt2" with "H").
-    - iDestruct "Hser" as "%Hser". destruct Hser as (? & -> & _). iExists _. done.
-    - iDestruct "Hser" as "%Hser". destruct Hser as (? & -> & _). iExists _. done.
-    - iDestruct "Hser" as (? ->) "[(% & -> & Hser)|(% & % & -> & Hsusp & Hser)]".
-      + iExists _. iSplit; [done|].
-        iLeft. eauto.
-      + iExists _.
-        iSplit; [done|].
-        iRight. iExists _. iSplit; [done|]. iExists _. iFrame.
-  Qed.            
-
-  Lemma deser_valid_weak E :
-    ∀ t v, s_deser_valid_val t v ⊢ |={E}=> s_valid_val t v.
+  Lemma deser_valid_weak :
+    ∀ t v, s_deser_valid_val_aft t v ⊢ |={⊤}=> s_valid_val t v.
   Proof.
     iIntros (??) "Hdvalid".
     iInduction t as [| | | |] forall (v); iSimpl; iSimpl in "Hdvalid".
@@ -523,12 +954,12 @@ Section authenticatable.
         iModIntro. iExists _. iRight. iSplit; [done|iExact "H"].
     - by iModIntro.
     - by iModIntro.
-    - iDestruct "Hdvalid" as (? ->) "[(% & ->)|(% & -> & % & Hsusp)]".
+    - iDestruct "Hdvalid" as (? ->) "[(% & ->)|(%&-> & %&%&%&%&%&%&% & Hsusp & Hsuspin & Heq)]".
       + iExists _. iModIntro. iSplit; [done|].
         iLeft. eauto.
       + iExists _.
-        iMod (na_inv_alloc seqG_name E (authValidN #susp) (valid_auth_inv susp) with "[Hsusp]") as "Hinv".
-        { iNext. iRight. eauto. }
+        iMod (na_inv_alloc seqG_name _ (authValidN #susp) (valid_auth_inv susp) with "[Hsusp Hsuspin Heq]") as "Hinv".
+        { iNext. iRight. iFrame. }
         iModIntro.
         iSplit; [done|].
         iRight. eauto.
@@ -546,38 +977,18 @@ Section authenticatable.
     | tauth => auth_serialization_scheme
     end. *)
   
-  Fixpoint evi_type_count (t : evi_type) : expr :=
+  (* Fixpoint evi_type_count (t : evi_type) : expr :=
     match t with
     | tprod t1 t2 => prod_count (evi_type_count t1) (evi_type_count t2)
     | tsum t1 t2 => sum_count (evi_type_count t1) (evi_type_count t2)
     | tstring => string_count
     | tint => int_count
     | tauth => auth_count
-    end.
+    end. *)
 
-  Definition count_auth_inv (susp: loc) (c: nat) : iProp Σ :=
+  (* Definition count_auth_inv (susp: loc) (c: nat) : iProp Σ :=
      ((∃ (h : string), susp ↦□ (InjRV #h) ∗ ⌜c = 0⌝) ∨
-        (∃ (pid : nat), susp ↦ (InjLV #pid) ∗ ⌜c = 1⌝)).
-
-  Fixpoint count_is_correct (t : evi_type) (v : val) (c : nat) : iProp Σ :=
-    match t with
-    | tprod t1 t2 =>
-        ∃ (c1 c2 : nat) (v1 v2 : val),
-          ⌜v = (v1, v2)%V⌝ ∗ count_is_correct t1 v1 c1 ∗ count_is_correct t2 v2 c2 ∗ ⌜(c1 + c2)%nat = c⌝
-    | tsum t1 t2 =>
-        (∃ (v1 : val), ⌜v = InjLV v1⌝ ∗ count_is_correct t1 v1 c) ∨
-          (∃ (v2 : val), ⌜v = InjRV v2⌝ ∗ count_is_correct t2 v2 c)
-    | tstring => string_valid_val v ∧ ⌜c = 0⌝
-    | tint => int_valid_val v ∧ ⌜c = 0⌝
-    | tauth =>
-        (∃ v1, ⌜v = SOMEV v1⌝ ∧
-                 ((∃ (h : string), ⌜v1 = InjLV #h ∧ c = 0⌝) ∨ 
-                    (∃ (susp : loc),
-                        ⌜v1 = InjRV #susp⌝ ∗ seq_inv (authCountN #susp) (count_auth_inv susp c))))
-  end.
-
-  #[global] Instance count_is_correct_persistent t v c: Persistent (count_is_correct t v c).
-  Proof. revert v c; induction t => v c; simpl; apply _. Qed.
+        (∃ (pid : nat), susp ↦ (InjLV #pid) ∗ ⌜c = 1⌝)). *)
 
 (*  Lemma count_valid t v :
     ∀ E1 c, ∃ E2, seq_tok E1 ∗ count_is_correct t v c  ={E1,E2}=∗ seq_tok E2 ∗ s_valid_val t v.
@@ -603,28 +1014,35 @@ Section authenticatable.
       + iModIntro. iExists _. iSplit; [done|]. eauto.
       + iExists _.
         iMod (na_inv_acc with "Hsusp") as "Hinv". *)
-        
+
+  Definition count_update (t : evi_type) : iProp Σ :=
+    ∀ (v : val) (susp : loc) (c pid : nat) (h : string),
+      {{{ susp ↦{#1/2} InjLV #pid ∗ susp_in_v t v susp ∗ count_is_correct t v c }}}
+        #susp <- InjR #h
+        {{{ RET #(); count_is_correct t v (c-1) ∗ susp ↦□ InjRV #h }}}.
                                                  
   Definition ser_spec_3 (ser : val) (t : evi_type) : iProp Σ :=
-    ∀ (v1 : val) (c: nat),
-      {{{ ▷ (count_is_correct t v1 c ∗ seq_tok ⊤) }}}
+    ∀ (v1 : val) E,
+      {{{ ▷ (count_is_correct t v1 0 ∗ seq_tok E) }}}
         ser v1
-        {{{ o, RET $o; seq_tok ⊤ ∗ if o is Some s then s_is_ser'' t v1 s else True }}}.
+        {{{ o, RET $o; seq_tok E ∗ if o is Some s then s_is_ser'' t v1 s else True }}}. (* This should only be some *)
         
                                                  
-  Definition ser_spec_2 (ser : val) (t : evi_type) : iProp Σ :=
+  (* Definition ser_spec_2 (ser : val) (t : evi_type) : iProp Σ :=
     ∀ (v1 : val),
       {{{ ▷ (s_valid_val t v1 ∗ seq_tok ⊤) }}}
         ser v1
-        {{{ o, RET $o; seq_tok ⊤ ∗ if o is Some s then s_is_ser'' t v1 s else True }}}.
-
+        {{{ o, RET $o; seq_tok ⊤ ∗ if o is Some s then s_is_ser'' t v1 s else True }}}. *)
+  
   Definition ser_spec (A : lrel Σ) (ser : val) (t : evi_type) : iProp Σ :=
-    ∀ (v1 v2 : val),
-      {{{ ▷ (A v1 v2 ∗ seq_tok ⊤) }}}
+    ∀ (v1 v2 : val) E,
+      ⌜↑authSerProofSet N ⊆ E⌝ -∗
+      {{{ ▷ (A v1 v2 ∗ seq_tok E) }}}
         ser v1
-      {{{ o, RET $o; seq_tok ⊤ ∗ if o is Some s then s_is_ser'' t v1 s else True }}}.
+      {{{ o, RET $o; seq_tok E ∗ if o is Some s then s_is_ser'' t v1 s else True }}}.
 
-  Definition deser_spec (deser : val) (t : evi_type) : iProp Σ :=
+  (* Pass single_instance through here, and set it in s_is_ser_deser. Or maybe do it in count. *)
+  Definition deser_spec (A : lrel Σ) (deser : val) (t : evi_type) : iProp Σ :=
     ∀ (pid : nat),
       {{{ True }}}
       deser #pid
@@ -632,47 +1050,57 @@ Section authenticatable.
           ∀ (s : string),
             {{{ True }}}
               deser_partial #s
-              {{{ o, RET $o; if o is Some v then s_is_ser_deser t v s else True }}}
+              {{{ o, RET $o;
+                  if o is Some v then
+                    s_is_ser_deser t v s (*∗ (∃ s', s_is_ser_proph t v s') *)
+                  else True }}}
       }}}.
   
-  Definition deser1_spec (deser_partial : val) (t : evi_type) : iProp Σ :=
+  (* Definition deser1_spec (deser_partial : val) (t : evi_type) : iProp Σ :=
     ∀ (s : string),
       ({{{ True }}}
          deser_partial #s
-      {{{ o, RET $o; if o is Some v then s_is_ser_deser t v s else True }}}).
+      {{{ o, RET $o; if o is Some v then s_is_ser_deser t v s else True }}}). *)
 
-  Definition count_spec (count : val) (t : evi_type): iProp Σ :=
-    ∀ (v1 : val),
-      {{{ ▷ s_deser_valid_val t v1 }}}
-        count v1
-      {{{ v, RET v; ∃ (c : nat), ⌜v = #c⌝ ∧ count_is_correct t v1 c }}}.
+  Definition count_spec (count : val) (t : evi_type) : iProp Σ :=
+    ∀ (x : val),
+      {{{ ▷ s_deser_valid_val_bef t x }}}
+        count x
+        {{{ (c : nat), RET #c;
+            count_is_correct t x c ∗ s_deser_valid_val_aft t x }}}.
 
+  Definition val_eq_rel (A : lrel Σ) (t: evi_type) : iProp Σ :=
+    ∀ (a1 a2 b1: val) (E : coPset),
+      ⌜↑authSerProofSet N ⊆ E⌝ →
+      □ (seq_tok E ∗ val_eq t a1 a2 ∗ A a1 b1 ={⊤}=∗ A a2 b1 ∗ seq_tok E).
+  
   Definition lrel_evidence' (A : lrel Σ) : lrel Σ :=
     LRel (λ v1 v2,
         ∃ (t : evi_type) (ser deser count : val),
-          ⌜v1 = (ser, deser, count)%V⌝ ∗ ser_spec A ser t ∗ ser_spec_2 ser t ∗ ser_spec_3 ser t ∗ count_spec count t ∗
-            deser_spec deser t)%I.
+          ⌜v1 = (ser, deser, count)%V⌝ ∗ ser_spec A ser t ∗ ser_spec_3 ser t ∗
+            count_spec count t ∗ deser_spec A deser t ∗ val_eq_rel A t ∗ count_update t)%I.
 
   Program Definition lrel_evidence : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_evidence' A.
   Next Obligation.
     intros ??????.
-    rewrite /lrel_car/= /ser_spec /count_spec /deser_spec.
+    rewrite /lrel_car/= /ser_spec /count_spec /deser_spec /val_eq_rel.
     solve_proper.
   Qed.
 
   Lemma prod_ser'_spec_ser (HA HB : val → iProp Σ) (tA tB : evi_type) (serA serB v vA vB : val) :
+    ∀ E,
     (▷ ⌜v = (vA, vB)%V⌝) -∗
-    ({{{ ▷ (HA vA ∗ seq_tok ⊤) }}}
-        serA vA
-      {{{ o, RET $o; seq_tok ⊤ ∗ if o is Some s then s_is_ser'' tA vA s else True }}}) -∗
-    ({{{ ▷ (HB vB ∗ seq_tok ⊤) }}}
-        serB vB
-      {{{ o, RET $o; seq_tok ⊤ ∗ if o is Some s then s_is_ser'' tB vB s else True }}}) -∗
-    {{{ ▷ (prod_valid_val' v HA HB ∗ seq_tok ⊤) }}}
-      prod_ser''' serA serB v
-      {{{ o, RET $o; seq_tok ⊤ ∗ if o is Some s then prod_is_ser' v s (s_is_ser'' tA) (s_is_ser'' tB) else True }}}.
+    ({{{ ▷ (HA vA ∗ seq_tok E) }}}
+       serA vA
+       {{{ o, RET $o; seq_tok E ∗ if o is Some s then s_is_ser'' tA vA s else True }}}) -∗
+    ({{{ ▷ (HB vB ∗ seq_tok E) }}}
+       serB vB
+       {{{ o, RET $o; seq_tok E ∗ if o is Some s then s_is_ser'' tB vB s else True }}}) -∗
+    {{{ ▷ (prod_valid_val' v HA HB ∗ seq_tok E) }}}
+    prod_ser''' serA serB v
+    {{{ o, RET $o; seq_tok E ∗ if o is Some s then prod_is_ser' v s (s_is_ser'' tA) (s_is_ser'' tB) else True }}}.
   Proof.
-    iIntros "#Hv #HA #HB % !# (Hp & Htok) HΦ".
+    iIntros (?) "#Hv #HA #HB % !# (Hp & Htok) HΦ".
     rewrite /prod_ser''' /prod_is_ser.
     wp_pures.
     iDestruct "Hp" as (???) "[H1 H2]". iSimplifyEq.
@@ -685,7 +1113,7 @@ Section authenticatable.
     wp_apply ("HB" with "[$H2 $Htok]").
     iIntros ([]); last first.
     { iIntros "(Htok & _)". wp_pures. iApply ("HΦ" $! None). by iFrame. }
-    iIntros "(Htok & HserB)".
+    iIntros "(Hotk & HserB)".
     wp_pures.
     iApply ("HΦ" $! (Some _)).
     iModIntro. iFrame. eauto.
@@ -693,13 +1121,8 @@ Section authenticatable.
   
 End authenticatable.
 
-Instance s_is_ser''_persistent `{heapGS_gen hlc Σ, seqG Σ} t v s: Persistent (s_is_ser'' t v s).
-Proof. revert v s; induction t => v s; simpl; apply _. Qed.
-
 Section proof.
-  Context `{!authG Σ, !seqG Σ} (N : namespace).
-
-  Definition authSerProofN (v : val) : namespace := N .@ "auth_ser_proof" .@ v.
+  Context `{!stateG Σ, !authG Σ, !seqG Σ} (N : namespace).
 
   Lemma refines_Auth_pair Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 * var0) ⟧
@@ -717,37 +1140,38 @@ Section proof.
     iModIntro. iFrame.
     iIntros (??) "!# HA".
     interp_unfold! in "HA".
-    iDestruct "HA" as (tA serA deserA countA ->) "(#HserA & #Hser2A & #Hser3A & #HcountA & #HdeserA)". clear.
+    iDestruct "HA" as (tA serA deserA countA ->) "(#HserA & #Hser3A & #HcountA & #HdeserA & #HrelA & #HcupdA)". clear.
     iIntros (??) "(Hi & Htok)".
     i_pures; wp_pures.
     iModIntro. iFrame.
     iIntros (??) "!# HB".
     interp_unfold! in "HB".
-    iDestruct "HB" as (tB serB deserB countB ->) "(#HserB & #Hser2B & #Hser3B & #HcountB & #HdeserB)". clear.
+    iDestruct "HB" as (tB serB deserB countB ->) "(#HserB & #Hser3B & #HcountB & #HdeserB & #HrelB & #HcupdB)". clear.
     iIntros (??) "(Hi & Htok)".
     i_pures; wp_pures. clear.
     rewrite /prod_scheme /prod_ser'' /prod_deser /prod_count.
     wp_pures. iFrame. iModIntro.
     interp_unfold!.
     iExists (tprod tA tB), _, _, _.
-    iSplit; [done|]. clear. iSplit; [|iSplit; [|iSplit; [|iSplit]]].
-    - iIntros (v1 v2 ?) "!# (Hp & Htok) H".
+    iSplit; [done|]. clear. iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]].
+    - iIntros (v1 v2 ???) "!# (Hp & Htok) H".
       iDestruct "Hp" as (w1 w2 u1 u2) "(>-> & >-> & #HA & #HB)".
       iSimpl in "H".
       wp_apply (prod_ser'_spec_ser (λ v1, A v1 w2) (λ v1, B v1 u2) with "[] [] [] [$Htok]") => /=; [done| | | |done].  
-      { iIntros (?) "!# Hp H". by wp_apply ("HserA" with "Hp"). }
-      { iIntros (?) "!# Hp H". by wp_apply ("HserB" with "Hp"). }
+      { iIntros (?) "!# Hp H". by wp_apply ("HserA" with "[//] Hp"). }
+      { iIntros (?) "!# Hp H". by wp_apply ("HserB" with "[//] Hp"). }
       iExists _, _. eauto.
-    - iIntros (v1 ?) "!# (Hp & Htok) H". iSimpl in "Hp".
+    (* - iIntros (v1 ?) "!# (Hp & Htok) H". iSimpl in "Hp".
       iDestruct "Hp" as (w1 w2) "(>-> & HA & HB)".
       wp_apply (prod_ser'_spec_ser (s_valid_val _ tA) (s_valid_val _ tB) with "[] [] [] [HA HB $Htok]") => /=; [done| | | |done].  
       { iIntros (?) "!# Hp H". by wp_apply ("Hser2A" with "Hp"). }
       { iIntros (?) "!# Hp H". by wp_apply ("Hser2B" with "Hp"). }
-      iNext. iFrame. eauto.
-    - iIntros (v1 c ?) "!# (Hc & Htok) H".
-      iDestruct "Hc" as (????) "(>-> & HA & HB & >%)".
-      iSimpl in "H".
-      wp_apply (prod_ser'_spec_ser (λ v1, count_is_correct _ tA v1 c1) (λ v2, count_is_correct _ tB v2 c2) with "[] [] [] [HA HB $Htok]") => /=; [done| | | |done].
+      iNext. iFrame. eauto. *)
+    - iIntros (v ??) "!# (Hc & Htok) H".
+      iDestruct "Hc" as (c1 c2 v1 v2) "(>(%&%) & HA & HB)".
+      destruct c1; [|done]. destruct c2; [|done].
+      iSimpl in "H". simplify_eq.
+      wp_apply (prod_ser'_spec_ser (λ v1, count_is_correct tA v1 0) (λ v2, count_is_correct tB v2 0) with "[] [] [] [HA HB $Htok]") => /=; [done| | | |done].
       { iIntros (?) "!# Hc H". by wp_apply ("Hser3A" with "Hc"). }
       { iIntros (?) "!# Hc H". by wp_apply ("Hser3B" with "Hc"). }
       iNext. iFrame. eauto.
@@ -756,23 +1180,49 @@ Section proof.
       wp_pures. rewrite /count_spec.
       wp_bind (countB _).
       wp_apply ("HcountB" $! v2 with "HB").
-      iIntros (?) "(% & -> & HcountsB)".
+      iIntros (?) "(HcountsB & HdesB)".
       wp_pures.
-      wp_apply ("HcountA" $! v0 with "HA").
-      iIntros (?) "(% & -> & HcountsA)".
-      wp_pures. iModIntro.
-      iApply "HΨ".
-      iExists (c0+c). iSplit; [iPureIntro; f_equal|].
+      wp_apply ("HcountA" $! v1 with "HA").
+      iIntros (?) "(HcountsA & HdesA)".
+      simplify_eq. wp_pures. iModIntro.
+      iSpecialize ("HΨ" $! (c0+c)).
+      assert (#(c0 + c) = #(c0 + c)%nat).
       { by rewrite Nat2Z.inj_add. }
-      iExists _, _, _, _.
-      iSplit; iFrame; done.
+      rewrite H. iApply "HΨ".
+      by iFrame.
     - iIntros (pid ?) "!# _ HΨ".
       wp_pures.
       wp_apply "HdeserB"; [done|]. iIntros "%deparB #HdeparB".
       wp_apply "HdeserA"; [done|]. iIntros "%deparA #HdeparA".
       wp_pures. iModIntro. iApply "HΨ".
       iIntros (s ?) "!# _ HΨ".
-      wp_apply prod_deser'_sound; auto.
+      wp_apply prod_deser'_sound; try auto.
+      (* iIntros ([]); last first.
+      { iIntros "_". by iApply ("HΨ" $! None). }
+      iIntros "(%&%&%&%&[-> ->] & (Hsera & (% & Hserpa)) & Hserb & (% & Hserpb))".
+      iApply ("HΨ" $! (Some _)). iFrame. eauto. *)
+    - iIntros (?????) "!# (Htok & Heq & HA)".
+      iDestruct "HA" as (w1 w2 u1 u2) "(-> & -> & #HA & #HB)".
+      iSimpl in "Heq".
+      iDestruct "Heq" as (???? H1) "(HeqA & HeqB)".
+      destruct H1. simplify_eq.
+      iPoseProof ("HrelA" with "[//] [$HeqA $HA $Htok]") as "> (HArel & Htok)".
+      iPoseProof ("HrelB" with "[//] [$HeqB $HB $Htok]") as "> (HBrel & $)".
+      do 4 iExists _. iModIntro. do 2 (iSplit; [eauto|]).
+      iFrame.
+    - iIntros (??????) "!# (Hsusp & Hin & Hc) HΦ".
+      iSimpl in "Hin Hc".
+      iDestruct "Hin" as (??) "[% [HinA|HinB]]";
+        iDestruct "Hc" as (????) "((% & %) & [HcA HcB])";
+        simplify_eq.
+      + iPoseProof (count_gt0 with "[$HinA $HcA]") as (?) "[HinA HcA]".
+        wp_apply ("HcupdA" with "[$Hsusp $HinA $HcA]").
+        iIntros "[Hc Hsusp]". iApply "HΦ". iFrame.
+        iPureIntro. split; [done|lia].
+      + iPoseProof (count_gt0 with "[$HinB $HcB]") as (?) "[HinB HcB]".
+        wp_apply ("HcupdB" with "[$Hsusp $HinB $HcB]").
+        iIntros "[Hc Hsusp]". iApply "HΦ". iFrame.
+        iPureIntro. split; [done|lia].
   Qed.
   
   Lemma refines_Auth_sum Θ (Δ : ctxO Σ Θ) :
@@ -801,23 +1251,23 @@ Section proof.
     iIntros (??) "!# H".
     iIntros (??) "(Hi & Htok)".
     interp_unfold! in "H".
-    iDestruct "H" as "(%t & %ser & %deser & %count & -> & #Hser & #Hser2 & #Hser3 & #Hcount & #Hdeser)".
+    iDestruct "H" as "(%t & %ser & %deser & %count & -> & #Hser & #Hser3 & #Hcount & #Hdeser & #Hrel & #Hcupd)".
     i_pures. wp_pures.
     iFrame. iModIntro.
     interp_unfold!.
     iExists t, _, _, _. iSplit; [done|].
-    clear. iSplit; [|iSplit]; [| |iSplit; [|iSplit]].
-    - iIntros (v1 v2 Ψ) "!# (#Hs & Htok) HΨ".
+    clear. iSplit; [|iSplit]; [| |iSplit; [|iSplit; [|iSplit]]].
+    - iIntros (v1 v2 ?? Ψ) "!# (#Hs & Htok) HΨ".
       wp_pures.
       rewrite interp_rec_star_unfold.
       rewrite interp_unseal /=.
-      wp_apply ("Hser" with "[Htok]"); [by iFrame|done].
-    - iIntros (v1 Ψ) "!# (Hs & Htok) HΨ".
+      wp_apply ("Hser" with "[//] [$Htok]"); [by iFrame|done].
+    (* - iIntros (v1 Ψ) "!# (Hs & Htok) HΨ".
       wp_pures.
-      wp_apply ("Hser2" with "[Hs Htok]"); [by iFrame|done].
-    - iIntros (v1 c Ψ) "!# (Hs & Htok) HΨ".
+      wp_apply ("Hser2" with "[Hs Htok]"); [by iFrame|done]. *)
+    - iIntros (v1 ? Ψ) "!# Hs HΨ".
       wp_pures.
-      wp_apply ("Hser3" with "[Hs Htok]"); [by iFrame|done].
+      wp_apply ("Hser3" with "Hs"); done.
     - iIntros (??) "!# Hp HΨ". wp_pures.
       by iApply ("Hcount" with "Hp").
     - iIntros (pid Ψ) "!# _ HΨ". wp_pures.
@@ -830,18 +1280,25 @@ Section proof.
       iIntros ([]) "H"; last first.
       { by iApply "HΨ". }
       by iApply "HΨ".
-  Qed.
+    - iIntros (?????) "!# (Htok & Heq & HA)".
+      rewrite interp_rec_star_unfold.
+      rewrite interp_unseal /=.
+      iPoseProof ("Hrel" with "[//] [$Heq HA $Htok]") as "H"; admit.
+    - iIntros (??????) "!# (Hsusp & Hin & Hc) HΦ".
+      by wp_apply ("Hcupd" with "[$Hsusp $Hin $Hc]").
+  Admitted.
 
-  Definition auth_inv (susp : loc) :=
-    ((∃ (s1 : string), hashed s1 ∗ susp ↦□ InjRV #(hash s1)) ∨
-       ∃ (pid : nat), susp ↦ (InjLV #pid))%I.
+  (* Remove suspended case from lrel_auth? It would also make serialization always pass *)
+  Definition auth_inv (susp : loc) (s1 : string) :=
+    ((hashed s1 ∗ susp ↦□ InjRV #(hash s1) ∗ auth_valid_val_2 susp) ∨
+       auth_valid_val_3 susp (DfracOwn (3/4)))%I.
 
   Definition auth_some (A : lrel Σ) (v1 v2 : val) : iProp Σ :=
     (∃ (a1 : val) (t : evi_type) (s1 : string),
         s_is_ser'' t a1 s1 ∗ A a1 v2 ∗
           ((hashed s1 ∗ ⌜v1 = InjLV #(hash s1)⌝) ∨
              (∃ (susp : loc),
-                 ⌜v1 = InjRV #susp⌝ ∗ seq_inv (authSerProofN #susp) (auth_inv susp)))).
+                 ⌜v1 = InjRV #susp⌝ ∗ seq_inv (authSerProofN N #susp) (auth_inv susp s1)))).
 
   #[global] Instance auth_some_persistent A v1 v2 : Persistent (auth_some A v1 v2).
   Proof. unfold auth_some. apply _. Qed.
@@ -850,20 +1307,14 @@ Section proof.
     LRel (λ v1 v2, auth_some A v1 v2)%I.
 
   Definition lrel_auth' (A : lrel Σ) : lrel Σ :=
-    LRel (λ a1 v2, (∃ v1, ⌜a1 = SOMEV v1⌝ ∗ lrel_auth_some A v1 v2) ∨ ⌜a1 = NONEV⌝)%I.
+    LRel (λ a1 v2, (∃ v1, ⌜a1 = SOMEV v1⌝ ∗ auth_some A v1 v2) ∨ ⌜a1 = NONEV⌝)%I.
   
   Program Definition lrel_auth : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_auth' A.
   Next Obligation.
     intros ??????.
-    rewrite /lrel_car/= /lrel_auth' /lrel_auth_some /auth_some.
-  Admitted.
-  
-
-  Definition is_proof (v : val) : iProp Σ :=
-    ∃ (l : list string), ⌜is_list l v⌝.
-
-  Definition lrel_proof : lrel Σ :=
-    LRel (λ v1 _, is_proof v1 )%I.
+    rewrite /lrel_car/= /lrel_auth'.
+    do 4 f_equiv. solve_proper.
+  Qed.
 
   Definition auth_ctx {Θ} (Δ : ctxO Σ Θ) (R : kindO Σ (⋆ ⇒ ⋆)) :=
     ext (ext (ext Δ lrel_auth) R) (lrel_evidence N).
@@ -880,8 +1331,8 @@ Section proof.
     rewrite /auth_ctx.
     interp_unfold!.
     iExists tauth, _, _, _.
-    iSplit; [done|]. clear. iSplit; [|iSplit]; [| |iSplit; [|iSplit]].
-    - iIntros (???) "!# (#Hauth & Htok) H".
+    iSplit; [done|]. clear. iSplit; [|iSplit]; [| |iSplit; [|iSplit; [|iSplit]]].
+    - iIntros (?????) "!# (#Hauth & Htok) H".
       rewrite /auth_ser_v. wp_pure.
       iDestruct "Hauth" as "[(% & -> & Hauth)|->]"; wp_pures; last first.
       { iApply ("H" $! None). by iFrame. }
@@ -895,8 +1346,8 @@ Section proof.
         iExists _. iSplit; [done|].
         iLeft. iExists _. eauto.
       + wp_bind (!_)%E.
-        iMod (na_inv_acc with "Hinv Htok") as "(Hinv1 & Htok & Hclose)"; [done|done|].
-        iDestruct "Hinv1" as "[(%&#Hhash&#Hsusp)|(%&Hsusp)]".
+        iMod (na_inv_acc with "Hinv Htok") as "(Hinv1 & Htok & Hclose)"; [solve_ndisj|solve_ndisj|].
+        iDestruct "Hinv1" as "[(#Hhash&#Hsusp & Hval)|(%&%&%&%&%&%&% & Hsusp & Hin & Heq)]".
         * (* iMod ("Hclose" with "[Htok]") as "Htok".
           { iFrame. iNext. iLeft. iFrame "∗ #". }
           wp_pures.
@@ -913,8 +1364,8 @@ Section proof.
           iSplit; [done|]. iFrame "#". *)
           wp_load.
           iDestruct "Hser" as "#Hser".
-          iMod ("Hclose" with "[Hser HA Hhash Hsusp Htok]") as "Htok".
-          { iFrame. iLeft. iFrame "#∗". }
+          iMod ("Hclose" with "[Hser HA Hhash Hsusp Htok Hval]") as "Htok".
+          { iFrame. iNext. iLeft. iFrame "∗ #". }
           wp_pures.
           wp_apply s_ser_spec'.
           { iRight. eauto. }
@@ -924,10 +1375,11 @@ Section proof.
           iExists _. iSplit; [done|].
           iRight. iExists _, _. eauto.
         * wp_load.
-          iMod ("Hclose" with "[$Hsusp $Htok]") as "Htok".
+          iMod ("Hclose" with "[Hsusp Hin Heq $Htok]") as "Htok".
+          { iNext. iRight. iFrame. }
           wp_pures.
           iApply ("H" $! None). by iFrame.
-    - iIntros (??) "!# (#Hauth & Htok) H".
+    (* - iIntros (??) "!# (#Hauth & Htok) H".
       rewrite /auth_ser_v. wp_pure. iSimpl in "Hauth".
       iDestruct "Hauth" as "(% & -> & [(% & ->)|(%&%&Hinv)])".
       + wp_pures. wp_apply s_ser_spec'.
@@ -953,11 +1405,11 @@ Section proof.
         * iMod ("Hclose" with "[Hsusp $Htok]") as "Htok".
           { iRight. eauto. }
           wp_pures.
-          iApply ("H" $! None). by iFrame.
+          iApply ("H" $! None). by iFrame. *)
 
-    - iIntros (???) "!# (#Hc & Htok) H".
+    - iIntros (???) "!# (Hc & Htok) H".
       rewrite /auth_ser_v. wp_pure. iSimpl in "Hc".
-      iDestruct "Hc" as (?->) "[(% & -> & ->)|(% & -> & Hinv)]".
+      iDestruct "Hc" as (?->) "[(% & -> & _)|(% & -> & Hc)]".
       + wp_pures. wp_apply s_ser_spec'.
         { iRight. eauto. }
         iIntros (o) "#Ho". destruct o; last first.
@@ -966,34 +1418,34 @@ Section proof.
         iExists _. iSplit; [done|].
         iLeft. iExists _. eauto.
       + simplify_eq. wp_pures. wp_bind (!_)%E.
-        iMod (na_inv_acc with "Hinv Htok") as "([(%&#Hsusp&>%)|(%&Hsusp&>%)] & Htok & Hclose)"; [done|done| |]; wp_load.
-        * iMod ("Hclose" with "[$Htok]") as "Htok".
-          { iLeft. by iFrame "#∗". }
-          wp_pures.
-          wp_apply s_ser_spec'.
-          { iRight. eauto. }
-          iIntros (o) "#Ho". destruct o; last first.
-          { iApply ("H" $! None). by iFrame. }
-          iApply ("H" $! (Some _)). iFrame.
-          iExists _. iSplit; [done|].
-          iRight. iExists _, _.
-          eauto.
-        * iMod ("Hclose" with "[Hsusp $Htok]") as "Htok".
+        iDestruct "Hc" as "[(%&Hsusp&_)|(%&Hsusp&%)]"; try done.
+        wp_load. wp_pures.
+        wp_apply s_ser_spec'.
+        { iRight. eauto. }
+        iIntros (o) "#Ho". destruct o; last first.
+        { iApply ("H" $! None). by iFrame. }
+        iApply ("H" $! (Some _)). iFrame.
+        iExists _. iSplit; [done|].
+        iRight. iExists _, _.
+        eauto.
+        (* * wp_load. iMod ("Hclose" with "[Hsusp $Htok]") as "Htok".
           { iRight. eauto. }
           wp_pures.
-          iApply ("H" $! None). by iFrame.
+          iApply ("H" $! None). by iFrame. *)
         
     - iIntros (??) "!# Hauth H".
       rewrite /auth_count. wp_pures.
-      iDestruct "Hauth" as "(% & -> & [(% & ->)|(%&%&%&Hsusp)])"; simplify_eq; wp_pures.
-      { iApply "H". iExists 0. iModIntro. iSplit; [done|].
-        iExists _. eauto. }
+      iDestruct "Hauth" as "(% & -> & [(% & ->)|(%&%&%&%&%&%&%&%&%& Hsusp & Hin & Heq)])"; simplify_eq; wp_pures.
+      { iApply ("H" $! 0%nat). iModIntro.
+        iSplitL; iExists _; eauto. }
       wp_load. wp_pures.
-      iMod (na_inv_alloc seqG_name ⊤ (authCountN N #susp) (count_auth_inv susp 1) with "[Hsusp]") as "Hinv".
-      { iRight. iExists _. iModIntro. by iFrame. }
-      iApply "H". iExists 1. iModIntro.
-      iSplit; [iPureIntro; f_equal|].
-      iExists _. iSplit; [done|]. iRight. iExists susp. by iFrame.
+      iApply ("H" $! (1%nat)). iModIntro.
+      iAssert (susp ↦{#1/2} InjLV #pid ∗ susp ↦{#1/4} InjLV #pid)%I with "[Hsusp]" as "[Hsusp1 Hsusp2]"; [admit|].
+      iSplitR "Hin Heq Hsusp1".
+      { iExists _. iSplit; [done|]. iRight. iExists susp.
+        iSplit; [done|]. iRight. iExists _. iSplit; [|done]. iFrame. }
+      iExists _. iSplit; [done|]. iRight. iExists susp.
+      iSplit; [done|]. iFrame.
       
       (* iDestruct "Hauth" as "(% & -> & [(% & ->)|(%&%&#Hinv)])"; simplify_eq; wp_pures.
       { iApply "H". iExists 0. iModIntro. iSplit; [done|].
@@ -1022,31 +1474,85 @@ Section proof.
       iModIntro. iApply "H".
       iIntros (s?) "!# _ H".
       wp_pures. wp_apply s_deser_sound; [done|].
-      iIntros ([] ?); wp_pures.
-      + destruct H as [(->&H)|(?&?&(->&H)&?)]; wp_pures.
-        * wp_alloc susp as "Hsusp".
-(*          iMod(inv_alloc (authSerN #susp) _ (auth_inv A susp) with "[Hsusp]") as "#Hinv".
+      iIntros ([] ?); wp_pures; last (by iApply ("H" $! None)).
+      destruct H as [(->&H)|(?&?&(->&H)&?)]; wp_pures.
+      * (* wp_apply (typed_proph_wp_new_proph1 StringTypedProph); first done.
+        iIntros (??) "Hproph". *)
+        wp_alloc susp as "Hsusp".
+        (* iMod (own_alloc parent_agree pid tauth NONEV). *)
+        (*          iMod(inv_alloc (authSerN #susp) _ (auth_inv A susp) with "[Hsusp]") as "#Hinv".
           { iModIntro. iRight. eauto. } *)
-          wp_pures.
-          iApply ("H" $! (Some _)).
-          iModIntro. iExists _. iSplit; [done|].
-(*          { simpl. iExists _. iSplit; [done|].
+        wp_pures.
+        iApply ("H" $! (Some _)).
+        (* iAssert (susp ↦{#1/4} InjLV (#pid, #p) ∗ susp ↦{#3/4} InjLV (#pid, #p))%I with "[Hsusp]" as "[Hsusp1 Hsusp2]"; [admit|].
+        pose (s' := some_ser_str (string_ser_str v)).
+        iMod (na_inv_alloc seqG_name ⊤ (authSerN N #susp)
+                (auth_ser_inv (InjRV #susp) s' susp) with "[Hsusp1 Hproph]") as "Hinv".
+        { iNext. iRight. iFrame. iSplit; first done.
+          iRight. iExists _, _. iSplit; first done. eauto. } *)
+        iModIntro.
+        iExists _. iSplit; [done|].
+        (*          { simpl. iExists _. iSplit; [done|].
             iRight. rewrite /auth_is_ser_3.
             iExists _, _. iSplit; [done|].
             iInv "Hinv" as "[(%&%&%&%&Hser&HA&Hhash&#Hsusp)|(%&Hsusp)]" "Hclose".
             iInv 
             eauto. } *)
-          iRight. iExists _, _. iSplit; [done|].
-          iFrame. iSimpl. iLeft. done.
-        * iModIntro. iApply ("H" $! (Some _)).
-          iExists _. iSplit; [done|].
-          iLeft. rewrite /auth_is_ser_1.
-          destruct! H0. simplify_eq.          
-          iExists _. iSplit; [done|].
-          iRight. iExists _, _.
-          eauto.
-      + by iApply ("H" $! None).
-  Qed.
+        iRight. iExists _, _. iSplit; [done|].
+        iFrame. iSimpl. iLeft. done. 
+      * iModIntro. iApply ("H" $! (Some _)).
+        iExists _. iSplit; [done|].
+        iLeft. rewrite /auth_is_ser_1.
+        destruct! H0. simplify_eq.          
+        iExists _. iSplit; [done|].
+        iRight. iExists _, _.
+        eauto.
+    - iIntros (?????) "!# (Htok & Heq & Hauth)".
+      iDestruct "Hauth" as "[(% & -> & Hauth)|->]"; iSimpl in "Heq"; last first.
+      { iDestruct "Heq" as "[(% & %)|(% & ([%|(% & % & H)]&Heq))]"; simplify_eq.
+        iFrame. by iRight. }
+
+      iDestruct "Heq" as "[(% & %)|(% & Heq)]"; simplify_eq.
+      iDestruct "Hauth" as "(%&%&%&#Hser&#HA&[(Hhash&%)|(%&%&#Hinv)])"; simplify_eq.
+      + iDestruct "Heq" as "([%|(% & % & H)] & [%|(% & % & #Hsusp)])";
+          simplify_eq; iFrame; iLeft; iExists _.
+        * iModIntro. iSplit; [done|]. do 3 iExists _. iFrame "∗ #". iLeft. eauto.
+        * iMod (na_inv_alloc seqG_name _ (authSerProofN N #susp) (auth_inv susp s1) with "[Hhash]") as "Hinv".
+          { iModIntro. iLeft. iFrame "∗ #". do 3 iExists _.
+            iIntros "HancIn". iDestruct "HancIn" as (?) "[_ Heq]".
+            iExists a1. iIntros "_". iFrame. }
+          iModIntro. iSplit; [done|]. do 3 iExists _. iFrame "∗ #". iRight.
+          iExists _. iSplit; [done|]. iFrame.
+      + iMod (na_inv_acc with "Hinv Htok") as "(Hinv1 & Htok & Hclose)"; [solve_ndisj|solve_ndisj|].
+        iDestruct "Heq" as "([%|(% & % & #Hsusp1)] & [%|(% & % & #Hsusp2)])";
+          simplify_eq; iDestruct "Hinv1" as "[(>#Hhash & >#Hsusp & Hval)|(%pid&%&%&%&%&%&% & Hsusp & Hin & Heq)]".
+        2, 4: iMod (timeless (susp0 ↦{DfracOwn (3/4)} InjLV #pid) with "Hsusp") as "Hsusp";
+        iPoseProof (pointsto_agree with "Hsusp1 Hsusp") as "%"; done.
+        all: (iMod ("Hclose" with "[$Htok Hval]") as "Htok").
+        1, 3: iNext; iLeft; iFrame "∗ #".
+        all: iMod (timeless with "Hsusp") as "Hsusp_";
+          iPoseProof (pointsto_agree with "Hsusp1 Hsusp_") as "%";
+          simplify_eq; iFrame.
+        * iModIntro. iLeft. iExists _. iSplit; first done.
+          iFrame "#". by iLeft.
+        * iMod (na_inv_alloc seqG_name _ (authSerProofN N #susp1) (auth_inv susp1 s1) with "[]") as "#Hinv2".
+          { iLeft. iFrame "∗ #". iNext. do 3 iExists _.
+            iIntros "HancIn". iDestruct "HancIn" as (?) "[_ Heq]".
+            iExists a1. iIntros "_". iFrame. }
+          iModIntro. iLeft. iExists _. iSplit; first done.
+          do 3 iExists _. iFrame "#". by iRight.
+    - iIntros (??????) "!# (Hsusp & Hin & Hcount) HΦ".
+      iDestruct "Hin" as (?[??]) "[(% & Hsusp1)|Hf]"; try done.
+      iDestruct "Hcount" as (??) "[[% [% %]]|(% & % & [(% & Hsusp2 & %)|(%& Hsusp2 & %)])]"; simplify_eq.
+      + iPoseProof (pointsto_agree with "Hsusp2 Hsusp1") as "%". done.
+      + iCombine "Hsusp2 Hsusp1 Hsusp" as "H".
+        iAssert (susp0 ↦ InjLV #pid1)%I with "[H]" as "H"; [admit|].
+        wp_store. iApply "HΦ".
+        iAssert (susp0 ↦□ InjRV #h)%I with "[H]" as "#H1"; [admit|].
+        iFrame "#". iModIntro. iExists _. iSplit; [done|].
+        iRight. iSplit; [done|].
+        iLeft. done.
+  Admitted.
 
   Lemma refines_auth_auth Θ (Δ : ctxO Σ Θ) R:
     ⊢ ⟦ ∀: ⋆, var1 var0 → var0 → var3 var0 ⟧
@@ -1060,7 +1566,7 @@ Section proof.
     iIntros (??) "!# #HeviA".
     rewrite /auth_ctx.
     interp_unfold! in "HeviA".
-    iDestruct "HeviA" as (tA ser count deser ->) "(#Hser & #Hser2 & #Hser3 & #Hcount & #Hdeser)".
+    iDestruct "HeviA" as (tA ser count deser ->) "(#Hser & #Hser3 & #Hcount & #Hdeser & #Hrel & #Hcupd)".
     iIntros (??) "(Hi & Htok)".
     i_pures; wp_pures.
     iFrame.
@@ -1069,7 +1575,7 @@ Section proof.
     iIntros (??) "(Hi & Htok)".
     i_pures; wp_pures.
     interp_unfold! in "HA".
-    wp_apply ("Hser" with "[$Htok]"); [done|].
+    wp_apply ("Hser" with "[] [$Htok]"); [done|done|].
     iIntros ([]) "(Htok & Hs1)"; wp_pures; last first.
     { iFrame. interp_unfold!. by iRight. }
     wp_apply (wp_hash with "[$]"). iIntros "#Hh1".

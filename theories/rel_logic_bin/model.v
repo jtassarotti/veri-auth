@@ -117,8 +117,8 @@ Section refines.
 
   Definition refines (E : coPset) (eᵥ eᵢ : expr) (A : lrel Σ) : iProp Σ :=
     (∀ Kᵢ tᵢ,
-        spec_ideal tᵢ (fill Kᵢ eᵢ) ∗ seq_tok ⊤ -∗
-        WP eᵥ @ E {{ vᵥ, ∃ (vᵢ : val), spec_ideal tᵢ (fill Kᵢ vᵢ) ∗ A vᵥ vᵢ ∗ seq_tok ⊤ }})%I.
+        spec_ideal tᵢ (fill Kᵢ eᵢ) ∗ seq_tok E -∗
+        WP eᵥ @ E {{ vᵥ, ∃ (vᵢ : val), spec_ideal tᵢ (fill Kᵢ vᵢ) ∗ A vᵥ vᵢ ∗ seq_tok E }})%I.
 
   Definition refines_Some (E : coPset) (eᵥ eᵢ : expr) (A : lrel Σ) : iProp Σ :=
     (∀ Kᵢ tᵢ,

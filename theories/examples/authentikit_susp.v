@@ -34,14 +34,18 @@ Definition v_auth : val :=
 Definition v_finish : val :=
   λ: "susp_table" "a" "x" "serialize" <>,
     match: "serialize" "x" with
-      NONE => NONE
+      NONE => NONEV
     | SOME "y" =>
         match: "a" with
-          InjL "h" => if: Hash "y" = "h" then ((*resolve_proph: "p" to: SOMEV #();;*) SOMEV #()) else NONEV
+          InjL "h" =>
+            if: Hash "y" = "h" then SOMEV #() else NONEV
         | InjR "susp" =>
             match: !"susp" with
-              InjR "h" => if: Hash "y" = "h" then ((*resolve_proph: "p" to: SOMEV #();;*) SOMEV #()) else NONEV
+              InjR "h" =>
+                if: Hash "y" = "h" then SOMEV #() else NONEV
             | InjL "pid" =>
+                (* let, ("pid", "proph") := "pid_proph" in
+                resolve_proph: "proph" to: (Hash "y");; *)
                 match: map.map_lookup "pid" (!"susp_table") with
                   NONE => NONEV
                 | SOME "res" =>
@@ -79,7 +83,7 @@ Definition v_unauth : val :=
                   match: if: "nchild" = #0 then
                            "finish" #()
                          else
-                           ("susp_table" <- map.map_insert "pid" ("nchild", "finish") (!"susp_table");; SOMEV #())
+                           ("susp_table" <- map.map_insert "id" ("nchild", "finish") (!"susp_table");; SOMEV #())
                   with
                     NONE => NONE
                   | SOME <> => SOME ((list_tail "pf_stream", "id" + #1), "x")
@@ -89,11 +93,15 @@ Definition v_unauth : val :=
       end.
 
 Definition v_run : val :=
-  Λ: λ: "c" "pf",
-      let: "init_state" := ("pf", #0) in
+  λ: "susp_table", Λ: λ: "c" "pf",
+      let: "init_state" := ("pf", #1) in
       match: "c" "init_state" with
         NONE => NONE
-      | SOME "res" => SOME (Snd "res")
+      | SOME "res" => 
+          if: map.map_is_empty !"susp_table" then
+            SOME (Snd (Fst "res"))
+          else
+            NONE
       end.
 
 Definition v_Authenticable : expr :=

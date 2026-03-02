@@ -22,7 +22,7 @@ From auth.typing Require Import types typing.
     val unauth : 'a Authenticatable.evidence -> 'a auth -> 'a authenticated_computation
   end *)
 
-Definition Authenticatable {Θ} : type (Θ ▹ (⋆ ⇒ ⋆) ▹ (⋆ ⇒ ⋆))%kind ⋆ :=
+Definition Authenticatable {Θ} : type (Θ ▹ (⋆ ⇒ ⋆) ▹ (⋆ ⇒ ⋆) ▹ (⋆ ⇒ ⋆))%kind ⋆ :=
   (∃: (* evidence : *) ⋆ ⇒ ⋆,
 
       ((* Authenticatable.auth   : *) ∀: ⋆, var1 (var3 var0)) *
@@ -35,19 +35,21 @@ Definition Authenticatable {Θ} : type (Θ ▹ (⋆ ⇒ ⋆) ▹ (⋆ ⇒ ⋆))%
       ((* auth   : *) ∀: ⋆, var1 var0 → var0 → var3 var0) *
       ((* unauth : *) ∀: ⋆, var1 var0 → var3 var0 → var2 var0))%ty  .
 
-Definition Authentikit_func {Θ} : type Θ ((⋆ ⇒ ⋆) ⇒ (⋆ ⇒ ⋆) ⇒ ⋆) :=
-  (Λ: (* auth : *)
+Definition Authentikit_func {Θ} : type Θ ((⋆ ⇒ ⋆) ⇒ (⋆ ⇒ ⋆) ⇒ (⋆ ⇒ ⋆) ⇒ ⋆) :=
+  (Λ: (* fail_type : *)
+   Λ: (* auth : *)
    Λ: (* authenticated_computation : *)
-
+   
      ((* return : *) ∀: ⋆, var0 → var1 var0) *
-     ((* bind   : *) ∀: ⋆; ⋆, var2 var1 → (var1 → var2 var0) → var2 var0) *
+     ((* bind   : *) ∀: ⋆; ⋆, var2 var1 → (var4 var1 → var2 var0) → var2 var0) *
      Authenticatable
   )%ty.
 
 Definition Authentikit {Θ} : type Θ ⋆ :=
-  (∃: (* auth : *) ⋆ ⇒ ⋆;
+  (∃: (* fail_type : *) ⋆ ⇒ ⋆;
+      (* auth : *) ⋆ ⇒ ⋆;
       (* authenticated_computation : *) ⋆ ⇒ ⋆,
-     Authentikit_func var1 var0)%ty.
+     Authentikit_func var2 var1 var0)%ty.
 
 (** ** Ideal  *)
 (** type 'a auth = 'a *)
