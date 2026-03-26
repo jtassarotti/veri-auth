@@ -84,7 +84,7 @@ Section compatibility.
     iApply ("H" with "[$]").
   Qed.
 
-  Lemma refines_store e1 e2 e1' e2' A :
+  (* Lemma refines_store e1 e2 e1' e2' A :
     (REL e1 << e1' : ref A) -∗
     (REL e2 << e2' : A) -∗
     REL e1 <- e2 << e1' <- e2' : ().
@@ -130,7 +130,7 @@ Section compatibility.
     by iFrame.
   Qed.
 
- (* Lemma refines_fork e e' :
+ Lemma refines_fork e e' :
     (REL e << e' : ()%lrel) -∗
     REL Fork e << Fork e' : ().
   Proof.
@@ -146,7 +146,7 @@ Section compatibility.
     iModIntro.
     iApply (wp_wand with "IH").
     by iIntros (?) "_".
-  Qed. *)
+  Qed.
 
   Lemma refines_cmpxchg_ref A e1 e2 e3 e1' e2' e3' :
     (REL e1 << e1' : ref (ref A))%lrel -∗
@@ -195,6 +195,18 @@ Section compatibility.
         iFrame. iModIntro. iExists _, _, _, _.
         do 2 (iSplitL; [done|]). iSplit; [|eauto].
         iExists _, _; eauto.
+  Qed. *)
+
+  Lemma refines_wand e e' (A B : lrel Σ) :
+    (∀ v1 v2, A v1 v2 -∗ B v1 v2) -∗
+    (REL e << e' : A) -∗
+    REL e << e' : B.
+  Proof.
+    iIntros "Hwand H" (??) "Hctx".
+    iApply wp_wand_r.
+    iSplitL "H Hctx"; [iApply "H"; iExact "Hctx"|].
+    iIntros (v) "[%w ($ & HA & $)]".
+    by iApply "Hwand".
   Qed.
 
 End compatibility.

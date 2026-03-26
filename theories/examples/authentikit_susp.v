@@ -43,9 +43,9 @@ Definition v_finish : val :=
             match: !"susp" with
               InjR "h" =>
                 if: Hash "y" = "h" then SOMEV #() else NONEV
-            | InjL "pid" =>
-                (* let, ("pid", "proph") := "pid_proph" in
-                resolve_proph: "proph" to: (Hash "y");; *)
+            | InjL "pid_proph" =>
+                let, ("pid", "proph") := "pid_proph" in
+                resolve_proph: "proph" to: (Hash "y");;
                 match: map.map_lookup "pid" (!"susp_table") with
                   NONE => NONEV
                 | SOME "res" =>
@@ -92,22 +92,25 @@ Definition v_unauth : val :=
           end
       end.
 
-Definition v_run : val :=
+Definition v_run_def : val :=
   λ: "susp_table", Λ: λ: "c" "pf",
-      let: "init_state" := ("pf", #1) in
+      let: "init_state" := ("pf", #0) in
       match: "c" "init_state" with
         NONE => NONE
       | SOME "res" => 
           if: map.map_is_empty !"susp_table" then
-            SOME (Snd (Fst "res"))
+            SOME (Snd "res")
           else
             NONE
       end.
 
-Definition v_Authenticable : expr :=
+Definition v_Authenticable_run : expr :=
   let: "init_susp" := ref (map.map_empty #()) in
-  (v_Auth_auth, v_Auth_mu, v_Auth_pair, v_Auth_sum, v_Auth_string, v_Auth_int, v_auth, v_unauth "init_susp").
+  (v_Auth_auth, v_Auth_mu, v_Auth_pair, v_Auth_sum, v_Auth_string, v_Auth_int, 
+    v_auth, v_unauth "init_susp", v_run_def "init_susp").
+Definition v_Authenticable : expr := Fst v_Authenticable_run.
 Definition v_Authentikit : expr := (v_return, v_bind, v_Authenticable).
+Definition v_run : expr := Snd v_Authenticable_run.
 
 (** ** Prover  *)
 

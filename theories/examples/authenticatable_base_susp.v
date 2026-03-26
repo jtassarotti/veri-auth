@@ -48,7 +48,7 @@ Definition auth_deser_v : val :=
       NONE => NONE
     | SOME "v" =>
         match: "v" with
-          NONE => SOME (SOME (InjR (ref (InjL "pid"))))
+          NONE => SOME (SOME (InjR (ref (InjL ("pid", NewProph)))))
         | SOME "h" => SOME (SOME (InjL "h"))
         end
     end.

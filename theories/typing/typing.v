@@ -33,8 +33,8 @@ Notation "⤉ Γ" := (Core.shift <$> Γ) (at level 10, format "⤉ Γ").
 Inductive UnboxedType {Θ} : type Θ ⋆ → Prop :=
   | UnboxedTUnit : UnboxedType t_unit
   | UnboxedTNat : UnboxedType t_nat
-  | UnboxedTBool : UnboxedType t_bool
-  | UnboxedTRef τ : UnboxedType (t_ref τ).
+  | UnboxedTBool : UnboxedType t_bool.
+(*  | UnboxedTRef τ : UnboxedType (t_ref τ). *)
 
 (** Types which support direct equality test. *)
 Inductive EqType {Θ} : type Θ ⋆ → Prop :=
@@ -45,9 +45,9 @@ Inductive EqType {Θ} : type Θ ⋆ → Prop :=
   | EqTProd τ τ' : EqType τ → EqType τ' → EqType (t_prod τ τ')
   | EqSum τ τ' : EqType τ → EqType τ' → EqType (t_sum τ τ').
 
-Lemma unboxed_type_ref_or_eqtype Θ (τ : type Θ ⋆) :
+(* Lemma unboxed_type_ref_or_eqtype Θ (τ : type Θ ⋆) :
   UnboxedType τ → (EqType τ ∨ ∃ τ', τ = t_ref τ').
-Proof. inversion 1; try (first [ left; now econstructor | eauto 10 ]). Qed.
+Proof. inversion 1; try (first [ left; now econstructor | eauto 10 ]). Qed. *)
 
 Definition binop_nat_res_type {Θ} (op : bin_op) : option (type Θ ⋆) :=
   match op with
@@ -170,7 +170,7 @@ Inductive typed (Θ : Ctx kind) : stringmap (typ ⋆ Θ) → expr → (typ ⋆ �
   Θ |ₜ Γ ⊢ₜ e1 : (∃: κ, τ) →
   Θ ▹ κ |ₜ <[x:=τ]>(⤉ Γ) ⊢ₜ e2 : Core.shift τ2 →
   Θ |ₜ Γ ⊢ₜ (unpack: x := e1 in e2) : τ2
-(* | TFork Γ e : Θ |ₜ Γ ⊢ₜ e : () → Θ |ₜ Γ ⊢ₜ Fork e : () *)
+(* | TFork Γ e : Θ |ₜ Γ ⊢ₜ e : () → Θ |ₜ Γ ⊢ₜ Fork e : () 
 | TAlloc Γ e τ : Θ |ₜ Γ ⊢ₜ e : τ → Θ |ₜ Γ ⊢ₜ Alloc e : ref τ
 | TLoad Γ e τ : Θ |ₜ Γ ⊢ₜ e : ref τ → Θ |ₜ Γ ⊢ₜ Load e : τ
 | TStore Γ e e' τ : Θ |ₜ Γ ⊢ₜ e : ref τ → Θ |ₜ Γ ⊢ₜ e' : τ → Θ |ₜ Γ ⊢ₜ Store e e' : ()
@@ -182,7 +182,7 @@ Inductive typed (Θ : Ctx kind) : stringmap (typ ⋆ Θ) → expr → (typ ⋆ �
 | TCmpXchg Γ e1 e2 e3 τ :
    UnboxedType τ →
    Θ |ₜ Γ ⊢ₜ e1 : ref τ → Θ |ₜ Γ ⊢ₜ e2 : τ → Θ |ₜ Γ ⊢ₜ e3 : τ →
-   Θ |ₜ Γ ⊢ₜ CmpXchg e1 e2 e3 : τ * t_bool
+   Θ |ₜ Γ ⊢ₜ CmpXchg e1 e2 e3 : τ * t_bool *)
 | THash Γ e :
   Θ |ₜ Γ ⊢ₜ e : t_string →
   Θ |ₜ Γ ⊢ₜ Hash e : t_string

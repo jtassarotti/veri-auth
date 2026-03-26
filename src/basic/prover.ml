@@ -28,7 +28,7 @@ end = struct
   let auth serializer a =
     (a, hash (serializer a))
 
-  let unauth serializer ah buf =
+  let unauth serializer ah = fun buf ->
     let a, h = ah in
     let s = serializer a in
     ([s], a)
