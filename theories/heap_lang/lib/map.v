@@ -74,42 +74,44 @@ Section map_specs.
   Implicit Types s : gwp_type g.
   Implicit Types k : K.
 
-  Definition is_map (d : val) (m : gmap K V) (s : nat) : Prop :=
-    ∃ l, m = list_to_map l ∧ d = $l ∧ NoDup (fst <$> l) ∧ s = length l.
+  Definition is_map (d : val) (m : gmap K V) : Prop :=
+    ∃ l, m = list_to_map l ∧ d = $l ∧ NoDup (fst <$> l).
 
   Definition map_length (m : gmap K V) : nat := length (map_to_list m).
 
-  Lemma gwp_map_is_empty s E d m si :
-    G{{{ ⌜is_map d m si⌝ }}}
+  Lemma gwp_map_is_empty s E d m:
+    G{{{ ⌜is_map d m⌝ }}}
       map_is_empty (Val d) @ s; E
-    {{{ v, RET #v; ⌜v = Nat.eqb 0 si⌝ }}} ? gwp_laters g.
+    {{{ v, RET #v; ⌜v = Nat.eqb 0 (map_length m)⌝ }}} ? gwp_laters g.
   Proof.
-    iIntros (Φ (l & -> & -> & Hdup & Hlen)) "HΦ".
+    iIntros (Φ (l & -> & -> & Hdup)) "HΦ".
     rewrite /map_is_empty /map_length.
     destruct l; gwp_pures; iModIntro; iApply "HΦ";
-      iPureIntro; simpl; simpl in Hlen; by simplify_eq.
+      iPureIntro; rewrite length_map_to_list; simpl.
+    - by rewrite map_size_empty.
+    - by rewrite (map_size_list_to_map _ Hdup).
   Qed.
       
   Lemma gwp_map_empty s E :
     G{{{ True }}}
       map_empty #() @ s; E
-    {{{ v, RET v; ⌜is_map v ∅ 0⌝}}} ? gwp_laters g.
+    {{{ v, RET v; ⌜is_map v ∅⌝}}} ? gwp_laters g.
   Proof.
     iIntros (Φ) "_ HΦ".
     gwp_rec. gwp_pures. iApply "HΦ".
     iModIntro. iPureIntro.
-    exists []. do 2 (split; [done|]). split; [constructor|done].
+    exists []. do 2 (split; [done|]). constructor.
   Qed.
 
-  Lemma gwp_map_remove_some s E k v d m si :
-    val_is_unboxed $ k → m !! k = Some v →
-    G{{{ ⌜is_map d m si⌝ }}}
+  Lemma gwp_map_remove s E k d m :
+    val_is_unboxed $ k →
+    G{{{ ⌜is_map d m⌝ }}}
       map_remove $k (Val d) @ s; E
-    {{{ d', RET d'; ⌜is_map d' (delete k m) (si-1)⌝ }}} ? gwp_laters g.
+    {{{ d', RET d'; ⌜is_map d' (delete k m)⌝ }}} ? gwp_laters g.
   Proof.
-    iIntros (? ? Φ (l & -> & -> & Hdup & Hl)) "HΦ".
+    iIntros (? Φ (l & -> & -> & Hdup)) "HΦ".
     gwp_rec. gwp_closure.
-    iInduction l as [|[k' v'] l] "IH" forall (Hdup Φ si Hl) "HΦ".
+    iInduction l as [|[k' v] l] "IH" forall (Hdup Φ) "HΦ".
     - gwp_pures. iApply "HΦ". iIntros "!%".
       exists []. rewrite delete_empty //=.
     - inversion Hdup; simplify_eq.
@@ -118,52 +120,11 @@ Section map_specs.
       + gwp_pures. iApply "HΦ".
         iIntros "!> /= !%".
         rewrite delete_insert.
-        * eexists. do 3 (split; [done|]). lia.
+        * by eexists.
         * by apply not_elem_of_list_to_map.
       + gwp_if.
-        gwp_apply ("IH" with "[]").
-        { admit. }
-        { admit. }
-        { done. }
-        iIntros (d' (l' & Hl' & -> & ? & Hsi)).
-        gwp_pures.
-        gwp_apply (gwp_list_cons (k',v')).
-        { rewrite is_list_inject //. }
-        iIntros (? ->%is_list_inject). iApply "HΦ". iPureIntro.
-        destruct (decide (k = k')); simplify_eq.
-        eexists ((k', v') :: l') => /=.
-        rewrite delete_insert_ne //=.
-        split; [congruence|].
-        split; [done|].
-        constructor; last first. { admit. }
-        constructor; [|done].
-        apply not_elem_of_list_to_map_2.
-        rewrite -Hl' lookup_delete_ne //.
-        by apply not_elem_of_list_to_map_1.
-  Admitted.
-
-  Lemma gwp_map_remove_none s E k d m si :
-    val_is_unboxed $ k → m !! k = None →
-    G{{{ ⌜is_map d m si⌝ }}}
-      map_remove $k (Val d) @ s; E
-    {{{ d', RET d'; ⌜is_map d' (delete k m) si⌝ }}} ? gwp_laters g.
-  Proof.
-    iIntros (? ? Φ (l & -> & -> & Hdup & Hl)) "HΦ".
-    gwp_rec. gwp_closure.
-    iInduction l as [|[k' v] l] "IH" forall (Hdup Φ si Hl) "HΦ".
-    - gwp_pures. iApply "HΦ". iIntros "!%".
-      exists []. rewrite delete_empty //=.
-    - apply not_elem_of_list_to_map_2 in H2 as ?.
-      simpl in H2. assert (k ≠ k'). { admit. }
-      inversion Hdup; simplify_eq.
-      gwp_pures.
-      case_bool_decide as Heq; simplify_eq.
-      + gwp_if.
-        gwp_apply ("IH" with "[]").
-        { admit. }
-        { done. }
-        { done. }
-        iIntros (d' (l' & Hl' & -> & ? & Hsi)).
+        gwp_apply ("IH" with "[//]").
+        iIntros (d' (l' & Hl' & -> & ?)).
         gwp_pures.
         gwp_apply (gwp_list_cons (k',v)).
         { rewrite is_list_inject //. }
@@ -173,30 +134,28 @@ Section map_specs.
         rewrite delete_insert_ne //=.
         split; [congruence|].
         split; [done|].
-        constructor; last first. { lia. }
         constructor; [|done].
         apply not_elem_of_list_to_map_2.
         rewrite -Hl' lookup_delete_ne //.
         by apply not_elem_of_list_to_map_1.
-  Admitted.
+  Qed.
 
-  Lemma gwp_map_insert_some (k : K) v d m s E si v' :
-    val_is_unboxed $ k → m !! k = Some v' →
-    G{{{ ⌜is_map d m si⌝ }}}
+  Lemma gwp_map_insert (k : K) v d m s E :
+    val_is_unboxed $ k →
+    G{{{ ⌜is_map d m⌝ }}}
       map_insert $k $v d @ s; E
-    {{{ d', RET d'; ⌜is_map d' (<[ k := v ]> m) si⌝ }}} ? gwp_laters g.
+    {{{ d', RET d'; ⌜is_map d' (<[ k := v ]> m)⌝ }}} ? gwp_laters g.
   Proof.
-    iIntros (?? Φ (l & -> & -> & Hdup & Hl)) "HΦ".
+    iIntros (? Φ (l & -> & -> & Hdup)) "HΦ".
     gwp_rec. gwp_closure.
     gwp_rec. gwp_pures.
-    gwp_apply (gwp_map_remove_some).
-    - done.
+    gwp_apply (gwp_map_remove).
     - done.
     - iPureIntro. exists l.
       split; [done|].
       split; [|done].
       by simpl.
-    - iIntros (d' (l' & Hl' & -> & ? & ?)). gwp_pures.
+    - iIntros (d' (l' & Hl' & -> & ?)). gwp_pures.
       gwp_apply (gwp_list_cons (k, v)).
       { rewrite is_list_inject //. }
       iIntros (? ->%is_list_inject). iApply "HΦ". iPureIntro.
@@ -205,55 +164,21 @@ Section map_specs.
       + rewrite <- insert_delete_insert.
         rewrite Hl'. symmetry. apply list_to_map_cons.
       + split; [done|].
-        split; last first.
-        { simpl. rewrite <- H4. admit. }
-        constructor; last done.
-        eapply (not_elem_of_list_to_map_2).
-        rewrite -Hl' lookup_delete //.
-  Admitted.
-
-  Lemma gwp_map_insert_none (k : K) v d m s E si :
-    val_is_unboxed $ k → m !! k = None →
-    G{{{ ⌜is_map d m si⌝ }}}
-      map_insert $k $v d @ s; E
-    {{{ d', RET d'; ⌜is_map d' (<[ k := v ]> m) (si+1)⌝ }}} ? gwp_laters g.
-  Proof.
-    iIntros (?? Φ (l & -> & -> & Hdup & Hl)) "HΦ".
-    gwp_rec. gwp_closure.
-    gwp_rec. gwp_pures.
-    gwp_apply (gwp_map_remove_none).
-    - done.
-    - done.
-    - iPureIntro. exists l.
-      split; [done|].
-      split; [|done].
-      by simpl.
-    - iIntros (d' (l' & Hl' & -> & ? & ?)). gwp_pures.
-      gwp_apply (gwp_list_cons (k, v)).
-      { rewrite is_list_inject //. }
-      iIntros (? ->%is_list_inject). iApply "HΦ". iPureIntro.
-      exists ((k, v) :: l').
-      split.
-      + rewrite <- insert_delete_insert.
-        rewrite Hl'. symmetry. apply list_to_map_cons.
-      + split; [done|].
-        split; last first.
-        { simpl. rewrite <- H4. lia. }
         constructor; last done.
         eapply (not_elem_of_list_to_map_2).
         rewrite -Hl' lookup_delete //.
   Qed.
 
-  Lemma gwp_map_lookup k d m s E si :
+  Lemma gwp_map_lookup k d m s E :
     val_is_unboxed $ k →
-    G{{{ ⌜is_map d m si⌝ }}}
+    G{{{ ⌜is_map d m⌝ }}}
       map_lookup $k d @ s; E
      {{{ v, RET v; ⌜from_option (λ p, v = SOMEV $p) (v = NONEV) (m !! k)⌝ }}}
      ? gwp_laters g.
   Proof.
-    iIntros (? Φ (l & -> & -> & Hdup & Hsi)) "HΦ".
+    iIntros (? Φ (l & -> & -> & Hdup)) "HΦ".
     gwp_rec. gwp_closure.
-    iInduction l as [|[k' v] l'] "IH" forall (Hdup Φ si Hsi) "HΦ".
+    iInduction l as [|[k' v] l'] "IH" forall (Hdup Φ) "HΦ".
     - gwp_pures. iApply "HΦ". iIntros "!%".
       unfold from_option. simpl. by rewrite lookup_empty.
     - gwp_pures.
@@ -264,21 +189,20 @@ Section map_specs.
         rewrite lookup_insert //.
       + gwp_if. gwp_apply ("IH").
         * inversion Hdup. by subst.
-        * done.
         * iIntros (v' Hres). iApply "HΦ".
           iPureIntro. simpl.
           rewrite lookup_insert_ne; [done| ].
           intros ->. done.
   Qed.
 
-  Lemma gwp_map_mem k d m s E si :
+  Lemma gwp_map_mem k d m s E :
     val_is_unboxed $ k →
-    G{{{ ⌜is_map d m si⌝ }}}
+    G{{{ ⌜is_map d m⌝ }}}
       map_mem $k d @ s; E
      {{{ (b : bool), RET #b; if b then ⌜∃ v, m !! k = Some v⌝ else True }}}
      ? gwp_laters g.
   Proof.
-    iIntros (? Φ (l & -> & -> & Hdup & Hsi)) "HΦ".
+    iIntros (? Φ (l & -> & -> & Hdup)) "HΦ".
     gwp_rec. gwp_pure. gwp_pure.
     gwp_apply gwp_map_lookup; [done| |].
     - iPureIntro. by eexists.
