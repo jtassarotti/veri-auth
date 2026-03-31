@@ -112,7 +112,7 @@ Section semtypes.
     | TProd => lrel_prod
     | TSum => lrel_sum
     | TArrow => lrel_arr
-    | TRef => lrel_ref
+    (* | TRef => lrel_ref *)
     | TRec κ => interp_rec
     | TForall κ => lrel_forall
     | TExists κ => lrel_exists

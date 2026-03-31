@@ -705,7 +705,25 @@ Section prod_serialization.
     G{{{ ▷?(gwp_laters g) prod_valid_val v }}}
       prod_ser''' A.(s_serializer') B.(s_serializer') v @ c; E
     {{{ o, RET $o; if o is Some s then prod_is_ser v s else True }}} ? gwp_laters g.
-  Proof. Admitted.
+  Proof.
+    iIntros (Φ) "#(% & % & Heq) HΦ".
+    iDestruct "Heq" as "[Heq1 [#HA #HB]]".
+    rewrite /prod_ser'''.
+    gwp_pures.
+    iDestruct "Heq1" as %->.
+    gwp_pures.
+    gwp_apply (A.(s_ser_spec') with "HA").
+    iIntros ([sA|]) "#HA'".
+    - gwp_pures.
+      gwp_apply (B.(s_ser_spec') with "HB").
+      iIntros ([sB|]) "#HB'".
+      + gwp_pures.
+        iApply ("HΦ" $! (Some _)).
+        iModIntro. iExists v1, v2, sA, sB. iSplit; [auto|].
+        iSplit; [iExact "HA'" | iExact "HB'"].
+      + gwp_pures. iApply ("HΦ" $! None). done.
+    - gwp_pures. iApply ("HΦ" $! None). done.
+  Qed.
 
   Lemma prod_ser_spec E v c (serA serB : val) :
     (∀ vA,
@@ -1147,7 +1165,20 @@ Section sum_serialization.
     G{{{ ▷?(gwp_laters g) sum_valid_val v }}}
       sum_ser''' A.(s_serializer') B.(s_serializer') v @ c; E
     {{{ o, RET $o; if o is Some s then sum_is_ser v s else True }}} ? gwp_laters g.
-  Proof. Admitted.
+  Proof.
+    iIntros (Φ) "[% #Hv] HΦ".
+    iDestruct "Hv" as "[[Heq #Hw]|[Heq #Hw]]".
+    - rewrite /sum_ser'''. gwp_pures. iDestruct "Heq" as %->. gwp_pures.
+      gwp_apply (A.(s_ser_spec') with "Hw").
+      iIntros ([sA|]) "#HA'".
+      + gwp_pures. iApply ("HΦ" $! (Some _)). iExists w, sA. iLeft. auto.
+      + gwp_pures. by iApply ("HΦ" $! None).
+    - rewrite /sum_ser'''. gwp_pures. iDestruct "Heq" as %->. gwp_pures.
+      gwp_apply (B.(s_ser_spec') with "Hw").
+      iIntros ([sB|]) "#HB'".
+      + gwp_pures. iApply ("HΦ" $! (Some _)). iExists w, sB. iRight. auto.
+      + gwp_pures. by iApply ("HΦ" $! None).
+  Qed.
 
   Lemma sum_ser_spec E v c (serA serB : val) :
     (∀ vA,
@@ -1412,11 +1443,11 @@ Definition option_ser'' : val :=
 Definition option_ser''' (serA : val) : val :=
   λ: "v",
     match: "v" with
-      InjL "x" => #"N"
+      InjL "x" => SOME #"N"
     | InjR "x" =>
         match: serA "x" with
           NONE => NONEV
-        | SOME "a" => #"S_" ^ "a"
+        | SOME "a" => SOME (#"S_" ^ "a")
         end
     end.
 
@@ -1533,7 +1564,17 @@ Section option_serialization.
     G{{{ ▷?(gwp_laters g) option_valid_val v }}}
       option_ser''' A.(s_serializer') v @ c; E
     {{{ o, RET $o; if o is Some s then option_is_ser v s else True }}} ? gwp_laters g.
-  Proof. Admitted.
+  Proof.
+    iIntros (Φ) "Hv HΦ".
+    rewrite /option_valid_val /option_valid_val'. iDestruct "Hv" as "[Heq|(%w & Heq & #Hw)]".
+    - rewrite /option_ser'''. gwp_pures. iDestruct "Heq" as %->. gwp_pures.
+      iApply ("HΦ" $! (Some _)). iLeft. done.
+    - rewrite /option_ser'''. gwp_pures. iDestruct "Heq" as %->. gwp_pures.
+      gwp_apply (A.(s_ser_spec') with "Hw").
+      iIntros ([sA|]) "#HA'".
+      + gwp_pures. iApply ("HΦ" $! (Some _)). iRight. iExists w, sA. auto.
+      + gwp_pures. by iApply ("HΦ" $! None).
+  Qed.
 
   Lemma option_ser_spec E v c (serA : val) :
     (∀ vA,

@@ -1,6 +1,6 @@
 From auth.prelude Require Import stdpp.
 From auth.rel_logic_bin Require Export model spec_rules spec_tactics interp lib adequacy fundamental.
-From auth.heap_lang Require Import gen_weakestpre.
+From auth.heap_lang Require Import gen_weakestpre typedproph.
 From auth.heap_lang.lib Require Import list map.
 From auth.examples Require Export authentikit_susp authentikit_base_susp_security.
 From iris.base_logic.lib Require Export na_invariants.
@@ -16,11 +16,11 @@ Definition table_inv `{!invGS_gen hlc Σ} `{!tableG Σ} (N : namespace) (P : iPr
 Definition table_tok `{!invGS_gen hlc Σ} `{!tableG Σ} (E : coPset) :=
   na_own tableG_name E. *)
 
-Definition msizeUR := authUR natUR.
-Class msizeG Σ := MsizeG { msize_inG :> inG Σ msizeUR; msizeG_name : gname }.
-
 Definition idcntrUR := authUR nat.
 Class idcntrG Σ := IdcntrG { idcntr_inG :> inG Σ idcntrUR; idcntrG_name : gname }.
+
+(* Definition msizeUR := authUR natUR.
+Class msizeG Σ := MsizeG { msize_inG :> inG Σ msizeUR; msizeG_name : gname }.
 
 Lemma msize_alloc `{inG Σ msizeUR} :
   ⊢ |==> ∃ _ : msizeG Σ,
@@ -31,7 +31,7 @@ Proof.
   set (H1 := MsizeG _ _ γ).
   iExists _. iDestruct "Hauth" as "[$ $]".
   by iFrame.
-Admitted.
+Admitted. *)
 
 Lemma idcntr_alloc `{inG Σ idcntrUR} :
   ⊢ |==> ∃ _ : idcntrG Σ, (own idcntrG_name (●{DfracOwn (1/2)} 0) ∗ own idcntrG_name (●{DfracOwn (1/2)} 0))%I.
@@ -42,31 +42,38 @@ Proof.
   by iDestruct "Hauth" as "[$ $]".
 Admitted.
 
-Lemma state_alloc `{inG Σ stateUR} :
+(* Lemma state_alloc `{inG Σ stateUR} :
   ⊢ |==> ∃ _ : stateG Σ, (own stateG_name (● (∅, ∅)))%I.
 Proof.
   iMod (own_alloc ((● (∅, ∅)) : stateUR)) as (γ) "Hst"; [admit|].
   by iExists (StateG _ _ γ).
-Admitted.
+Admitted. *)
   
 Section proof.
-  Context `{!msizeG Σ, !idcntrG Σ, !stateG Σ, !authG Σ, !seqG Σ}.
+  Context `{!idcntrG Σ, !authG Σ, !seqG Σ}.
 
   Definition authBaseN : namespace := nroot .@ "susp_ver".
-  Definition authN (v : val) : namespace := authBaseN .@ v.
   Definition gmapN : namespace := authBaseN .@ "gmap".
   Definition tableN : namespace := authBaseN .@ "table".
   Definition tableLocSet : namespace := authBaseN .@ "tableloc".
   Definition tableLocN (susp : val) : namespace := tableLocSet .@ susp.
 
-  Definition lrel_auth := lrel_auth authBaseN.
-
-  Definition msize_auth (n : nat) : iProp Σ :=
+  (* Definition msize_auth (n : nat) : iProp Σ :=
     own msizeG_name (●{DfracOwn (1/2)} n) ∗ own msizeG_name (◯ n).
   Definition msize_frag (n : nat) : iProp Σ :=
-    own msizeG_name (●{DfracOwn (1/2)} n).
+    own msizeG_name (●{DfracOwn (1/2)} n). *)
 
   Definition idcntr_frag (n : nat) := own idcntrG_name (●{DfracOwn (1/2)} n).
+
+  Local Notation s_is_ser_proph := (s_is_ser_proph authBaseN).
+  Local Notation ser_spec_un := (ser_spec_un authBaseN).
+  Local Notation ser_spec_3 := (ser_spec_3 authBaseN).
+  Local Notation count_spec := (count_spec authBaseN).
+  Local Notation val_eq_rel := (val_eq_rel authBaseN).
+
+  Local Notation lrel_evidence := (lrel_evidence authBaseN).
+  Local Notation lrel_auth := (lrel_auth authBaseN).
+
 
   (* Definition proph_type : Type := nat * option unit.
 
@@ -161,61 +168,73 @@ Section proof.
     destruct v; simpl; [destruct u|]; f_equal.
   Qed. *)
 
-  Definition finish_spec1 (finish : val) (x a aᵥ aᵢ ser : val) (A : lrel Σ) : iProp Σ :=
-    ∀ (s : string) (E: coPset) (t1 t2 : evi_type),
-      ⌜↑authSerProofSet authBaseN ⊆ E⌝ -∗
-      {{{ seq_tok E ∗ count_is_correct t1 x 0 ∗ A aᵥ aᵢ ∗
-            ser_spec_3 ser t1 ∗ val_eq_rel authBaseN A t1 ∗ hashed s ∗
-            s_is_ser'' t2 aᵥ s ∗ ⌜a = InjLV #(hash s)⌝ }}}
+  Definition finish_spec1 (finish : val) (x a aᵥ aᵢ ser : val) (A : lrel_bi Σ) : iProp Σ :=
+    ∀ (s s' : string) (E: coPset) (t t' : evi_type),
+      ⌜↑authSet authBaseN ⊆ E⌝ -∗
+      {{{ seq_tok E ∗ ⌜a = InjLV #(hash s)⌝ ∗ hashed s ∗ ser_spec_3 ser t ∗ 
+          s_is_ser_proph t x s' ∗ s_is_ser'' t' aᵥ s ∗ lrel_bi_bin A aᵥ aᵢ }}}
+            (* ser_spec_3 ser t  ∗
+            val_eq_rel authBaseN (lrel_bi_bin A) ∗ val_eq_rel_un authBaseN (lrel_bi_un A) ∗ *)
+            (* s_is_ser'' t' aᵥ s ∗ ⌜a = InjLV #(hash s)⌝ }}} *)
         finish #()
         {{{ (o : option val), RET $o;
-            seq_tok E ∗ if o is None then True else A x aᵢ }}}.
+        (* We might prophesy that the filled-in value is the correct one,
+           But it is still possible that the value isn't actually filled. *)
+            seq_tok E ∗ if o is None then True else ⌜s = s'⌝ }}}.
 
-  Definition finish_spec2 (finish : val) (x a aᵥ aᵢ ser : val) (A : lrel Σ) : iProp Σ :=
-    ∀ (s1 s2 : string) (E: coPset) (susp : loc) (t1 t2 : evi_type),
-      {{{ seq_tok E ∗ count_is_correct t1 x 0 ∗ A aᵥ aᵢ ∗
-            ser_spec_3 ser t1 ∗ val_eq_rel authBaseN A t1 ∗ hashed s2 ∗
-            s_is_ser'' t2 aᵥ s1 ∗ ⌜a = InjRV #susp⌝ ∗ susp ↦□ InjRV #(hash s2) }}}
+  Definition finish_spec2 (finish : val) (x a aᵥ aᵢ ser : val) (A : lrel_bi Σ) : iProp Σ :=
+    ∀ (s s' h : string) (E: coPset) (t t' : evi_type) (susp : loc),
+      ⌜↑authSet authBaseN ⊆ E ∧ ↑tableN ⊆ E⌝ -∗
+      {{{ seq_tok E ∗ ⌜a = InjRV #susp⌝ ∗ ser_spec_3 ser t ∗ hashed s ∗
+          seq_inv (authN authBaseN susp) (auth_inv h susp) ∗
+          s_is_ser_proph t x s' ∗ s_is_ser'' t' aᵥ s ∗ lrel_bi_bin A aᵥ aᵢ ∗
+          ⌜h = some_ser_str (string_ser_str (hash s))⌝ }}}
+            (* ser_spec_3 ser t  ∗
+            val_eq_rel authBaseN (lrel_bi_bin A) ∗ val_eq_rel_un authBaseN (lrel_bi_un A) ∗ *)
+            (* s_is_ser'' t' aᵥ s ∗ ⌜a = InjLV #(hash s)⌝ }}} *)
         finish #()
         {{{ (o : option val), RET $o;
-            seq_tok E ∗ if o is None then True else ⌜s1 = s2⌝ -∗ val_eq t1 x aᵥ }}}.
-
-  (* Definition finish_spec (finish : val) (t : evi_type) (x : val) : iProp Σ :=
-    ∀ (E : coPset) (ser av ai : val),
-      ⌜↑authSerProofSet authBaseN ⊆ E⌝ -∗ ⌜↑tableN ⊆ E⌝ -∗ ⌜↑tableLocSet ⊆ E⌝ -∗
-      {{{ A av ai ∗ ser_spec_3 ser t ∗ seq_tok E ∗ count_is_correct t x 0 }}}
-        finish #() @ E
-        {{{ (o : option val), RET $o;
-            seq_tok E ∗ if o is None then ⌜True⌝ else
-                (A x ai ∗ val_eq t x av) }}}. *)
+        (* We might prophesy that the filled-in value is the correct one,
+           But it is still possible that the value isn't actually filled. *)
+            seq_tok E ∗ if o is None then True else ⌜s = s'⌝ }}}.
 
   Definition susp_big_sep (m : gmap val val) : iProp Σ :=
     [∗ map] k ↦ v ∈ m,
-      ∃ (id ctr : nat) (finish ctrv x a aᵥ aᵢ ser : val) (t : evi_type) (A : lrel Σ) (b : bool),
-        (⌜k = #id ∧ ctrv = #ctr ∧ ctr > 0 ∧ v = (ctrv, finish)%V⌝ ∗ A aᵥ aᵢ ∗
-           count_is_correct t x ctr ∗ single_instance id t x aᵥ None b ∗
-           (∃ (h: string), (⌜a = InjLV #h⌝ ∗ finish_spec1 finish x a aᵥ aᵢ ser A) ∨
-                             (∃ (susp : loc), ⌜a = InjRV #susp⌝ ∗ susp↦□ InjRV #h ∗
-                                                finish_spec2 finish x a aᵥ aᵢ ser A))).
+      ∃ (ctr : nat) (finish x a aᵥ aᵢ ser : val) (t : evi_type) (A : lrel_bi Σ) (s : string),
+        (⌜ctr > 0 ∧ v = (#ctr, finish)%V⌝ ∗ 
+            lrel_bi_un A x ∗ ser_spec_3 ser t ∗
+            ((⌜a = InjLV #(hash s)⌝ ∗ hashed s ∗ finish_spec1 finish x a aᵥ aᵢ ser A) ∨ 
+              (∃ (susp : loc), ⌜a = InjRV #susp⌝ ∗ finish_spec2 finish x a aᵥ aᵢ ser A ∗
+                seq_inv (authN authBaseN susp) (auth_inv s susp)))).
+           (* ∨ (∃ (susp : loc), ⌜a = InjRV #susp⌝ ∗ susp↦□ InjRV #h ∗
+                                                finish_spec2 finish x a aᵥ aᵢ ser A))). *)
       
   Definition is_susp_table (l : loc) : iProp Σ :=
-    ∃ (d : val) (m : gmap val val) (s c : nat),
-      l ↦ d ∗ ⌜is_map d m s⌝ ∗ susp_big_sep m ∗ msize_auth s ∗
-        idcntr_frag c ∗ (∀ (id : nat), ⌜id ≥ c → m !! #id = None⌝).
+    ∃ (d : val) (m : gmap val val),
+      l ↦ d ∗ ⌜is_map d m⌝ ∗ susp_big_sep m.
+        (* idcntr_frag c ∗ (∀ (id : nat), ⌜id ≥ c → m !! #id = None⌝) *)
 
-  Definition in_susp_table (l : loc) (id : nat) : iProp Σ :=
+  (* Definition in_susp_table (l : loc) (id : nat) : iProp Σ :=
     ∃ (d v : val) (m : gmap val val) (s : nat),
-      is_susp_table l -∗ l ↦ d ∗ ⌜is_map d m s⌝
+      is_susp_table l -∗ l ↦ d ∗ ⌜is_map d m⌝
       -∗ is_susp_table l ∗ ⌜m !! #id = Some v⌝.
 
   Definition not_in_susp_table (l : loc) (id : nat) : iProp Σ :=
     ∃ (d : val) (m : gmap val val) (s : nat),
       is_susp_table l -∗ l ↦ d ∗ ⌜is_map d m s⌝
-      -∗ is_susp_table l ∗ ⌜m !! #id = None⌝.
+      -∗ is_susp_table l ∗ ⌜m !! #id = None⌝. *)
 
   Definition inv_susp_table (l: loc) := seq_inv tableN (is_susp_table l).
 
-  Definition count_inv (cnt : nat) (m : mapUR) (lm : locPidMapUR) :=
+  (* Lemma idcntr_update (cnt : nat) :
+    idcntr_frag cnt ∗ idcntr_frag cnt ==∗ idcntr_frag (cnt + 1) ∗ idcntr_frag (cnt + 1).
+  Proof. Admitted.
+
+  Lemma idcntr_agree (cnt cnt' : nat) :
+    idcntr_frag cnt ∗ idcntr_frag cnt' -∗ ⌜cnt = cnt'⌝ ∗ idcntr_frag cnt ∗ idcntr_frag cnt'.
+  Proof. Admitted. *)
+
+  (* Definition count_inv (cnt : nat) (m : mapUR) (lm : locPidMapUR) :=
     ∀ (id : nat),
       id ≥ cnt →
       (m !! id = None ∧
@@ -349,7 +368,7 @@ Section proof.
 
     iDestruct "Hfull" as "[Hcntfrag Hidauth]".
     by iFrame.
-  Qed.
+  Qed. *)
     
 (*  Definition proph_list (vs : val) : iProp Σ :=
     ∃ (m: gmap int proph_id),
@@ -365,7 +384,7 @@ Section proof.
       .*)
 
   Lemma v_finish_spec1 :
-    ∀ (a aᵥ aᵢ x ser : val) (st : loc) (A : lrel Σ),
+    ∀ (a aᵥ aᵢ x ser : val) (st : loc) (A : lrel_bi Σ),
       {{{ inv_susp_table st }}}
         v_finish #st a x ser
         {{{ (finish : val), RET finish;
@@ -375,31 +394,156 @@ Section proof.
     rewrite /v_finish.
     wp_pures. iModIntro. iApply "HΦ".
     rewrite /finish_spec1.
-    iIntros (?????).
-    iIntros (?) "!# (Htok & Hcount & #HA & #Hserspec & #Hrel & #hashs & #Hser & %) HΦ".
-    wp_pures. wp_apply ("Hserspec" with "[$Hcount $Htok]").
+    iIntros (??????).
+    iIntros (?) "!# (Htok & % & #hashs & #Hserspec & Hserproph & Hser & #HA) HΦ".
+    (* iIntros (?) "!# (Htok & Hserproph & #HA & #Hserspec & #hashs & #Hrel_bin & #Hrel_un & #Hser & %) HΦ". *)
+    wp_pures. wp_apply ("Hserspec" with "[//] [$Hserproph $Htok]").
     iIntros ([]); last first.
     { iIntros "(Htok & #Hsers)". wp_pures.
       iModIntro. iApply ("HΦ" $! None). eauto. }
-    iIntros "(Htok & #Hsers)". wp_pures.
-    simplify_eq. wp_pures.
-    wp_apply (wp_hash); try done.
-    iIntros "#hashs0". wp_pures.
+    iIntros "(Htok & #[[% #Hsers]|%])"; simplify_eq; wp_pures;
+    wp_apply (wp_hash); try done;
+    iIntros "#hashs0"; wp_pures;
     case_bool_decide; simplify_eq; wp_pures;
-      try ( iApply ("HΦ" $! None); eauto ).
 
-    destruct (decide (collision s s0)) as [|Hnc%not_collision];
-      try (iExFalso; by iApply (hashes_auth.hashed_inj_or_coll with "hashs hashs0") ).
+    destruct (decide (collision s s')) as [|Hnc%not_collision];
+      try (iExFalso; by iApply (hashes_auth.hashed_inj_or_coll with "hashs hashs0") );
     destruct Hnc as [<-|?]; simplify_eq.
-    iPoseProof (evi_type_ser''_inj authBaseN with "[Hsers] Hser") as "Heq";
-      try (iLeft; iFrame "#").
-    iApply ("HΦ" $! (Some _)).
-    iPoseProof (val_eq_sym authBaseN with "Heq") as "Heq1".
-    iMod ("Hrel" with "[] [Htok]") as "(Htok & Heq2)";
-      iFrame "∗ #"; try done.
+    - iApply ("HΦ" $! (Some _)). by iFrame "∗ #".
+    - iApply ("HΦ" $! None); by iFrame "∗ #".
+
+    (* iPoseProof "HA" as "[HA_bin HA_un]".
+    iMod ("Hrel_bin" with "[//] Htok [Hsers] Hser HA_bin") as "[Htok HA'_bin]".
+    { by iLeft. }
+    iMod ("Hrel_un" with "[//] Htok [Hsers] Hser HA_un") as "[Htok HA'_un]".
+    { by iLeft. }
+
+    iApply ("HΦ" $! (Some _)). by iFrame "∗ #". *)
   Qed.
-    
+
   Lemma v_finish_spec2 :
+    ∀ (a aᵥ aᵢ x ser : val) (st : loc) (A : lrel_bi Σ),
+      {{{ inv_susp_table st }}}
+        v_finish #st a x ser
+        {{{ (finish : val), RET finish;
+            finish_spec2 finish x a aᵥ aᵢ ser A }}}.
+  Proof.
+    iIntros (????????) "#Htab HΦ".
+    rewrite /v_finish.
+    wp_pures. iModIntro. iApply "HΦ".
+    rewrite /finish_spec1.
+    iIntros (???????[??]).
+    iIntros (?) "!# (Htok & % & #Hserspec & #hashs & #Hinv & #Hserproph & #Hser & #HA & %) HΦ".
+    wp_pures. wp_apply ("Hserspec" with "[//] [$Hserproph $Htok]").
+    iIntros ([]); last first.
+    { iIntros "(Htok & #Hsers)". wp_pures.
+      iModIntro. iApply ("HΦ" $! None). eauto. }
+    iIntros "(Htok & #[[% Hsers]|%])"; simplify_eq; wp_pures.
+    iMod (na_inv_acc with "Hinv Htok") as "(Hinv1 & Htok & Hclose)"; [solve_ndisj|solve_ndisj|].
+    iDestruct "Hinv1" as ">[(%&%& #hashs1 & %& #Hsusp & %Hser)|(%&%&%& Hsusp & Hproph & %Hser)]";
+      wp_load; wp_pures; destruct! Hser; simplify_eq.
+    - iMod ("Hclose" with "[$Htok]") as "Htok".
+      { iNext. iLeft. iFrame "hashs #". iSplit; try done.
+        iRight. repeat iExists _. iSplit; eauto. }
+      wp_apply wp_hash; try done;
+      iIntros "#hashs0"; wp_pures.
+      destruct (decide (collision s1 s)) as [|Hnc%not_collision];
+        try (iExFalso; by iApply (hashes_auth.hashed_inj_or_coll with "hashs1 hashs") );
+      destruct Hnc as [<-|?]; simplify_eq.
+
+      case_bool_decide; simplify_eq; wp_pures;
+
+      destruct (decide (collision s1 s')) as [|Hnc%not_collision];
+        try (iExFalso; by iApply (hashes_auth.hashed_inj_or_coll with "hashs1 hashs0") );
+      destruct Hnc as [<-|?]; simplify_eq.
+      + iApply ("HΦ" $! (Some _)). by iFrame "∗ #".
+      + iApply ("HΦ" $! None); by iFrame "∗ #".
+    
+    - wp_apply wp_hash; try done; iIntros "#hashs0"; wp_pures.
+      wp_apply (typed_proph_wp_resolve1 StringTypedProph with "Hproph"); try done.
+      wp_pures. iModIntro. iIntros (->). wp_pures.
+
+      iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
+      iDestruct "Htabo" as (??) "(Hl & >%Hm & #Hbigsep)".
+      wp_apply wp_hash; try done; iIntros "_"; wp_pures; wp_store.
+      iMod (pointsto_persist with "Hsusp") as "#Hsusp".
+
+      wp_load. wp_bind (map_lookup _ _).
+      wp_apply (gwp_map_lookup with "[//]"); try done.
+      iIntros (??). destruct (m !! #pid) eqn:Hlookup;
+        simpl in H1; simplify_eq; wp_pures; last first.
+      { iMod ("Hclose_tab" with "[$Hl $Hbigsep $Htok //]") as "Htok".
+        iMod ("Hclose" with "[$Htok]") as "Htok".
+        { iNext. iLeft. iFrame "#". iSplit; eauto.
+          iRight. repeat iExists _. iSplit; eauto. }
+        iApply ("HΦ" $! None). by iFrame. }
+
+      iDestruct (big_sepM_lookup with "Hbigsep") as "[% Hs]"; [done|subst].
+      iDestruct "Hs" as (????????? Hv) 
+        "(#HA' & Hserspec' & [(%&hashs'&Hfinish)|(%&%&Hfinish&Hinvx)])";
+        destruct! Hv; simplify_eq; wp_pures;
+        case_bool_decide; simplify_eq; wp_pures; wp_load;
+        wp_bind (map_remove _ _); wp_apply (gwp_map_remove with "[//]");
+        try done; iIntros (??); wp_store; wp_pures;
+        iDestruct (big_sepM_delete _ m #pid ((#ctr, finish)%V) with "Hbigsep")
+          as "[_ #Hbigsep']"; try done.
+      1,3: (* First branch of the if *)
+        iMod ("Hclose_tab" with "[$Hl $Hbigsep' $Htok]") as "Htok".
+        1,3: iNext; iFrame "%".
+      1,2: (* refocus on first branch *)
+        iMod ("Hclose" with "[$Htok]") as "Htok";
+        try (iNext; iLeft; iFrame "hashs0 #"; iSplit; eauto;
+              iRight; repeat iExists _; iSplit; eauto);
+        wp_apply ("Hfinish" with "[] [$Htok]"); try done
+        iFrame "#"; eauto.
+      all: (* else branch *)
+        wp_load; wp_pures; wp_bind (map.map_insert _ _ _);
+        wp_apply (gwp_map_insert with "[//]"); try done;
+        iIntros (??); wp_store;
+        iDestruct (big_sepM_insert _ (delete #pid m) #pid ((#(ctr-1), finish)%V) with "[$Hbigsep']")
+          as "Hbigsep''"; try apply lookup_delete; 
+          iFrame "#"; repeat iExists _.
+        1,3: 
+          iSplit; try (iPureIntro; instantiate (1 := ctr-1); split; repeat f_equal; try lia);
+            eauto; admit. (* ctr - 1 > 0 *)
+      all:
+        iMod ("Hclose_tab" with "[$Hl $Hbigsep'' $Htok $Hfrag]") as "Htok";
+          iFrame "%";
+        iMod ("Hclose" with "[$Htok]") as "Htok";
+        try (iNext; iLeft; iFrame "hashs0 #"; iSplit; eauto;
+              iRight; repeat iExists _; iSplit; eauto);
+        iModIntro; by iApply ("HΦ" $! (Some _)).
+  Admitted.
+
+  (* Lemma v_finish_spec1_bad :
+    ∀ (a x ser : val) (st : loc),
+      {{{ inv_susp_table st }}}
+        v_finish #st a x ser
+        {{{ (finish : val), RET finish;
+            finish_spec1_bad finish x a ser }}}.
+  Proof.
+    iIntros (?????) "#Htab HΦ".
+    rewrite /v_finish.
+    wp_pures. iModIntro. iApply "HΦ".
+    rewrite /finish_spec1.
+    iIntros (?????).
+    iIntros (?) "!# (Htok & Hserproph & #Hserspec & #hashs & % & Hval) HΦ".
+    wp_pures. wp_apply ("Hserspec" with "[//] [$Hserproph $Htok]").
+    iIntros ([]); last first.
+    { iIntros "(Htok & #Hsers)". wp_pures.
+      iModIntro. iApply ("HΦ" $! None). eauto. }
+    iDestruct "Hval" as "[%|(%&%& Hsusp)]";
+      iIntros "(Htok & #[[% Hsers]|%])"; simplify_eq; wp_pures; [|wp_load; wp_pures];
+      wp_apply (wp_hash); try done; iIntros "#hashs0"; wp_pures;
+
+      destruct (decide (collision s1 s2)) as [|Hnc%not_collision];
+        try ( iExFalso; by iApply (hashes_auth.hashed_inj_or_coll with "hashs0 hashs"));
+        destruct Hnc as [<-|?]; simplify_eq;
+        case_bool_decide; wp_pures; simplify_eq;
+        iApply ("HΦ" $! None); eauto.
+  Qed. *)
+    
+  (* Lemma v_finish_spec2 :
     ∀ (a x aᵥ aᵢ ser : val) (st : loc) (A : lrel Σ),
       {{{ inv_susp_table st }}}
         v_finish #st a x ser 
@@ -430,205 +574,6 @@ Section proof.
     iFrame.
     iModIntro. iIntros (->).
     iApply (evi_type_ser''_inj authBaseN); [by iLeft|done].
-  Qed.
-
-  (* Lemma v_finish_spec_2 :
-    ∀ (st : loc) (a a1 a2 x ser : val) (t : evi_type) (pid: nat) (susp : loc) (E : coPset) (A : lrel Σ),      
-      inv_susp_table st ⊢
-        {{{ ⌜a = InjRV #susp⌝ ∗ susp ↦ InjLV #pid ∗
-              ser_spec_3 ser t ∗ A a1 a2 }}}
-        v_finish #st a x ser @ E
-        {{{ (finish : val), RET finish;
-            finish_spec2 finish t x }}}.
-  Proof.
-    iIntros (???????????) "#Htab".
-    iIntros (?) "!# (% & Hsusp & #Hserspec & #HA) HΦ".
-    rewrite /v_finish.
-    simplify_eq. wp_pures. iModIntro.
-    iApply "HΦ". iFrame.
-    rewrite /finish_spec2.
-    iIntros (??????) "!# (Htok & Hcount & Hval) HΦ".
-    wp_pures.
-    wp_apply ("Hserspec" with "[$Hcount $Htok]").
-    iIntros ([]); last first.
-    { iIntros "(Htok & _)". wp_pures.
-      iModIntro. iApply ("HΦ" $! None). iFrame. }
-
-    iIntros "(Htok & #Hsers)". wp_pures.
-    wp_load. wp_pures.
-
-    iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok_tab & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
-    wp_pures.
-    iDestruct "Htabo" as (??) "(Hl & >%Hismap & #Hmap)".
-    wp_load.
-    wp_apply (gwp_map_lookup #pid d m); [done|done|].
-    iIntros (? hoption).
-    (* iMod ("Hclose" with "[Htok Hmap Hl]") as "Htok".
-        { by iFrame. } *)
-    destruct (m !! #pid) as [a|] eqn:Hlookup; last first.
-    { simpl in hoption. simplify_eq. wp_pures. iApply ("HΦ" $! None).
-      iMod ("Hclose_tab" with "[Htok_tab Hmap Hl]") as "Htok"; [by iFrame "# ∗"|by iFrame]. }
-
-    iDestruct (big_sepM_lookup with "Hmap") as (?????? Hf) "(Hcountp & Hfinish)"; [done|].
-    destruct! Hf. simplify_eq.
-    
-    simpl in hoption. simplify_eq. wp_pures.
-    case_bool_decide; simplify_eq.
-    - wp_pures. wp_load. wp_bind (map_remove _ _)%E.
-      iApply (gwp_map_remove _ _ #pid0 _ m with "[]"); [done|done|].
-      iIntros (??).
-      iModIntro. wp_store.
-      wp_apply (wp_hash); [done|].
-      iIntros "#hashs". wp_pures.
-      wp_store.
-      simplify_eq.
-      iMod (pointsto_persist with "Hsusp") as "#Hsusp".
-      iMod ("Hclose_tab" with "[Htok_tab Hl]") as "Htok".
-      { iFrame. iModIntro.
-        iExists (delete _ _). iFrame "%".
-        iApply (big_sepM_subseteq _ m); [by apply delete_subseteq|done]. }
-
-      iDestruct "Hfinish" as "[(%&%&%& Hfinish)|(%&%&Hfinish&Hinv)]".    
-      + wp_apply ("Hfinish" with "[//] [//] [$Htok $Hcountp]").
-        iIntros ([]) "Htok"; last first.
-        { iApply ("HΦ" $! None). iFrame. }
-        iDestruct "Htok" as "(Htok & Heq)".
-        iApply ("HΦ" $! (Some _)). iFrame "∗ #".
-
-      + iMod (na_inv_acc with "Hinv Htok") as "(Hsuspo & Htok & Hclose_susp)"; [solve_ndisj|solve_ndisj|].
-        iApply ("Hfinish" $! (E0 ∖ ↑tableLocN susp0) with "[] [] [] [] [Hsuspo Htok Hcountp] []").
-
-        * wp_pures. wp_apply (wp_hash); [done|].
-          iIntros "#hashs". wp_pures.
-          wp_store. wp_load.
-          wp_bind (map_remove _ _)%E.
-          iApply (gwp_map_remove _ _ #pid0 _ m with "[]"); [done|done|].
-          iIntros (??).
-          iModIntro. wp_store. wp_load. wp_pures.
-          wp_bind (map.map_insert _ _ _).
-          iApply (gwp_map_insert #pid0 _ d' _ _ _ with "[//]"); [done|].
-          iModIntro. iIntros (??).
-          wp_store.
-
-          iMod ("Hclose_tab" with "[Htok_tab Hl]") as "Htok".
-          { iFrame. iModIntro.
-            iExists (<[#pid0:=(#(ctr - 1), finish)%V]> (delete #pid0 m)). iFrame "%".
-            iApply big_sepM_insert; [by apply lookup_delete|].
-            iFrame "# %". iSplit.
-            { iExists _,_,_. iSplit; [done|]. instantiate (2 := (ctr - 1)).
-              iSplit; [done|].
-              iPureIntro. assert (ctr > 1).
-              { destruct ctr; [lia|].
-                simpl in H1. destruct ctr; try lia. done. }
-              split; [lia|].
-              f_equal. f_equal. rewrite Nat2Z.inj_sub; auto. }
-
-            iPoseProof (big_sepM_delete _ m #pid0 _ with "Hmap") as "(Hpid & Hmapdel)"; [done|iFrame "#"]. }            
-
-          iMod (pointsto_persist with "Hsusp") as "#Hsusp".
-          iMod ("Hclose" with "[$Htok Hsers Hsusp]") as "Htok".
-          { iLeft. iNext. iFrame "# ∗". }
-
-          iModIntro. by iApply ("HΦ" $! (Some _)).
-
-    iDestruct "Hval" as "[->|(% & -> & Hsusp)]"; [wp_pures|wp_load; wp_pures];
-      wp_apply (wp_hash); try done;
-      iIntros "#hashs0"; wp_pures;
-      case_bool_decide; simplify_eq; wp_pures;
-      try ( iApply ("HΦ" $! None); eauto );
-      destruct (decide (collision s s0)) as [|Hnc%not_collision];
-      try (iExFalso; by iApply (hashes_auth.hashed_inj_or_coll with "hashs hashs0") );
-      destruct Hnc as [<-|?]; simplify_eq;
-      
-      iPoseProof (evi_type_ser''_inj authBaseN with "[Hsers] Hser") as "Heq";
-      try (iLeft; iFrame "#");
-      iApply ("HΦ" $! (Some _)); iFrame "#";
-      iPoseProof (val_eq_sym authBaseN with "Heq") as "Heq1";
-      iPoseProof ("Hrel" with "[Htok]") as "H"; iFrame "∗ #";
-      iDestruct "H" as ">(H1 & H2)"; by iFrame. *)
-
-                              
-(*    - wp_pures. wp_bind (!_)%E.
-      iMod (na_inv_acc with "Hinv Htok") as "(Hinv1 & Htok & Hclose)"; [done|done|].
-      iDestruct "Hinv1" as "[(%&#hashs1&#Hsusp)|(%&Hsusp)]"; wp_load.
-      + iMod ("Hclose" with "[$Htok Hser1]") as "Htok".
-        { iLeft. iNext. iFrame "# ∗". }
-        wp_pures. wp_apply (wp_hash); [done|].
-        iIntros "#hashs". wp_pures.
-        case_bool_decide; simplify_eq; wp_pures; iModIntro; last first.
-        { iApply ("HΦ" $! None). iFrame. }
-        destruct (decide (collision s s0)) as [|Hnc%not_collision].
-        { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "hashs hashs1"). }
-        destruct Hnc as [<-|?]; simplify_eq.
-        by iApply ("HΦ" $! (Some _)).
-      + iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok_tab & Hclose_tab)"; [done|solve_ndisj|].
-        wp_pures.
-        iDestruct "Htabo" as (??) "(Hl & %Hismap & #Hmap)".
-        wp_load.
-        wp_apply (gwp_map_lookup #pid d m); [done|done|].
-        iIntros (? hoption).
-        (* iMod ("Hclose" with "[Htok Hmap Hl]") as "Htok".
-        { by iFrame. } *)
-        destruct (m !! #pid) as [a|] eqn:Hlookup; last first.
-        { simpl in hoption. simplify_eq. wp_pures. iApply ("HΦ" $! None).
-          iMod ("Hclose_tab" with "[Htok_tab Hmap Hl]") as "Htok"; [by iFrame "# ∗"|].
-          iMod ("Hclose" with "[Htok Hsusp]") as "Htok"; by iFrame. }
-
-        iDestruct (big_sepM_lookup with "Hmap") as (??????) "Hfinish"; [done|].
-        destruct! H. simplify_eq.
-
-        simpl in hoption. simplify_eq. wp_pures.
-        case_bool_decide; simplify_eq.
-        * wp_pures. wp_load. wp_bind (map_remove _ _)%E.
-          iApply (gwp_map_remove _ _ #pid0 _ m with "[]"); [done|done|].
-          iIntros (??).
-          iModIntro. wp_store.
-          wp_apply (wp_hash); [done|].
-          iIntros "#hashs". wp_pures.
-          wp_store.
-          simplify_eq.
-          iMod (pointsto_persist with "Hsusp") as "#Hsusp".
-          iMod ("Hclose_tab" with "[Htok_tab Hl]") as "Htok".
-          { iFrame. iModIntro.
-            iExists (delete _ _). iFrame "%".
-            iApply (big_sepM_subseteq _ m); [by apply delete_subseteq|done]. }
-          iMod ("Hclose" with "[$Htok Hsers Hsusp]") as "Htok".
-          { iLeft. iNext. iFrame "# ∗". }
-
-          by iApply ("Hfinish" with "Htok").
-
-        * wp_pures. wp_apply (wp_hash); [done|].
-          iIntros "#hashs". wp_pures.
-          wp_store. wp_load.
-          wp_bind (map_remove _ _)%E.
-          iApply (gwp_map_remove _ _ #pid0 _ m with "[]"); [done|done|].
-          iIntros (??).
-          iModIntro. wp_store. wp_load. wp_pures.
-          wp_bind (map.map_insert _ _ _).
-          iApply (gwp_map_insert #pid0 _ d' _ _ _ with "[//]"); [done|].
-          iModIntro. iIntros (??).
-          wp_store.
-
-          iMod ("Hclose_tab" with "[Htok_tab Hl]") as "Htok".
-          { iFrame. iModIntro.
-            iExists (<[#pid0:=(#(ctr - 1), finish)%V]> (delete #pid0 m)). iFrame "%".
-            iApply big_sepM_insert; [by apply lookup_delete|].
-            iFrame "# %". iSplit.
-            { iExists _,_,_. iSplit; [done|]. instantiate (2 := (ctr - 1)).
-              iSplit; [done|].
-              iPureIntro. assert (ctr > 1).
-              { destruct ctr; [lia|].
-                simpl in H1. destruct ctr; try lia. done. }
-              split; [lia|].
-              f_equal. f_equal. rewrite Nat2Z.inj_sub; auto. }
-
-            iPoseProof (big_sepM_delete _ m #pid0 _ with "Hmap") as "(Hpid & Hmapdel)"; [done|iFrame "#"]. }            
-
-          iMod (pointsto_persist with "Hsusp") as "#Hsusp".
-          iMod ("Hclose" with "[$Htok Hsers Hsusp]") as "Htok".
-          { iLeft. iNext. iFrame "# ∗". }
-
-          iModIntro. by iApply ("HΦ" $! (Some _)).
   Qed. *)
 
   Definition is_proof (v : val) : iProp Σ :=
@@ -637,25 +582,36 @@ Section proof.
   Definition is_proof_state (v : val) (counter : nat) : iProp Σ :=
     ∃ prf, ⌜v = (prf, #counter)%V⌝ ∗ is_proof prf.
 
-  Definition lrel_auth_comp_post (A : lrel Σ) : lrel Σ :=
-    LRel (λ v1 a2, ∃ a1 prf1 counter, ⌜v1 = (prf1, a1)%V⌝ ∗ is_proof_state prf1 counter ∗ A a1 a2)%I.
+  Definition lrel_auth_comp_post (A : lrel_bi Σ) : lrel Σ :=
+    LRel (λ v1 a2, ∃ a1 prf1 counter, ⌜v1 = (prf1, a1)%V⌝ ∗ 
+      is_proof_state prf1 counter ∗ A a1 a2)%I.
 
-  Definition lrel_auth_comp_post_bad (A : lrel Σ) : lrel Σ :=
-    LRel (λ v1 v2, ∃ a1 prf1 x counter,
-          ⌜v1 = (prf1, x)%V⌝ ∗ is_proof_state prf1 counter ∗ A a1 v2)%I.
+  Definition lrel_auth_comp_post_bad (A_un : lrel_un Σ) : lrel_un Σ :=
+    LRelUn (λ v1, ∃ prf1 x counter,
+          ⌜v1 = (prf1, x)%V⌝ ∗ is_proof_state prf1 counter ∗ A_un x)%I.
 
-  Definition lrel_auth_comp' (A : lrel Σ) : lrel Σ := LRel (λ v1 v2,
-    ∀ t K (w w' : val) m lm (cntr l1 : nat),
-      {{{ spec_ideal t (fill K (v2 w')) ∗ seq_tok ⊤ ∗ is_proof_state w cntr ∗
-            global_state cntr m lm ∗ msize_frag l1 }}}
+  Definition lrel_bin_auth_comp' (A : lrel_bi Σ) : lrel Σ := LRel (λ v1 v2,
+    ∀ t K (w w' : val) (cntr : nat),
+      {{{ spec_ideal t (fill K (v2 w')) ∗ seq_tok ⊤ ∗ is_proof_state w cntr ∗ idcntr_frag cntr }}}
         v1 w
       {{{ (o1 : option val), RET $o1;
           seq_tok ⊤ ∗
             if o1 is Some w1 then
-              ∃ (w2 a prfst prf : val) (cntr' l2 : nat) m' lm',
-                spec_ideal t (fill K w2) ∗ ⌜w1 = (prfst, a)%V ∧ prfst = (prf, #cntr')%V⌝ ∗
-                  global_state cntr' m' lm' ∗ msize_frag l2 ∗
-                  ((⌜l2 = 0⌝ ∗ lrel_auth_comp_post A w1 w2) ∨ (⌜l2 ≠ 0⌝ ∗ lrel_auth_comp_post_bad A w1 w2))
+              ∃ (a prfst prf : val) (cntr' : nat),
+                 ⌜w1 = (prfst, a)%V ∧ prfst = (prf, #cntr')%V⌝ ∗ idcntr_frag cntr' ∗
+                  ((∃ (w2 : val), spec_ideal t (fill K w2) ∗ lrel_auth_comp_post A w1 w2) ∨ lrel_auth_comp_post_bad (lrel_bi_un A) w1)
+            else True }}})%I.
+
+  Definition lrel_un_auth_comp' (A_un : lrel_un Σ) : lrel_un Σ := LRelUn (λ v1,
+    ∀ (w : val) (cntr : nat),
+      {{{ seq_tok ⊤ ∗ is_proof_state w cntr ∗ idcntr_frag cntr }}}
+        v1 w
+      {{{ (o1 : option val), RET $o1;
+          seq_tok ⊤ ∗
+            if o1 is Some w1 then
+              ∃ (a prfst prf : val) (cntr' : nat),
+                ⌜w1 = (prfst, a)%V ∧ prfst = (prf, #cntr')%V⌝ ∗ idcntr_frag cntr' ∗
+                  lrel_auth_comp_post_bad A_un w1
             else True }}})%I.
 
   (* Definition lrel_auth_comp_bad : lrel Σ := LRel (λ v1 v2,
@@ -665,501 +621,478 @@ Section proof.
       {{{ (o1 : option val), RET $o1;
           seq_tok ⊤ ∗
             if o1 is Some w1 then lrel_auth_comp_post_bad w1 v2
-            else True }}})%I.
+            else True }}})%I. *)
 
-  Definition lrel_auth_comp' (A : lrel Σ) : lrel Σ := LRel (λ v1 v2,
-    (lrel_auth_comp_good A v1 v2 ∨ lrel_auth_comp_bad v1 v2))%I. *)
+  Definition lrel_auth_comp' (A : lrel_bi Σ) : lrel_bi Σ :=
+    LRelBi (lrel_un_auth_comp' (lrel_bi_un A)) (lrel_bin_auth_comp' A).
         
   Program Definition lrel_auth_comp : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_auth_comp' A.
   Next Obligation.
-    intros ??? ???. rewrite /lrel_car /=.
-    do 49 f_equiv; solve_proper.
+    intros ????. split; [intros ?|intros ??];
+      rewrite /lrel_car/= /lrel_un_car/= /lrel_un_auth_comp' /lrel_bin_auth_comp';
+      do 25 f_equiv; first solve_proper.
+    do 10 f_equiv; solve_proper.
   Qed.
 
-  Definition lrel_hash_fail_option' (A : lrel Σ) : lrel Σ := LRel (λ v1 v2,
+  (* Definition lrel_hash_fail_option' (A : lrel Σ) : lrel Σ := LRel (λ v1 v2,
     (A v1 v2 ∨ (∃ x, A x v2)))%I.
 
   Program Definition lrel_hash_fail_option : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_hash_fail_option' A.
   Next Obligation.
     intros ??????. rewrite /lrel_car /=.
     solve_proper.
-  Qed.    
+  Qed.    *)
   
-  Definition auth_ctx {Θ} (Δ : ctxO Σ Θ) := ext (ext (ext Δ lrel_hash_fail_option) lrel_auth) lrel_auth_comp.
+  Definition auth_ctx {Θ} (Δ : ctxO Σ Θ) := ext (ext Δ lrel_auth) lrel_auth_comp.
+
+  Lemma refines_un_auth_return Θ (Δ : ctxO Σ Θ) (A : kindO Σ ⋆) v :
+    lrel_bi_un A v -∗
+    lrel_bi_un (⟦ var1 ⟧ (ext (auth_ctx Δ) A) A) (λ: "pf", InjR ("pf", v))%V.
+  Proof.
+    iIntros "#HA".
+    rewrite interp_var1_ext2.
+    iIntros (?? Ψ) "!# (Htok & %H & Hid) HΨ".
+    simpl in H. destruct H as (? & -> & Hp).
+    wp_pures. iModIntro. iApply ("HΨ" $! (Some _)).
+    iFrame "Htok". iExists _, _, _, _.
+    iSplit; first done. iFrame.
+    iExists _, _. iFrame "HA".
+    iExists _. iSplit; [done|]. rewrite /is_proof_state.
+    eauto.
+  Qed.
 
   Lemma refines_auth_return Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆, var0 → var1 var0 ⟧ (auth_ctx Δ) v_return i_return.
   Proof.
-    iIntros (A ??) "!# _".
-    iIntros (??) "(Hi & Htok)".
-    rewrite /v_return /i_return.
-    i_pures; wp_pures.
-    iModIntro. iFrame.
-    iIntros (??) "!# #HA".
-    iIntros (??) "(Hi & Htok)".
-    i_pures; wp_pures.
-    iModIntro. iFrame. clear.
-    interp_unfold!.
-    iIntros (???????? Ψ) "!# (Hi & Htok & % & Hst & Hs) HΨ".
-    simpl in H. destruct H as (? & -> & Hp).
-    i_pures; wp_pures.
-    iModIntro. iApply ("HΨ" $! (Some _)).
-    iFrame "Htok".
-    iExists _, _, _, _. iFrame. iSplit; first done.
-    destruct (decide (l1 = 0)); iFrame "%".
-    - iLeft. iExists _, _.
-      interp_unfold in "HA".
-      iFrame "HA".
-      iExists _. iSplit; [done|]. rewrite /is_proof_state.
-      eauto.
-    - iRight. do 4 iExists _.
-      interp_unfold in "HA".
-      iFrame "HA". done.
+    iSplit; interp_unfold!.
+    { iIntros (A ??) "!# _".
+      iIntros (??) "(Hi & Htok)".
+      rewrite /v_return /i_return.
+      i_pures; wp_pures.
+      iModIntro. iFrame.
+      iSplit; interp_unfold!.
+      { iIntros (??) "!# #HA".
+        iIntros (??) "(Hi & Htok)".
+        i_pures; wp_pures.
+        iModIntro. iFrame. clear.
+        iSplit; interp_unfold!.
+        { rewrite interp_var1_ext2.
+          iIntros (????? Ψ) "!# (Hi & Htok & %H & Hid) HΨ".
+          simpl in H. destruct H as (? & -> & Hp).
+          i_pures; wp_pures.
+          iModIntro. iApply ("HΨ" $! (Some _)).
+          iFrame "Htok".
+          iExists _, _, _, _.
+          iSplit; first done. iFrame.
+          iLeft. iFrame. iExists _, _.
+          iFrame "HA".
+          iExists _. iSplit; [done|]. rewrite /is_proof_state.
+          eauto. }
+        { iDestruct "HA" as "[_ HA]".
+          iApply (refines_un_auth_return with "HA"). } }
+      { rewrite interp_un_arr_unfold.
+        iIntros (?) "!# #HA Htok".
+        wp_pures. iModIntro. iFrame. clear.
+        interp_unfold!. interp_unfold! in "HA".
+        iApply (refines_un_auth_return with "HA"). }}
+    { rewrite interp_un_forall_unfold.
+      iIntros (A ?) "!# _ Htok".
+      rewrite /v_return. wp_pures.
+      iModIntro. iFrame.
+      rewrite interp_un_arr_unfold.
+      iIntros (?) "!# #HA Htok".
+      wp_pures. iModIntro. iFrame. clear.
+      interp_unfold!. interp_unfold! in "HA".
+      iApply (refines_un_auth_return with "HA"). }
   Qed.
 
-  Lemma refines_auth_bind Θ (Δ : ctxO Σ Θ) :
-    ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → (var4 var1 → var2 var0) → var2 var0 ⟧
-      (auth_ctx Δ) v_bind i_bind.
+  Lemma refines_un_auth_bind Θ (Δ : ctxO Σ Θ) (A B : kindO Σ ⋆) (v w : val) :
+    lrel_bi_un (⟦ var2 ⟧ (ext (ext (auth_ctx Δ) A) B) A) v -∗
+    lrel_bi_un (⟦ var1 → var2 var0 ⟧ (ext (ext (auth_ctx Δ) A) B)) w -∗
+    lrel_bi_un (⟦ var2 ⟧ (ext (ext (auth_ctx Δ) A) B) B)
+      (λ: "pf",
+        match: v "pf" with InjL <> => InjL #()
+        | InjR "x" => let: "a" := "x" in let: "pf'" := Fst "a" in let: "a" := Snd "a" in w "a" "pf'" end)%V.
   Proof.
-    iIntros (A ??) "!# _".
-    iIntros (??) "(Hi & Htok)".
-    rewrite /v_bind/i_bind.
-    i_pures; wp_pures.
-    iModIntro. iFrame. clear.
-    iIntros (B ??) "!# _".
-    iIntros (??) "(Hi & Htok)".
-    i_pures; wp_pures.
-    iModIntro. iFrame. clear.
-    iIntros (v1 v2) "!# #HmA".
-    iIntros (??) "(Hi & Htok)".
-    i_pures; wp_pures.
-    iModIntro. iFrame. clear.
-    iIntros (w1 w2) "!# #HmB".
-    iIntros (??) "(Hi & Htok)".
-    i_pures; wp_pures.
-    iModIntro. iFrame. clear.
-    interp_unfold!.
-    interp_unfold in "HmA".
-    iIntros (u1 u2 ?????? Ψ) "!# (Hi & Htok & Hprf & Hst & Hs) HΨ".
-    i_pures; wp_pures.
-    i_bind (v2 _)%I; wp_bind (v1 _)%I.
-    wp_apply ("HmA" with "[$Hi $Htok $Hprf $Hst $Hs]").
+    iIntros "#HmA #HmB".
+    rewrite interp_var2_ext3. 
+    iIntros (???Ψ) "!# [Htok [#Hprf Hid]] HΨ". wp_pures.
+    wp_pures. wp_bind (v _)%I.
+    wp_apply ("HmA" with "[$Htok $Hprf $Hid]").
     iIntros (o) "[Htok Ho]".
     destruct o; last first.
     { wp_pures. iApply ("HΨ" $! None). by iFrame. }
-    iDestruct "Ho" as (????????) "(Hi & %H & Hst & Hs & [H|H])".
-    + iDestruct "H" as (? a1 a2 ? ->) "[#Hprf #HA]".
-      wp_pures.
-      wp_bind (w1 _)%E; i_bind (w2 _ )%E.
-      interp_unfold in "HmB".
-      iSpecialize ("HmB" with "[HA] [$Hi $Htok]").
-      { interp_unfold!. by iLeft. }
-      wp_apply (wp_wand with "HmB").
-      iIntros (v) "(% & Hi & H & Htok) /=".
-      destruct! H. simplify_eq.
-      iPoseProof "Hprf" as (??) "Hprf'". simplify_eq.
-      interp_unfold in "H".
-      wp_apply ("H" with "[$Htok $Hi $Hprf $Hst $Hs]").
-      iIntros (?) "(Htok & Ho) /=".
-      iApply "HΨ". iFrame.
-    + iDestruct "H" as (????? ->) "(#Hprf & #HA)".
-      wp_pures.
-      wp_bind (w1 _)%E; i_bind (w2 _)%E.
-      interp_unfold in "HmB".
-      iSpecialize ("HmB" with "[HA] [$Hi $Htok]").
-      { interp_unfold!. iRight. iFrame "# ∗". }
-      wp_apply (wp_wand with "HmB").
-      iIntros (v) "(% & Hi & H & Htok) /=".
-      interp_unfold in "H".
-      destruct! H. simplify_eq.
-      iPoseProof "Hprf" as (??) "Hprf'". simplify_eq.
-      wp_apply ("H" with "[$Htok $Hi $Hprf $Hst $Hs]").
-      iIntros (?) "(Htok & Ho) /=".
-      iApply "HΨ". iFrame.
+    iPoseProof "Hprf" as (??) "Hprf'". 
+    iDestruct "Ho" as (????[??]) "[Hid (%&%&%&%& #Hprf1 & HA)]".
+    iPoseProof "Hprf1" as (??) "Hprf1'". 
+    simplify_eq. wp_pures.
+    rewrite interp_un_arr_unfold.
+    iSpecialize ("HmB" with "[HA] [$Htok]").
+    { by interp_unfold!. }
+    wp_apply (wp_wand with "HmB").
+    iIntros (?) "(H & Htok) /=".
+    interp_unfold in "H".
+    rewrite interp_var2_ext3.
+    wp_apply ("H" with "[$Htok $Hprf1 $Hid]").
+    iIntros (?) "(Htok & Ho) /=".
+    iApply "HΨ". iFrame.
+  Qed.
+
+  Lemma refines_auth_bind Θ (Δ : ctxO Σ Θ) :
+    ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → (var1 → var2 var0) → var2 var0 ⟧
+      (auth_ctx Δ) v_bind i_bind.
+  Proof.
+    iSplit; interp_unfold!.
+    { iIntros (A ??) "!# _".
+      iIntros (??) "(Hi & Htok)".
+      rewrite /v_bind/i_bind.
+      i_pures; wp_pures.
+      iModIntro. iFrame. clear.
+      iSplit; interp_unfold!.
+      { iIntros (B ??) "!# _".
+        iIntros (??) "(Hi & Htok)".
+        i_pures; wp_pures.
+        iModIntro. iFrame. clear.
+        iSplit; interp_unfold!.
+        { iIntros (v1 v2) "!# #HmA".
+          iIntros (??) "(Hi & Htok)".
+          i_pures; wp_pures.
+          iModIntro. iFrame. clear.
+          iSplit; interp_unfold!.
+          { iIntros (w1 w2) "!# #HmB".
+            iIntros (??) "(Hi & Htok)".
+            i_pures; wp_pures.
+            iModIntro. iFrame. clear.
+            interp_unfold in "HmA".
+            iSplit; interp_unfold!.
+            { rewrite interp_var2_ext3.
+              iIntros (u1 u2 ??? Ψ) "!# (Hi & Htok & Hprf & Hid) HΨ".
+              i_pures; wp_pures.
+              i_bind (v2 _)%I; wp_bind (v1 _)%I.
+              iDestruct "HmA" as "[HmA _]".
+              wp_apply ("HmA" with "[$Hi $Htok $Hprf $Hid]").
+              iIntros (o) "[Htok Ho]".
+              destruct o; last first.
+              { wp_pures. iApply ("HΨ" $! None). by iFrame. }
+              iDestruct "Ho" as (????) "(%H & Hid & [H|H])".
+              + iDestruct "H" as (?) "[Hi H]".
+                iDestruct "H" as (? a1' a2 ->) "[#Hprf #HA]".
+                wp_pures.
+                wp_bind (w1 _)%E; i_bind (w2 _ )%E.
+                iDestruct "HmB" as "[HmB _]".
+                interp_unfold in "HmB".
+                iSpecialize ("HmB" with "HA [$Hi $Htok]").
+                wp_apply (wp_wand with "HmB").
+                iIntros (v) "(% & Hi & H & Htok) /=".
+                destruct! H. simplify_eq.
+                iPoseProof "Hprf" as (??) "Hprf'". simplify_eq.
+                interp_unfold in "H". rewrite interp_var2_ext3.
+                iDestruct "H" as "[H _]".
+                wp_apply ("H" with "[$Hi $Htok $Hprf $Hid]").
+                iIntros (?) "(Htok & Ho) /=".
+                iApply "HΨ". iFrame.
+              + iDestruct "H" as (??? ->) "(#Hprf & #HA)".
+                wp_pures.
+                wp_bind (w1 _)%E.
+                iDestruct "HmB" as "[_ HmB]".
+                rewrite interp_un_arr_unfold.
+                iSpecialize ("HmB" with "[HA] [$Htok]").
+                { by interp_unfold!. }
+                wp_apply (wp_wand with "HmB").
+                iIntros (v) "(H & Htok) /=".
+                interp_unfold in "H".
+                destruct! H. simplify_eq.
+                iPoseProof "Hprf" as (??) "Hprf'". simplify_eq.
+                rewrite interp_var2_ext3.
+                wp_apply ("H" with "[$Htok $Hprf $Hid]").
+                iIntros (?) "(Htok & Ho) /=".
+                iApply "HΨ". iFrame.
+                destruct o1; last done. iFrame.
+                iDestruct "Ho" as (????[??]) "[Hbad Hid]".
+                iExists _, _, _, _. iSplit; first done.
+                iFrame. }
+            { iDestruct "HmA" as "[_ HmA]".
+              iDestruct "HmB" as "[_ HmB]".
+              iApply (refines_un_auth_bind with "HmA HmB"). } }
+          { rewrite interp_un_arr_unfold.
+            iIntros (w1) "!# #HmB Htok".
+            wp_pures. iModIntro. iFrame.
+            interp_unfold in "HmA".
+            iDestruct "HmA" as "[_ HmA]".
+            interp_unfold!.
+            iApply (refines_un_auth_bind with "HmA HmB"). } }
+        { rewrite interp_un_arr_unfold.
+          iIntros (v1) "!# #HmA Htok".
+          wp_pures. iModIntro. iFrame.
+          rewrite interp_un_arr_unfold.
+          iIntros (w1) "!# #HmB Htok".
+          wp_pures. iModIntro. iFrame.
+          interp_unfold in "HmA".
+          interp_unfold!.
+          iApply (refines_un_auth_bind with "HmA HmB"). } }
+      { rewrite interp_un_forall_unfold.
+        iIntros (B ?) "!# _ Htok".
+        wp_pures. iModIntro. iFrame.
+        rewrite interp_un_arr_unfold.
+        iIntros (v1) "!# #HmA Htok".
+        wp_pures. iModIntro. iFrame.
+        rewrite interp_un_arr_unfold.
+        iIntros (w1) "!# #HmB Htok".
+        wp_pures. iModIntro. iFrame.
+        interp_unfold in "HmA".
+        interp_unfold!.
+        iApply (refines_un_auth_bind with "HmA HmB"). } }
+    { rewrite interp_un_forall_unfold.
+      iIntros (A ?) "!# _ Htok".
+      rewrite /v_bind. wp_pures.
+      iModIntro. iFrame.
+      rewrite interp_un_forall_unfold.
+      iIntros (B ?) "!# _ Htok".
+      wp_pures. iModIntro. iFrame.
+      rewrite interp_un_arr_unfold.
+      iIntros (v1) "!# #HmA Htok".
+      wp_pures. iModIntro. iFrame.
+      rewrite interp_un_arr_unfold.
+      iIntros (w1) "!# #HmB Htok".
+      wp_pures. iModIntro. iFrame.
+      interp_unfold in "HmA".
+      interp_unfold!.
+      iApply (refines_un_auth_bind with "HmA HmB"). }
   Qed.
 
   Lemma refines_auth_unauth Θ (Δ : ctxO Σ Θ) c :
     inv_susp_table c
     ⊢ REL v_unauth #c << i_unauth :
-      ⟦ ∀: ⋆, var1 var0 → var3 var0 → var2 var0 ⟧ (ext (auth_ctx Δ) (lrel_evidence authBaseN)).
+      ⟦ ∀: ⋆, var1 var0 → var3 var0 → var2 var0 ⟧ (ext (auth_ctx Δ) lrel_evidence).
   Proof.
     iIntros "#Htab" (??) "(Hi & Htok)".
     rewrite /v_unauth /i_unauth.
     wp_pures.
     iFrame. iModIntro.
-    iIntros (A v1 v2) "!# _".
-    iIntros (??) "(Hi & Htok)".
-    i_pures; wp_pures.
-    iModIntro. iFrame. clear.
-    iIntros (??) "!# #Hevi".
-    iIntros (??) "(Hi & Htok)".
-    i_pures; wp_pures.
-    iModIntro. iFrame. clear.
-    iIntros (w1 w2) "!# #Hauth /=".
-    iIntros (??) "(Hi & Htok)".
-    i_pures.
-    interp_unfold in "Hevi Hauth".
-    iDestruct "Hauth" as "[(% & -> & Hauth)|->]"; wp_pures; last first.
-    { iFrame. iModIntro.
-      interp_unfold!. iIntros (?????????) "!# (Hi & Htok & Hproof & Hst & Hs) HΦ".
-      wp_pures.
-      iApply ("HΦ" $! None). by iFrame. }
-        
-    iDestruct "Hevi" as (tA' ??? ->) "(#Hser' & #Hser3 & #Hcount & #Hdeser & #Hrel & #Hcupd)".
-    iFrame. iModIntro.
-    interp_unfold!. iIntros (?????????) "!# (Hi & Htok & Hproof & Hst & Hs) HΦ".
-    wp_pures. i_pures. iDestruct "Hproof" as (? -> ) "Hproof".
-    wp_pures. iDestruct "Hproof" as "(% & %)".
-    wp_apply gwp_list_head; [done| ].
-    iIntros (vl [[-> ->] | (s1' &?& -> & -> )]).
-    { wp_pures. iModIntro.
-      iApply ("HΦ" $! None). iFrame. }
-
-    wp_pures.
-    wp_apply "Hdeser"; [done|].
-    iIntros (?) "Hdepar".
-    wp_apply "Hdepar"; [done|].
-    iIntros ([]); last first.
-
-    { iIntros "_". wp_pures.
-      iApply ("HΦ" $! None).
-      iFrame. eauto. }
-    
-    iPoseProof "Hauth" as "(%&%&%&#Hser1&HA&[(#hashs1&%)|(%&%&Hinv)])"; simplify_eq.
-    - iIntros "Hserser".
-      wp_pures. wp_apply ("Hcount" with "[Hserser]").
-      { iModIntro. iApply (deser_valid authBaseN _ v a1 _); [by iRight| |done].
-        iModIntro. instantiate (1 := t0). iIntros "$". }
-
-      iIntros (?) "(Hc & Hval)".
-      wp_pures.
-      wp_apply (v_finish_spec1 _ a1 w2 _ _ _ A with "Htab").
-      iIntros (finish) "Hfinish". wp_pures.
-
-      case_bool_decide; wp_pures; simplify_eq.
-      + wp_bind (finish #()).
-        assert (c0 = 0); [lia|]. simplify_eq.
-        iApply ("Hfinish" $! s1 ⊤ tA' with "[//] [$Htok $Hc $HA $Hser3 $Hrel $hashs1 $Hser1]"); [done|].
-        iNext. iIntros ([]) "(Htok & #HAfin)"; wp_pures; last first.
-        { iApply ("HΦ" $! (None)). eauto. }
-        wp_apply gwp_list_tail; [done|].
-        iIntros (vl Hl).
-
-        iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
-        iDestruct "Htabo" as (????) "(Hl & >%Hm & Hbigsep & Hms & Hfrag & >%Hci)".
-        wp_pures.
-
-        iPoseProof (idcntr_agree with "[$Hst $Hfrag]") as (->) "[Hst Hfrag]".
-        iMod (global_state_update_empty with "[$Hst $Hfrag]") as "[Hst Hfrag]".
-        
-        iApply ("HΦ" $! (Some _)).
-        iMod ("Hclose_tab" with "[$Hl $Hbigsep $Htok $Hfrag $Hms]") as "Htok".
-        { iNext. iFrame "%". iIntros (id).
-          iPureIntro. intros ?.
-          apply Hci. lia. }
-        
-        iFrame. iModIntro.
-        iExists _, _, _.
-        iSplit.
-        { iPureIntro. split; first done.
-          do 3 f_equal. lia. }
-
-        destruct (decide (l1 = 0)); [iLeft|iRight]; (iSplit; [done|]).
-        { iExists _, _, _.
-          iSplit; [done|]. iFrame "#".
-          iExists _. iSplit.
-          { iPureIntro. f_equal.
-            instantiate (1 := (S c0)).
-            rewrite Nat2Z.inj_succ. done. }
-          iExists _. done. }
-        { do 4 iExists _.
-          iSplit; [done|]. iFrame "#".
-          iExists _. iSplit.
-          { iPureIntro. f_equal.
-            instantiate (1 := (S c0)).
-            rewrite Nat2Z.inj_succ. done. }
-          iExists _. done. }
-
-      + iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
-        iDestruct "Htabo" as (????) "(Hl & >%Hm & Hbigsep & Hms & Hfrag & >%Hci)". wp_load.
-
-        iPoseProof (idcntr_agree with "[$Hst $Hfrag]") as (->) "[Hst Hfrag]".
-        iPoseProof (msize_agree with "[$Hms $Hs]") as (<-) "[Hms Hs]".
-        iMod (global_state_update_singleton with "[$Hst $Hfrag]") as "(Hst & Hins & Hfrag)".
-
-        assert (m0 !! #c1 = None). { apply Hci. lia. }
-        wp_bind (map.map_insert _ _ _). wp_pures.
-        iApply (gwp_map_insert_none #c1 (#c0, finish)%V d m0 _ _ s); [done|done|done|].
-        
-        iModIntro. iIntros (d') "%Hmap'". wp_store.
-        iMod (msize_update _ (s+1) with "[$Hms $Hs]") as "[Hms Hs]".
-        wp_pures. wp_apply (gwp_list_tail with "[//]").
-        iIntros "/=" (tl Htl). wp_pures.
-        iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok $Hfrag $Hms Hfinish Hc Hins]") as "Htok".
-        { iNext. iFrame "%". iSplit; last first.
-          { iIntros (id).
-            iPureIntro. intros ?. admit. }
-          iApply (big_sepM_insert_2 with "[Hfinish Hc Hins]"); last done.
-          instantiate (1 := true).
-          iFrame "∗ #". iExists _.
-          assert (c0 > 0).
-          { apply Nat.neq_0_lt_0. intros ->. by apply H0. }
-          do 3 iExists _. repeat (try (iSplit; [done|])).
-          iExists _. iLeft. iFrame. eauto. }
-
-        iModIntro. iApply ("HΦ" $! (Some _)).
-        iFrame. iExists _, _, _. iSplit.
-        { iPureIntro. f_equal. split; first done.
-          do 3 f_equal. lia. }
-
-        iRight. iSplit; [iPureIntro; lia|].        
-        do 4 iExists _.
-        iSplit; first done.
-        iFrame "# ∗".
-        iExists _. iSplit.
-        { iPureIntro. do 3 f_equal.
-          instantiate (1 := (S c1)).
-          rewrite Nat2Z.inj_succ. done. }
-        eauto.
-
-    - iIntros "Hserser".
-      iMod (na_inv_acc with "Hinv Htok") as "(Hinv1 & Htok & Hclose)"; [done|done|].
-      wp_pures. wp_apply ("Hcount" with "[Hserser]").
-      { iModIntro. iApply (deser_valid authBaseN _ v a1 _); [by iRight| |done].
-        iModIntro. instantiate (1 := t0). iIntros "$". }
-
-      iIntros (?) "(Hc & Hval)".
-      wp_pures.
-      wp_apply (v_finish_spec2 _ _ a1 w2 _ _ A  with "Htab").
-      iIntros (finish) "Hfinish". wp_pures.
-
-      iDestruct "Hinv1" as "[(#hashs1&#Hsusp & Hval2)|(%&%&%&%&%&%&% & Hsusp & Hin & Heq)]"; last first.
-      { admit. }
-      
-      case_bool_decide; wp_pures; simplify_eq.
-      + wp_bind (finish #()).
-        assert (c0 = 0); [lia|]. simplify_eq.
-        
-        iApply ("Hfinish" $! _ _ (⊤ ∖ ↑authSerProofN authBaseN #susp) with "[$Htok $Hc $HA $Hser3 $Hrel $hashs1 $Hser1]").
-        { by iFrame "#". }
-        iNext. iIntros ([]) "(Htok & #HAfin)"; wp_pures; last first.
-        { iApply ("HΦ" $! (None)).
-          iMod ("Hclose" with "[$hashs1 Hval2 $Htok]") as "H".
-          { iNext. iLeft. iFrame "∗ #".  }
-          eauto. }
-
-        iMod ("Hclose" with "[$hashs1 Hval2 $Htok]") as "Htok".
-        { iNext. iLeft. iFrame "∗ #".  }
-        
-        iMod ("Hrel" $! a1 v w2 ⊤ with "[//] [$Htok]") as "[#HA' Htok]".
-        { iFrame "#". iApply (val_eq_sym authBaseN).
-          by iApply "HAfin". }
-
-        wp_apply gwp_list_tail; [done|].
-        iIntros (vl Hl).
-
-        iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
-        iDestruct "Htabo" as (????) "(Hl & >%Hm & Hbigsep & Hms & Hfrag & >%Hci)".
-        wp_pures.
-
-        iPoseProof (idcntr_agree with "[$Hst $Hfrag]") as (->) "[Hst Hfrag]".
-        iMod (global_state_update_empty with "[$Hst $Hfrag]") as "[Hst Hfrag]".
-        
-        iApply ("HΦ" $! (Some _)).
-        iMod ("Hclose_tab" with "[$Hl $Hbigsep $Htok $Hfrag $Hms]") as "Htok".
-        { iNext. iFrame "%". iIntros (id).
-          iPureIntro. intros ?.
-          apply Hci. lia. }
-        
-        iFrame. iModIntro.
-        iExists _, _, _.
-        iSplit.
-        { iPureIntro. split; first done.
-          do 3 f_equal. lia. }
-
-        destruct (decide (l1 = 0)); [iLeft|iRight]; (iSplit; [done|]).
-        { iExists _, _, _.
-          iSplit; [done|]. iFrame "#".
-          iExists _. iSplit.
-          { iPureIntro. f_equal.
-            instantiate (1 := (S c0)).
-            rewrite Nat2Z.inj_succ. done. }
-          iExists _. done. }
-        { do 4 iExists _.
-          iSplit; [done|]. iFrame "#".
-          iExists _. iSplit.
-          { iPureIntro. f_equal.
-            instantiate (1 := (S c0)).
-            rewrite Nat2Z.inj_succ. done. }
-          iExists _. done. }
-
-      + iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
-        iDestruct "Htabo" as (????) "(Hl & >%Hm & Hbigsep & Hms & Hfrag & >%Hci)". wp_load.
-
-        iPoseProof (idcntr_agree with "[$Hst $Hfrag]") as (->) "[Hst Hfrag]".
-        iPoseProof (msize_agree with "[$Hms $Hs]") as (<-) "[Hms Hs]".
-        iMod (global_state_update_singleton with "[$Hst $Hfrag]") as "(Hst & Hins & Hfrag)".
-
-        assert (m0 !! #c1 = None). { apply Hci. lia. }
-        wp_bind (map.map_insert _ _ _). wp_pures.
-        iApply (gwp_map_insert_none #c1 (#c0, finish)%V d m0 _ _ s); [done|done|done|].
-        
-        iModIntro. iIntros (d') "%Hmap'". wp_store.
-        iMod (msize_update _ (s+1) with "[$Hms $Hs]") as "[Hms Hs]".
-        wp_pures. wp_apply (gwp_list_tail with "[//]").
-        iIntros "/=" (tl Htl). wp_pures.
-        iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok $Hfrag $Hms Hfinish Hc Hins]") as "Htok".
-        { iNext. iFrame "%". iSplit; last first.
-          { iIntros (id).
-            iPureIntro. intros ?. admit. }
-          iApply (big_sepM_insert_2 with "[Hfinish Hc Hins]"); last done.
-          instantiate (1 := true).
-          iFrame "∗ #". iExists _.
-          assert (c0 > 0).
-          { apply Nat.neq_0_lt_0. intros ->. by apply H0. }
-          do 3 iExists _. repeat (try (iSplit; [done|])).
-          iRight. iFrame. eauto. }
-
-        iMod ("Hclose" with "[$hashs1 Hval2 $Htok]") as "Htok".
-        { iNext. iLeft. iFrame "∗ #". }
-        
-        iModIntro. iApply ("HΦ" $! (Some _)).
-        
-        iFrame. iExists _, _, _. iSplit.
-        { iPureIntro. f_equal. split; first done.
-          do 3 f_equal. lia. }
-
-        iRight. iSplit; [iPureIntro; lia|].        
-        do 4 iExists _.
-        iSplit; first done.
-        iFrame "# ∗".
-        iExists _. iSplit.
-        { iPureIntro. do 3 f_equal.
-          instantiate (1 := (S c1)).
-          rewrite Nat2Z.inj_succ. done. }
-        
-        iFrame "∗ %".
-  Admitted.
-        
-  (* admit. (* What happens when we put finish in a map *)
-
-      + admit. (* What happens when we fill in a suspended value *)
-        
-          
-      wp_bind (v_finish _ _ _ _).
-      iAply (v_finish_spec.
-      
-      iDestruct "Hcache" as (?) "(Htable & #Hm)".
-      wp_apply (gwp_table_lookup with "Htable"); [done|].
-      iIntros "Htable".
-      destruct (m !! hash s1) as [a|] eqn:Hlookup.
-    - iDestruct (big_sepM_lookup with "Hm") as (s1' t') "(#Hs1' & % & #Hsh1')"; [done|subst].
-      wp_pures.
-
-      destruct (decide (collision s1 s1')) as [|Hnc%not_collision].
-      { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "Hsh1 Hsh1'"). }
-      destruct Hnc as [<- |?]; [|simplify_eq].
-      
-      iAssert (⌜a1 = a⌝)%I as "%".
-      { by iApply (evi_type_ser_inj tA t'). }
-
-      iMod ("Hclose" with "[$Htok $Hm $Htable]") as "Htok".
-      
-      
-      destruct l.
-      + wp_apply gwp_list_head; [done| ].
-        iIntros (vl [[? ->] | (s1' &?& -> & -> )]).
-        { wp_pures. iModIntro.
-          iApply ("HΨ" $! None). iFrame. }
-      
-      wp_pures. iFrame. iModIntro.
-      interp_unfold!.
-      iIntros (???? Ψ) "!# (Hi & Htok & [% %Hprf]) HΨ".
-      
+    iSplit; interp_unfold!.
+    { iIntros (A v1 v2) "!# _".
+      iIntros (??) "(Hi & Htok)".
       i_pures; wp_pures.
-      destruct Hprf as (? & -> & ? & ?).
-      wp_pures.
+      iModIntro. iFrame. clear.
+      iSplit; interp_unfold!.
+      { iIntros (??) "!# #Hevi".
+        iIntros (??) "(Hi & Htok)".
+        i_pures; wp_pures.
+        iModIntro. iFrame. clear.
+        iSplit; interp_unfold!.
+        { iIntros (w1 w2) "!# #Hauth /=".
+          iIntros (??) "(Hi & Htok)".
+          i_pures.
+          interp_unfold in "Hevi Hauth".
+          rewrite interp_var3_ext4.
+          iDestruct "Hauth" as "[Hauth_bi Hauth_un]".
+          iDestruct "Hauth_bi" as "[(% & -> & Hauth_bi)|->]"; wp_pures; last first.
+          { iFrame. iModIntro.
+            interp_unfold!. rewrite interp_var2_ext3. iSplit.
+            { iIntros (??????) "!# (Hi & Htok & Hproof & Hid) HΦ".
+              wp_pures. iApply ("HΦ" $! None). by iFrame. }
+            iIntros (???) "!# (Htok & Hproof) HΦ".
+            wp_pures. iApply ("HΦ" $! None). by iFrame. }
+          iDestruct "Hauth_un" as "[(% & % & Hauth_un)|->]"; last first.
+          { iFrame. iModIntro.
+            interp_unfold!. rewrite interp_var2_ext3. iSplit.
+            { iIntros (??????) "!# (Hi & Htok & Hproof & Hid) HΦ".
+              wp_pures. iApply ("HΦ" $! None). by iFrame. }
+            iIntros (???) "!# (Htok & Hproof) HΦ".
+            wp_pures. iApply ("HΦ" $! None). by iFrame. }
 
-      wp_apply gwp_list_head; [done| ].
-      iIntros (vl [[-> ->] | (s1' &?& -> & -> )]).
-      { wp_pures. iModIntro.
-        iApply ("HΨ" $! None). iFrame. }
+          iDestruct "Hevi" as "[Hrel Hevi_un]".    
+          iDestruct "Hevi_un" as (tA' ??? ->) "(#Hser' & #Hser3 & #Hcount & #Hdeser)".
+          simplify_eq.
+          iFrame. iModIntro.
+          iSplit; interp_unfold!; rewrite interp_var2_ext3.
+          { iIntros (??????) "!# (Hi & Htok & Hproof & Hid) HΦ".
+            wp_pures. i_pures. iDestruct "Hproof" as (? -> ) "Hproof".
+            wp_pures. iDestruct "Hproof" as "(% & %)".
+            wp_apply gwp_list_head; [done| ].
+            iIntros (vl [[-> ->] | (s1' &?& -> & -> )]).
+            { wp_pures. iModIntro.
+              iApply ("HΦ" $! None). iFrame. }
 
-      wp_pures.
-      wp_apply "Hdeser"; [done|].
-      iIntros (?) "#Hdepar".
-      wp_apply "Hdepar"; [done|].
-      iIntros ([]); last first.
-      { iIntros "_". wp_pures.
-        iApply ("HΨ" $! None).
-        iFrame. eauto. }
+            wp_pures. wp_apply "Hdeser"; [done|].
+            iIntros (?) "Hdepar".
+            wp_apply "Hdepar"; [done|].
+            iIntros ([]); last first.
+            { iIntros "_". wp_pures. iApply ("HΦ" $! None). iFrame. eauto. }
+            
+            iPoseProof "Hauth_bi" as "(%&%&%&#Hser1&#HA&[(#hashs1&%)|(%&%&%&%&Hinv)])";
+              simplify_eq; iIntros "[Hserser Hserproph]";
+              iPoseProof ("Hserproph" with "Hserser") as ">[#HA_un [%s2 #Hserproph]]";
+              wp_pures; wp_apply ("Hcount" $! _ _ ⊤ with "[//] [$Hserproph $Htok]");
+              iIntros (?) "[_ Htok]"; wp_pures.
+            - (* iPoseProof (deser_ser_proph authBaseN with "[$Htok $Hserser]") as ">[Htok [% Hserproph]]". *)
+              wp_apply (v_finish_spec1 with "Htab").
+              iIntros (finish) "Hfinish". wp_pures.
 
-      iIntros "Hserser".
-      wp_pures.
-      wp_bind (count _).
-      wp_apply "Hcount".
+              case_bool_decide; wp_pures; simplify_eq.
+              + wp_bind (finish #()).
+                assert (c0 = 0); [lia|]. simplify_eq.
+
+                iApply ("Hfinish" $! s1 ⊤ tA' with "[//] [$Htok $Hser' $HA_un $hashs1]");
+                  first by iLeft.
+                iNext. iIntros ([]) "Htok"; wp_pures; last first.
+                { iApply ("HΦ" $! (None)). eauto. }
+
+                wp_apply gwp_list_tail; [done|].
+                iIntros (vl Hl).
+
+                iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
+                iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hfrag)".
+                wp_pures.
+
+                iPoseProof (idcntr_agree with "[$Hid $Hfrag]") as (->) "[Hid Hfrag]".
+                iMod (idcntr_update with "[$Hid $Hfrag]") as "[Hid Hfrag]".
+
+                (* iPoseProof (idcntr_agree with "[$Hst $Hfrag]") as (->) "[Hst Hfrag]".
+                iMod (global_state_update_empty with "[$Hst $Hfrag]") as "[Hst Hfrag]". *)
+                
+                iMod ("Hclose_tab" with "[$Hl $Hbigsep $Htok $Hfrag]") as "Htok"; try done.
+                (* { iFrame "%". iPureIntro. intros ?. apply Hci. lia. } *)
+                
+                iApply ("HΦ" $! (Some _)).
+
+                destruct (decide (s2 = s1)); simplify_eq;
+                  [iMod ("Hrel" $! ⊤ with "[//] Htok [Hserproph] Hser1 HA") as "[Htok #HA']";
+                    try by iRight|]; iFrame "# ∗ %"; iModIntro; repeat (iExists _); 
+                    iSplit; try (iSplit; try done; iPureIntro; repeat f_equal; lia);
+                    [iLeft|iRight]; iFrame "# ∗ %"; iExists _; iExists (c0+1);
+                    iSplit; iPureIntro; repeat f_equal; lia.
+
+              + iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
+                iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hfrag)". wp_load.
+
+                (* iPoseProof (idcntr_agree with "[$Hst $Hfrag]") as (->) "[Hst Hfrag]".
+                iPoseProof (msize_agree with "[$Hms $Hs]") as (<-) "[Hms Hs]".
+                iMod (global_state_update_singleton with "[$Hst $Hfrag]") as "(Hst & Hins & Hfrag)". *)
+                iPoseProof (idcntr_agree with "[$Hid $Hfrag]") as (->) "[Hid Hfrag]".
+                iMod (idcntr_update with "[$Hid $Hfrag]") as "[Hid Hfrag]".
+
+                (* assert (m0 !! #c1 = None). { apply Hci. lia. } *)
+                wp_bind (map.map_insert _ _ _). wp_pures.
+                iApply (gwp_map_insert #c1 (#c0, finish)%V d m _ _); [done|done|].
+                
+                iModIntro. iIntros (d') "%Hmap'". wp_store.
+                (* iMod (msize_update _ (s+1) with "[$Hms $Hs]") as "[Hms Hs]". *)
+                wp_pures. wp_apply (gwp_list_tail with "[//]").
+                iIntros "/=" (tl Htl). wp_pures.
+                iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok $Hfrag Hfinish]") as "Htok".
+                { iNext. iFrame "%".
+                  iApply (big_sepM_insert_2 with "[Hfinish]"); last done.
+                  iFrame "∗ #". iExists _.
+                  assert (c0 > 0).
+                  { apply Nat.neq_0_lt_0. intros ->. by apply H0. }
+                  do 2 iExists _. repeat (try (iSplit; eauto)).  }
+
+                iApply ("HΦ" $! (Some _)).
+                destruct (decide (s2 = s1)); simplify_eq;
+                  [iMod ("Hrel" $! ⊤ with "[//] Htok [Hserproph] Hser1 HA") as "[Htok #HA']";
+                    try by iRight|]; iFrame "# ∗ %"; iModIntro; repeat (iExists _);
+                    iSplit; try (iSplit; try done; iPureIntro; repeat f_equal; lia);
+                    [iLeft|iRight]; iFrame "# ∗ %"; iExists _; iExists (c1+1);
+                    iSplit; iPureIntro; repeat f_equal; lia.
+
+            - wp_apply (v_finish_spec2 with "Htab").
+              iIntros (finish) "Hfinish". wp_pures.
+
+              case_bool_decide; wp_pures; simplify_eq.
+              * wp_bind (finish #()).
+                assert (c0 = 0); [lia|]. simplify_eq.
+
+                iApply ("Hfinish" $! _ ⊤ tA' with "[//] [$Htok $Hser' $HA_un $Hinv //]").
+                iNext. iIntros ([]) "Htok"; wp_pures; last first.
+                { iApply ("HΦ" $! (None)). eauto. }
+
+                wp_apply gwp_list_tail; [done|].
+                iIntros (vl Hl).
+
+                iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
+                iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hfrag)".
+                wp_pures.
+
+                iPoseProof (idcntr_agree with "[$Hid $Hfrag]") as (->) "[Hid Hfrag]".
+                iMod (idcntr_update with "[$Hid $Hfrag]") as "[Hid Hfrag]".
+
+                (* iPoseProof (idcntr_agree with "[$Hst $Hfrag]") as (->) "[Hst Hfrag]".
+                iMod (global_state_update_empty with "[$Hst $Hfrag]") as "[Hst Hfrag]". *)
+                
+                iMod ("Hclose_tab" with "[$Hl $Hbigsep $Htok $Hfrag]") as "Htok"; try done.
+                (* { iFrame "%". iIntros (id). iPureIntro. intros ?. apply Hci. lia. } *)
+                
+                iApply ("HΦ" $! (Some _)).
+
+                destruct (decide (s2 = s1)); simplify_eq;
+                  [iMod ("Hrel" $! ⊤ with "[//] Htok [Hserproph] Hser1 HA") as "[Htok #HA']";
+                    try by iRight|]; iFrame "# ∗ %"; iModIntro; repeat (iExists _); 
+                    iSplit; try (iSplit; try done; iPureIntro; repeat f_equal; lia);
+                    [iLeft|iRight]; iFrame "# ∗ %"; iExists _; iExists (c0+1);
+                    iSplit; iPureIntro; repeat f_equal; lia.
+              
+              * iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
+                iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hfrag)". wp_load.
+
+                (* iPoseProof (idcntr_agree with "[$Hst $Hfrag]") as (->) "[Hst Hfrag]".
+                iPoseProof (msize_agree with "[$Hms $Hs]") as (<-) "[Hms Hs]".
+                iMod (global_state_update_singleton with "[$Hst $Hfrag]") as "(Hst & Hins & Hfrag)". *)
+                iPoseProof (idcntr_agree with "[$Hid $Hfrag]") as (->) "[Hid Hfrag]".
+                iMod (idcntr_update with "[$Hid $Hfrag]") as "[Hid Hfrag]".
+
+                (* assert (m0 !! #c1 = None). { apply Hci. lia. } *)
+                wp_bind (map.map_insert _ _ _). wp_pures.
+                iApply (gwp_map_insert #c1 (#c0, finish)%V d m _ _); [done|done|].
+                
+                iModIntro. iIntros (d') "%Hmap'". wp_store.
+                (* iMod (msize_update _ (s+1) with "[$Hms $Hs]") as "[Hms Hs]". *)
+                wp_pures. wp_apply (gwp_list_tail with "[//]").
+                iIntros "/=" (tl Htl). wp_pures.
+                iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok $Hfrag Hfinish]") as "Htok".
+                { iNext. iFrame "%".
+                  iApply (big_sepM_insert_2 with "[Hfinish]"); last done.
+                  iFrame "∗ #". iExists _.
+                  assert (c0 > 0).
+                  { apply Nat.neq_0_lt_0. intros ->. by apply H0. }
+                  do 2 iExists _. repeat (try (iSplit; eauto)). }
+
+                iApply ("HΦ" $! (Some _)).
+                destruct (decide (s2 = s1)); simplify_eq;
+                  [iMod ("Hrel" $! ⊤ with "[//] Htok [Hserproph] Hser1 HA") as "[Htok #HA']";
+                    try by iRight|]; iFrame "# ∗ %"; iModIntro; repeat (iExists _);
+                    iSplit; try (iSplit; try done; iPureIntro; repeat f_equal; lia);
+                    [iLeft|iRight]; iFrame "# ∗ %"; iExists _; iExists (c1+1);
+                    iSplit; iPureIntro; repeat f_equal; lia. }
+              
+          { iIntros (???) "!# (Htok & Hproof & Hid) HΦ".
+            wp_pures. i_pures. iDestruct "Hproof" as (? -> ) "Hproof".
+            wp_pures. iDestruct "Hproof" as "(% & %)".
+            wp_apply gwp_list_head; [done| ].
+            iIntros (vl [[-> ->] | (s1' &?& -> & -> )]).
+            { wp_pures. iModIntro.
+              iApply ("HΦ" $! None). iFrame. }
+
+            wp_pures. wp_apply "Hdeser"; [done|].
+            iIntros (?) "Hdepar".
+            wp_apply "Hdepar"; [done|].
+            iIntros ([]); last first.
+            { iIntros "_". wp_pures. iApply ("HΦ" $! None). iFrame. eauto. }
+            
+            iPoseProof "Hauth_un" as "[(%&%)|(%&%&%&#Hinv)]";
+              simplify_eq; iIntros "[Hserser Hserproph]";
+              iPoseProof ("Hserproph" with "Hserser") as ">[#HA_un [%s2 #Hserproph]]";
+              wp_pures; wp_apply ("Hcount" $! _ _ ⊤ with "[//] [$Hserproph $Htok]");
+              iIntros (?) "[_ Htok]"; wp_pures.
+            - 
+
+          }
+        }
+      }
+    }
       
-        
-    iDestruct "Hcache" as (?) "(Htable & #Hm)".
-    wp_apply (gwp_table_lookup with "Htable"); [done|].
-    iIntros "Htable".
-    destruct (m !! hash s1) as [a|] eqn:Hlookup.
-    - iDestruct (big_sepM_lookup with "Hm") as (s1' t') "(#Hs1' & % & #Hsh1')"; [done|subst].
-      wp_pures.
-
-      destruct (decide (collision s1 s1')) as [|Hnc%not_collision].
-      { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "Hsh1 Hsh1'"). }
-      destruct Hnc as [<- |?]; [|simplify_eq].
-      
-      iAssert (⌜a1 = a⌝)%I as "%".
-      { by iApply (evi_type_ser_inj tA t'). }
-
-      iMod ("Hclose" with "[$Htok $Hm $Htable]") as "Htok".
-      iModIntro. iApply ("HΨ" $! (Some _)). iFrame.
-      iExists  _. iFrame "#". by simplify_eq.
-    - wp_pures.
-      iDestruct "Hprf" as (?) "%".
-      wp_apply gwp_list_head; [done|].
-      iIntros (vl [[-> ->] | (s1' &?& -> & -> )]).
-      { wp_pures.
-        iMod ("Hclose" with "[$Htok $Hm $Htable]") as "Htok".
-        iModIntro. iApply ("HΨ" $! None). iFrame. }
-      wp_pures.
-      wp_apply (wp_hash with "[$]").
-      iIntros "#Hsh1'".
-      wp_pures.
-
-      case_bool_decide; simplify_eq; wp_pures; last first.
-      { iMod ("Hclose" with "[$Htok $Hm $Htable]") as "Htok".
-        iModIntro. iApply ("HΨ" $! None). iFrame. }
-
-      wp_apply "Hdeser"; [done|].
-      iIntros ([r|]) "Hs1'"; wp_pures; last first.
-      { iMod ("Hclose" with "[$Htok $Hm $Htable]") as "Htok".
-        iModIntro. iApply ("HΨ" $! None). iFrame. }
-
-      wp_apply (gwp_table_insert with "Htable"); [done|].
-      iIntros "Htable".
-      wp_pures.
-      wp_apply (gwp_list_tail with "[//]").
-      iIntros "/=" (tl Htl). wp_pures.
-
-      destruct (decide (collision s1 s1')) as [|Hnc%not_collision].
-      { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "Hsh1 Hsh1'"). }
-      destruct Hnc as [<- |?]; [|simplify_eq].
-
-      iAssert (⌜a1 = r⌝)%I as "<-".
-      { by iApply (evi_type_ser_inj tA tA'). }
-
-      iMod ("Hclose" with "[$Htok Hm Htable]") as "Htok".
-      { iModIntro. iFrame "Htable".
-        iApply big_sepM_insert; [done|]. iFrame "# %". }
-      iModIntro.
-      iApply ("HΨ" $! (Some _)).
-      iFrame.
-      iExists _, _.
-      by iFrame "HA %".
-  Qed. *)
+            
+  Admitted.
 
   Lemma refines_Authenticatable Θ (Δ : ctxO Σ Θ) :
     ⊢ REL v_Authenticable << i_Authenticable : ⟦ Authenticatable ⟧ (auth_ctx Δ).

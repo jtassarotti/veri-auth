@@ -46,16 +46,15 @@ Definition v_finish : val :=
             | InjL "pid_proph" =>
                 let, ("pid", "proph") := "pid_proph" in
                 resolve_proph: "proph" to: (Hash "y");;
+                "susp" <- InjR (Hash "y");;
                 match: map.map_lookup "pid" (!"susp_table") with
                   NONE => NONEV
                 | SOME "res" =>
                   let, ("ctr", "finish") := "res" in
                   if: "ctr" = #1 then
                     "susp_table" <- map.map_remove "pid" (!"susp_table");;
-                    "susp" <- InjR (Hash "y");;
                     "finish" #()
                   else
-                    "susp" <- InjR (Hash "y");;
                     "susp_table" <- map.map_remove "pid" (!"susp_table");;
                     "susp_table" <- map.map_insert "pid" (("ctr" - #1), "finish") (!"susp_table");;
                     SOMEV #()

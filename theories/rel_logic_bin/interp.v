@@ -494,6 +494,35 @@ Section semtype_unfold_lemmas.
     (⟦ (Λ: τ2) τ1 ⟧) Δ ≡ ⟦ τ2 ⟧ (ext Δ (⟦ τ1 ⟧ Δ)).
   Proof. rewrite interp_app_unfold interp_lam_unfold //. Qed.
 
+Lemma interp_var0_ext1 {κ} (A : kindO Σ κ) :
+  interp (var0 : type (Θ ▹ κ) κ) (ext Δ A) = A.
+Proof. rewrite interp_unseal /= //. Qed.
+
+Lemma interp_var1_ext2 {κ1 κ2} (F : kindO Σ κ1) (A : kindO Σ κ2) :
+  interp (var1 : type (Θ ▹ κ1 ▹ κ2) κ1) (ext (ext Δ F) A) = F.
+Proof. rewrite interp_unseal /= //. Qed.
+
+Lemma interp_var2_ext3 {κ1 κ2 κ3} (F : kindO Σ κ1) (A : kindO Σ κ2) (B : kindO Σ κ3) :
+  interp (var2 : type (Θ ▹ κ1 ▹ κ2 ▹ κ3) κ1) (ext (ext (ext Δ F) A) B) = F.
+Proof. rewrite interp_unseal /= //. Qed.
+
+Lemma interp_var3_ext4 {κ1 κ2 κ3 κ4} (F : kindO Σ κ1)
+    (A : kindO Σ κ2) (B : kindO Σ κ3) (C : kindO Σ κ4) :
+  interp (var3 : type (Θ ▹ κ1 ▹ κ2 ▹ κ3 ▹ κ4) κ1) (ext (ext (ext (ext Δ F) A) B) C) = F.
+Proof. rewrite interp_unseal /= //. Qed.
+
+Lemma interp_var4_ext5 {κ1 κ2 κ3 κ4 κ5} (F : kindO Σ κ1)
+    (A : kindO Σ κ2) (B : kindO Σ κ3) (C : kindO Σ κ4) (D' : kindO Σ κ5) :
+  interp (var4 : type (Θ ▹ κ1 ▹ κ2 ▹ κ3 ▹ κ4 ▹ κ5) κ1)
+         (ext (ext (ext (ext (ext Δ F) A) B) C) D') = F.
+Proof. rewrite interp_unseal /= //. Qed.
+
+Lemma interp_var5_ext6 {κ1 κ2 κ3 κ4 κ5 κ6} (F : kindO Σ κ1)
+    (A : kindO Σ κ2) (B : kindO Σ κ3) (C : kindO Σ κ4) (D' : kindO Σ κ5) (E' : kindO Σ κ6) :
+  interp (var5 : type (Θ ▹ κ1 ▹ κ2 ▹ κ3 ▹ κ4 ▹ κ5 ▹ κ6) κ1)
+         (ext (ext (ext (ext (ext (ext Δ F) A) B) C) D') E') = F.
+Proof. rewrite interp_unseal /= //. Qed.
+
 End semtype_unfold_lemmas.
 
 Ltac interp_unfold_tac :=
@@ -520,17 +549,18 @@ Ltac interp_unfold_tac :=
 
   | |- context [interp (TApp _ _)] => rewrite interp_app_unfold
 
-  | |- context [ofe_mor_car _ _ (interp var0) ?Δ] =>
-      eassert (interp var0 Δ = _) as -> by rewrite interp_unseal /=//
-  | |- context[ofe_mor_car _ _ (interp var1) ?Δ] =>
-      eassert (interp var1 Δ = _) as -> by rewrite interp_unseal /=//
-  | |- context[ofe_mor_car _ _ (interp var2) ?Δ] =>
-      eassert (interp var2 Δ = _) as -> by rewrite interp_unseal /=//
-  | |- context[ofe_mor_car _ _ (interp var3) ?Δ] =>
-      eassert (interp var3 Δ = _) as -> by rewrite interp_unseal /=//
-  | |- context[ofe_mor_car _ _ (interp var4) ?Δ] =>
-      eassert (interp var4 Δ = _) as -> by rewrite interp_unseal /=//                                                                                                                | |- context[ofe_mor_car _ _ (interp var5) ?Δ] =>
-                                                                                                                                                                                         eassert (interp var5 Δ = _) as -> by rewrite interp_unseal /=//
+  | |- context[ofe_mor_car _ _ (interp var0) (ext _ _)] =>
+      rewrite interp_var0_ext1
+  | |- context[ofe_mor_car _ _ (interp var1) (ext (ext _ _) _)] =>
+      rewrite interp_var1_ext2
+  | |- context[ofe_mor_car _ _ (interp var2) (ext (ext (ext _ _) _) _)] =>
+      rewrite interp_var2_ext3
+  | |- context[ofe_mor_car _ _ (interp var3) (ext (ext (ext (ext _ _) _) _) _)] =>
+      rewrite interp_var3_ext4
+  | |- context[ofe_mor_car _ _ (interp var4) (ext (ext (ext (ext (ext _ _) _) _) _) _)] =>
+      rewrite interp_var4_ext5
+  | |- context[ofe_mor_car _ _ (interp var5) (ext (ext (ext (ext (ext (ext _ _) _) _) _) _) _)] =>
+      rewrite interp_var5_ext6
   end.
 
 Tactic Notation "interp_unfold":= iEval (interp_unfold_tac).
