@@ -1,7 +1,7 @@
 From auth.prelude Require Import stdpp.
-From auth.rel_logic_bin Require Export model spec_rules spec_tactics interp lib adequacy fundamental.
+From auth.rel_logic_bin_susp Require Export model spec_rules spec_tactics interp lib adequacy fundamental.
 From auth.heap_lang Require Import gen_weakestpre typedproph.
-From auth.heap_lang.lib Require Import list serialization.
+From auth.heap_lang.lib Require Import list serialization_susp.
 From auth.examples Require Export authentikit_susp authenticatable_base_susp.
 From iris.base_logic.lib Require Export invariants na_invariants.
 From iris.algebra Require Import gmap agree.

@@ -162,6 +162,13 @@ Section semtypes.
     |={⊤}=> ⌜v1 = w1 ↔ v2 = w2⌝.
   Proof.
     intros Hunboxed.
+    cut (EqType τ).
+    { intros Hτ.
+      rewrite !eq_type_sound //.
+      iIntros "% %". iModIntro.
+      iPureIntro. naive_solver. }
+    inversion Hunboxed; econstructor.
+    (* intros Hunboxed.
     cut (EqType τ ∨ ∃ τ', τ = t_ref τ').
     { intros [Hτ | [τ' ->]].
       - rewrite !eq_type_sound //.
@@ -180,7 +187,7 @@ Section semtypes.
           iInv (authN.@"ref".@(r1, r2, r3)) as (v1 v2 v3) "(>Hr1 & >Hr2 & >Hr3 & Hinv1)".
           iInv (authN.@"ref".@(l1, r2, l3)) as (w1 w2 w3) "(>Hr1' & >Hr2' & >Hl3 & Hinv2)".
           iExFalso. by iCombine "Hr2 Hr2'" gives %[]. }
-    by apply unboxed_type_ref_or_eqtype.
+    by apply unboxed_type_ref_or_eqtype. *)
   Qed.
 
   Lemma unboxed_type_eq_2_3 Θ (τ : type Θ ⋆) Δ v1 v2 v3 w1 w2 w3 :
@@ -190,6 +197,13 @@ Section semtypes.
     |={⊤}=> ⌜v2 = w2 ↔ v3 = w3⌝.
   Proof.
     intros Hunboxed.
+    cut (EqType τ).
+    { intros Hτ.
+      rewrite !eq_type_sound //.
+      iIntros "% %". iModIntro.
+      iPureIntro. naive_solver. }
+    inversion Hunboxed; econstructor.
+    (* intros Hunboxed.
     cut (EqType τ ∨ ∃ τ', τ = t_ref τ').
     { intros [Hτ | [τ' ->]].
       - rewrite !eq_type_sound //.
@@ -208,7 +222,7 @@ Section semtypes.
           iInv (authN.@"ref".@(r1, r2, r3)) as (v1 v2 v3) "(>Hr1 & >Hr2 & >Hr3 & Hinv1)".
           iInv (authN.@"ref".@(l1, l2, r3)) as (w1 w2 w3) "(>Hr1' & >Hr2' & >Hr3' & Hinv2)".
           iExFalso. by iCombine "Hr3 Hr3'" gives %[]. }
-    by apply unboxed_type_ref_or_eqtype.
+    by apply unboxed_type_ref_or_eqtype. *)
   Qed.
 
 End semtypes.

@@ -1,10 +1,17 @@
 From auth.prelude Require Import stdpp.
-From auth.rel_logic_bin Require Export model spec_rules spec_tactics interp lib adequacy fundamental.
+From auth.rel_logic_bin_susp Require Export model spec_rules spec_tactics interp lib adequacy fundamental.
 From auth.heap_lang Require Import gen_weakestpre typedproph.
 From auth.heap_lang.lib Require Import list map.
 From auth.examples Require Export authentikit_susp authentikit_base_susp_security.
 From iris.base_logic.lib Require Export na_invariants.
 From iris.algebra Require Import auth agree numbers csum excl.
+
+
+(** We need [i_Authentikit] to be an expression since [v_Authenticable] needs to initialize its
+    cache and specialize [v_unauth]. *)
+Definition i_Authenticable : expr :=
+  (i_Auth_auth, i_Auth_mu, i_Auth_pair, i_Auth_sum, i_Auth_string, i_Auth_int, i_auth, i_unauth).
+Definition i_Authentikit : expr := (i_return, i_bind, i_Authenticable).
 
 
 Definition poisonOSR := authUR (optionUR (optionUR (agree unitUR))).
@@ -1301,13 +1308,11 @@ Section proof.
     iIntros (d) "Hd". wp_alloc l as "Hl". wp_pures.
     
     iMod pos_alloc as (γm) "[Hpos Hpos']".
+    iMod idcntr_alloc as (γi) "[Hid Hid']".
     
-    iMod (na_inv_alloc seqG_name ⊤ tableN (is_susp_table l) with "[$Hd $Hl Hpos']") as "#Htab".
-    { iNext. iSplitR; last first.
-      { iLeft. admit. } 
-      by iApply big_sepM_empty. }
-    
-    iAssert (|={⊤}=> spec_ideal tᵢ (fill Kᵢ (i_Auth_auth, i_Auth_mu, i_Auth_pair, i_Auth_sum, i_Auth_string, i_Auth_int, i_auth, i_unauth)))%I with "[Hi]" as ">Hi"; [admit|].
+    iMod (na_inv_alloc seqG_name ⊤ tableN (is_susp_table l) with "[$Hd $Hl Hpos' Hid']") as "#Htab".
+    { iNext. iExists _. iSplit; try by iApply big_sepM_empty.
+      admit. }
     
     wp_rec. wp_pures.
     wp_bind (v_unauth _).
@@ -1441,7 +1446,6 @@ Section proof.
   Proof.
     iIntros (??) "[Hi Htok]".
     rewrite /i_Authentikit /v_Authentikit.
-    iAssert (|={⊤}=> spec_ideal tᵢ (fill Kᵢ (i_return, i_bind, i_Authenticable)))%I with "[Hi]" as ">Hi"; [admit|].
     
     i_bind (i_Authenticable).
     iPoseProof (refines_Authenticatable with "[$Hi $Htok]") as "H".
@@ -1470,7 +1474,7 @@ Section proof.
       { iPoseProof refines_auth_return as "[_ H]". rewrite interp_unseal //. }
       iPoseProof refines_auth_bind as "[_ ?]".
       rewrite interp_unseal //. }
-  Admitted.
+  Qed.
 
   Lemma refines_authentikit Θ (Δ : ctxO Σ Θ) :
     ⊢ REL v_Authentikit << i_Authentikit : ⟦ Authentikit ⟧ Δ .
@@ -1507,16 +1511,17 @@ Section proof.
     iIntros (d) "Hd". wp_alloc l as "Hl". wp_pures.
     
     iMod pos_alloc as (γm) "[Hpos Hpos']".
+    iMod idcntr_alloc as (γi) "[Hid Hid']".
     
-    iMod (na_inv_alloc seqG_name ⊤ tableN (is_susp_table l) with "[$Hd $Hl Hpos']") as "#Htab".
-    { iNext. iSplitR; last admit.
-      by iApply big_sepM_empty. }
+    iMod (na_inv_alloc seqG_name ⊤ tableN (is_susp_table l) with "[$Hd $Hl Hpos' Hid']") as "#Htab".
+    { iNext. iExists _. iSplit; try by iApply big_sepM_empty.
+      admit. }
 
     wp_rec. wp_pures.
     wp_rec. wp_pures.    
     wp_pures; i_pures.
 
-    wp_apply ("Hc" with "[$Hi $Htok $Hprf Hpos]").
+    wp_apply ("Hc" with "[$Hi $Htok $Hprf Hpos Hid]").
     { instantiate (1 := 0). iSplit. { iPureIntro. f_equal. }
       admit. }
 
@@ -1525,25 +1530,27 @@ Section proof.
     { wp_pures. iExists None. by iFrame. }
     
     iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
-    iDestruct "Htabo" as (??) "(Hl & >%Hm & Hbigsep & >Hge)".
+    iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & Hid' & >%Hidinv)".
     wp_pures. wp_load.
     wp_bind (map.map_is_empty _).
     iApply (gwp_map_is_empty with "[]"); [done|].
     iModIntro. iIntros (?) "%".
     simpl in H. subst.
-    iDestruct "Ho" as (????[??]) "[(% & Hi & Hpost & Hpos)|(Hpost & Hpos)]"; simplify_eq;
-      iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' %Hge]]]";
+    iDestruct "Ho" as (????) "(Hid & [% %] & [(% & Hi & Hpost & Hpos)|(Hpost & Hpos)])"; simplify_eq;
+      iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' Hge]]]";
       iPoseProof (pos_agree with "Hpos Hpos'") as (?) "[Hpos Hpos']"; 
       simplify_eq.
     - destruct (map.map_length m); wp_pures;
-      iMod ("Hclose_tab" with "[$Hl $Htok $Hbigsep Hpos']") as "Htok";
+      iMod ("Hclose_tab" with "[$Hl $Htok $Hbigsep Hpos' $Hid']") as "Htok";
         try (iNext; iFrame "%"; by iLeft);
       iModIntro; [iExists (Some _)|iExists None]; iSplit; eauto.
       iDestruct "Hpost" as (???) "(% & Hprf' & #HA)". simplify_eq.
       iFrame "∗ #".
-    - destruct (map.map_length m) as [|n'] eqn:Hn; try lia. wp_pures.
-      iMod ("Hclose_tab" with "[$Hl $Htok $Hbigsep Hpos']") as "Htok".
-      { iNext. iFrame "%". iRight. iRight. iFrame. iPureIntro. lia. }
+    - iDestruct "Hge" as (?????????? ?) "Hge".
+      destruct (map.map_length m) as [|n'] eqn:Hn; wp_pures.
+      { destruct! H. rewrite map_size_empty_iff in Hn. simplify_eq. }
+      iMod ("Hclose_tab" with "[$Hl $Htok $Hbigsep Hpos' Hge $Hid']") as "Htok".
+      { iNext. iFrame "%". iRight. iRight. iFrame "∗ %". }
       iModIntro. iExists None. by iFrame.
   Admitted.
 
@@ -1583,10 +1590,10 @@ Section proof.
 
 End proof.
   
-Theorem authentikit_security Σ `{authPreG Σ, na_invG Σ, inG Σ poisonOSR} (A : ∀ `{authG Σ, seqG Σ, poisonOSG Σ}, (kindO Σ ⋆) )
+Theorem authentikit_security Σ `{authPreG Σ, na_invG Σ, inG Σ poisonOSR, inG Σ idcntrUR} (A : ∀ `{authG Σ, seqG Σ, poisonOSG Σ, idcntrG Σ}, (kindO Σ ⋆) )
   (φ : val → val → Prop) (cᵥ cᵢ : expr) (σ : state) (l : list string) (prf : val) :
-  (∀ `{authG Σ, seqG Σ, poisonOSG Σ}, ∀ vᵥ vᵢ, A vᵥ vᵢ -∗ ⌜φ vᵥ vᵢ⌝) →
-  (∀ `{authG Σ, seqG Σ, poisonOSG Σ}, ⊢ REL cᵥ << cᵢ : lrel_auth_comp A) →
+  (∀ `{authG Σ, seqG Σ, poisonOSG Σ, idcntrG Σ}, ∀ vᵥ vᵢ, A vᵥ vᵢ -∗ ⌜φ vᵥ vᵢ⌝) →
+  (∀ `{authG Σ, seqG Σ, poisonOSG Σ, idcntrG Σ}, ⊢ REL cᵥ << cᵢ : lrel_auth_comp A) →
   is_list l prf →
   adequate hash_collision NotStuck (v_run #~ cᵥ prf) σ
     (λ vᵥ σᵥ, ∃ thpᵢ σᵢ vᵢ o,
@@ -1608,12 +1615,14 @@ Proof.
   iAssert (spec_ctx) as "#Hctx"; [by iExists _|].
   iMod na_alloc as (np) "Htok".
   set (Hseq := Build_seqG _ _ np).
-  iMod pos_alloc as (γ) "Hpos".
+  iMod pos_alloc as (γp) "Hpos".
   set (Hpos := PoisonOSG _ _ poisonOSG_name).
+  iMod idcntr_alloc as (γi) "Hid".
+  set (Hid := IdcntrG _ _ idcntrG_name).
 
   wp_apply wp_fupd.
   wp_apply (wp_wand with "[-]").
-  { iPoseProof (refines_run (seqG0 := Hseq) (poisonOSG0 := Hpos) prf with "[] []") as "Hrun".
+  { iPoseProof (refines_run (seqG0 := Hseq) (poisonOSG0 := Hpos) (idcntrG0 := Hid) prf with "[] []") as "Hrun".
     - by iExists _.
     - iApply Hcomp.
     - iApply ("Hrun" $! empty_ectx with "[$Hctx $Heᵢ $Htok]"). }
@@ -1648,10 +1657,10 @@ Theorem authentikit_security_syntactic (c : expr) (σ : state) (τ : type _ ⋆)
                         else True).
 Proof.
   intros Hτ Htyped Hprf.
-  set Σ := (#[authΣ; na_invΣ; GFunctor poisonOSR]).
-  eapply (authentikit_security Σ (λ _ _ _, ⟦ τ ⟧ (auth_ctx ∅))); [| |done].
-  { iIntros (?????) "Hτ". by iDestruct (eq_type_sound with "Hτ") as %->. }
-  iIntros (?????).
+  set Σ := (#[authΣ; na_invΣ; GFunctor poisonOSR; GFunctor idcntrUR]).
+  eapply (authentikit_security Σ (λ _ _ _ _, ⟦ τ ⟧ (auth_ctx ∅))); [| |done].
+  { iIntros (??????) "Hτ". by iDestruct (eq_type_sound with "Hτ") as %->. }
+  iIntros (??????).
   iApply (refines_instantiate with "[]").
   by iApply refines_typed.
 Admitted.

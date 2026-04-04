@@ -1,5 +1,5 @@
 From auth.typing Require Export types typing.
-From auth.heap_lang.lib Require Export list map set serialization.
+From auth.heap_lang.lib Require Export list map set serialization_susp.
 From auth.examples Require Export authentikit authenticatable_base_susp.
 
 (** * Proof suspension *)

@@ -1,7 +1,6 @@
 From auth.heap_lang Require Export lang notation derived_laws_upto_bad metatheory adequacy_upto_bad.
 From auth.heap_lang Require Export proofmode_upto_bad lib.inject.
 From auth.base_logic Require Export spec_ra.
-From iris.base_logic.lib Require Export na_invariants.
 
 Class authPreG Σ := AuthPreG {
   auth_preG_heapGpreS :: heapGpreS Σ;
@@ -24,40 +23,17 @@ Proof. solve_inG. Qed.
 #[global] Notation "j ⤇ᵢ e" :=
   (@tpool_pointsto _ authG_idealG j e) (at level 20) : bi_scope.
 
-Class seqG (Σ: gFunctors) := {
-  seqG_na_invG :: na_invG Σ;
-  seqG_name : gname;  
-}.
-
-Definition seq_inv `{!invGS_gen hlc Σ} `{!seqG Σ} (N : namespace) (P : iProp Σ) :=
-  na_inv seqG_name N P.
-Definition seq_tok `{!invGS_gen hlc Σ} `{!seqG Σ} (E : coPset) :=
-  na_own seqG_name E.
-
 (** Semantic intepretation of types *)
-Record lrel_un Σ := LRelUn {
-  lrel_un_car :> val → iProp Σ;
-  lrel_un_persistent v : Persistent (lrel_un_car v)
-}.
-
-Arguments LRelUn {_} _%I {_}.
-Arguments lrel_un_car {_} _ _ : simpl never.
-Global Existing Instance lrel_un_persistent.
-
 Record lrel Σ := LRel {
   lrel_car :> val → val → iProp Σ;
   lrel_persistent v1 v2 : Persistent (lrel_car v1 v2)
 }.
-
 Arguments LRel {_} _%I {_}.
 Arguments lrel_car {_} _ _ _ : simpl never.
-(* Arguments lrel_fst {_} _ : simpl never.
-Arguments lrel_fst_hold {_} _ _ : simpl never. *)
-Global Existing Instance lrel_persistent.
-
 Declare Scope lrel_scope.
-Delimit Scope lrel_scope with lrel.
 Bind Scope lrel_scope with lrel.
+Delimit Scope lrel_scope with lrel.
+Global Existing Instance lrel_persistent.
 
 Lemma ofe_ne_eta {A B : ofe} (F : A -n> B) :
   NonExpansive F → NonExpansive (λ a : A, F a).
@@ -66,43 +42,6 @@ Proof. apply _. Qed.
 (** The COFE structure on semantic types *)
 Section lrel_ofe.
   Context `{Σ : gFunctors}.
-  
-  Global Instance lrel_un_equiv : Equiv (lrel_un Σ) := λ A B, ∀ w, A w ≡ B w.
-  Global Instance lrel_un_dist : Dist (lrel_un Σ) := λ n A B, ∀ w, A w ≡{n}≡ B w.
-  Lemma lrel_un_ofe_mixin : OfeMixin (lrel_un Σ).
-  Proof. by apply (iso_ofe_mixin (lrel_un_car : lrel_un Σ → (val -d> iPropO Σ))). Qed.
-  Canonical Structure lrel_unC := Ofe (lrel_un Σ) lrel_un_ofe_mixin.
-    
-  Global Instance lrel_un_cofe : Cofe lrel_unC.
-  Proof.
-    apply (iso_cofe_subtype' (λ A : val -d> iPropO Σ,
-      ∀ w, Persistent (A w)) LRelUn lrel_un_car)=>//.
-    - apply _.
-    - apply limit_preserving_forall=> w.
-      apply bi.limit_preserving_Persistent.
-      intros n P Q HPQ. apply (HPQ w).
-  Qed.
-
-  Global Instance lrel_un_inhabited : Inhabited (lrel_un Σ) := populate (LRelUn inhabitant).
-
-  Global Instance lrel_un_car_ne n : Proper (dist n ==> (=) ==> dist n) lrel_un_car.
-  Proof. by intros A A' ? w w' <-. Qed.
-  Global Instance lrel_un_car_proper : Proper ((≡) ==> (=) ==> (≡)) lrel_un_car.
-  Proof.
-    intros ?? H ???. simplify_eq.
-    apply equiv_dist => n.
-    rewrite equiv_dist in H.
-    rewrite H //.
-  Qed.
-
-  Lemma lrel_un_equivI (A B : lrel_un Σ) :
-    A ≡@{lrel_un Σ} B ⊣⊢@{iProp Σ} (∀ w, A w ≡@{iProp Σ} B w).
-  Proof.
-    iSplit.
-    - iIntros "H" (?). by iRewrite "H".
-    - iStopProof. uPred.unseal.
-      split. intros n x Hnx Heq ????. done.
-  Qed.
 
   Global Instance lrel_equiv : Equiv (lrel Σ) := λ A B, ∀ w1 w2, A w1 w2 ≡ B w1 w2.
   Global Instance lrel_dist : Dist (lrel Σ) := λ n A B, ∀ w1 w2, A w1 w2 ≡{n}≡ B w1 w2.
@@ -145,105 +84,10 @@ Section lrel_ofe.
 End lrel_ofe.
 
 Arguments lrelC : clear implicits.
-Arguments lrel_unC : clear implicits.
-
-(** Combined unary+binary type interpretation *)
-Record lrel_bi Σ := LRelBi {
-  lrel_bi_un  : lrel_un Σ;
-  lrel_bi_bin : lrel Σ;
-}.
-
-Arguments LRelBi {_} _ _.
-Arguments lrel_bi_un {_} _ : simpl never.
-Arguments lrel_bi_bin {_} _ : simpl never.
-
-Section lrel_bi_ofe.
-  Context `{Σ : gFunctors}.
-
-  Global Instance lrel_bi_equiv : Equiv (lrel_bi Σ) :=
-    λ A B, lrel_bi_un A ≡ lrel_bi_un B ∧ lrel_bi_bin A ≡ lrel_bi_bin B.
-  Global Instance lrel_bi_dist : Dist (lrel_bi Σ) :=
-    λ n A B, lrel_bi_un A ≡{n}≡ lrel_bi_un B ∧ lrel_bi_bin A ≡{n}≡ lrel_bi_bin B.
-  Lemma lrel_bi_ofe_mixin : OfeMixin (lrel_bi Σ).
-  Proof.
-    by apply (iso_ofe_mixin
-      (λ A : lrel_bi Σ, (lrel_bi_un A, lrel_bi_bin A)
-        : prodO (lrel_unC Σ) (lrelC Σ))).
-  Qed.
-  Canonical Structure lrel_biC := Ofe (lrel_bi Σ) lrel_bi_ofe_mixin.
-
-  Global Instance lrel_bi_cofe : Cofe lrel_biC.
-  Proof.
-    apply (iso_cofe_subtype'
-      (λ p : prodO (lrel_unC Σ) (lrelC Σ), True)
-      (fun p _ => LRelBi p.1 p.2)
-      (λ A, (lrel_bi_un A, lrel_bi_bin A))).
-    - done.
-    - done.
-    - intros [??] _. done.
-    - apply _.
-  Qed.
-
-  Global Instance lrel_bi_inhabited : Inhabited (lrel_bi Σ) :=
-    populate (LRelBi inhabitant inhabitant).
-
-  Global Instance lrel_bi_un_ne n : Proper (dist n ==> dist n) (@lrel_bi_un Σ).
-  Proof. by intros A B [? _]. Qed.
-  Global Instance lrel_bi_bin_ne n : Proper (dist n ==> dist n) (@lrel_bi_bin Σ).
-  Proof. by intros A B [_ ?]. Qed.
-  Global Instance lrel_bi_un_proper : Proper ((≡) ==> (≡)) (@lrel_bi_un Σ) := ne_proper _.
-  Global Instance lrel_bi_bin_proper : Proper ((≡) ==> (≡)) (@lrel_bi_bin Σ) := ne_proper _.
-
-  Global Instance LRelBi_ne n :
-    Proper (dist n ==> dist n ==> dist n) (@LRelBi Σ).
-  Proof. by intros ?? H1 ?? H2. Qed.
-
-End lrel_bi_ofe.
-
-Arguments lrel_biC : clear implicits.
-
-(** Conjunction coercion: A : lrel_bi Σ coerces to λ v1 v2, A.bin v1 v2 ∧ A.un v1 *)
-Section lrel_bi_coerce.
-  Context `{Σ : gFunctors}.
-
-  Definition lrel_bi_as_lrel (A : lrel_bi Σ) : lrel Σ :=
-    LRel (λ v1 v2, lrel_bi_bin A v1 v2 ∧ lrel_bi_un A v1)%I.
-  Global Coercion lrel_bi_as_lrel : lrel_bi >-> lrel.
-
-  Global Instance lrel_bi_as_lrel_persistent (A : lrel_bi Σ) v1 v2 :
-    Persistent (lrel_bi_as_lrel A v1 v2).
-  Proof. apply _. Qed.
-
-  Global Instance lrel_bi_as_lrel_ne n :
-    Proper (dist n ==> dist n) lrel_bi_as_lrel.
-  Proof. solve_proper. Qed.
-
-  Global Instance lrel_bi_as_lrel_proper :
-    Proper ((≡) ==> (≡)) lrel_bi_as_lrel := ne_proper _.
-
-  Lemma lrel_bi_proj_bin (A : lrel_bi Σ) v1 v2 :
-    lrel_bi_as_lrel A v1 v2 ⊢ lrel_bi_bin A v1 v2.
-  Proof. rewrite /lrel_bi_as_lrel. cbv [lrel_car]. iIntros "[$ _]". Qed.
-
-  Lemma lrel_bi_proj_un (A : lrel_bi Σ) v1 v2 :
-    lrel_bi_as_lrel A v1 v2 ⊢ lrel_bi_un A v1.
-  Proof. rewrite /lrel_bi_as_lrel. cbv [lrel_car]. iIntros "[_ $]". Qed.
-
-  (** Proof mode: iDestruct "H" as "[Hbin Hun]" splits any ⟦τ⟧Δ v1 v2 *)
-  Global Instance into_and_lrel_bi_as_lrel (A : lrel_bi Σ) (v1 v2 : val) b :
-    IntoAnd b (lrel_bi_as_lrel A v1 v2) (lrel_bi_bin A v1 v2) (lrel_bi_un A v1).
-  Proof. rewrite /IntoAnd /lrel_bi_as_lrel. cbv [lrel_car]. done. Qed.
-
-  (** Proof mode: iSplit on ⊢ ⟦τ⟧Δ v1 v2 splits into binary and unary *)
-  Global Instance from_and_lrel_bi_as_lrel (A : lrel_bi Σ) (v1 v2 : val) :
-    FromAnd (lrel_bi_as_lrel A v1 v2) (lrel_bi_bin A v1 v2) (lrel_bi_un A v1).
-  Proof. rewrite /FromAnd /lrel_bi_as_lrel. cbv [lrel_car]. iIntros "[$ $]". Qed.
-
-End lrel_bi_coerce.
 
 (** Relational judgment *)
 Section refines.
-  Context `{!authG Σ, !seqG Σ}.
+  Context `{!authG Σ}.
 
   Definition spec_inv (ρᵢ: cfg heap_lang) : iProp Σ :=
     (∃ tpᵢ σᵢ,
@@ -262,19 +106,15 @@ Section refines.
 
   Definition refines (E : coPset) (eᵥ eᵢ : expr) (A : lrel Σ) : iProp Σ :=
     (∀ Kᵢ tᵢ,
-        spec_ideal tᵢ (fill Kᵢ eᵢ) ∗ seq_tok E -∗
-        WP eᵥ @ E {{ vᵥ, ∃ (vᵢ : val), spec_ideal tᵢ (fill Kᵢ vᵢ) ∗ A vᵥ vᵢ ∗ seq_tok E }})%I.
+        spec_ideal tᵢ (fill Kᵢ eᵢ) -∗
+        WP eᵥ @ E {{ vᵥ, ∃ (vᵢ : val), spec_ideal tᵢ (fill Kᵢ vᵢ) ∗ A vᵥ vᵢ }})%I.
 
   Definition refines_Some (E : coPset) (eᵥ eᵢ : expr) (A : lrel Σ) : iProp Σ :=
     (∀ Kᵢ tᵢ,
-        spec_ideal tᵢ (fill Kᵢ eᵢ) ∗ seq_tok E -∗
-        WP eᵥ @ E {{ vᵥ, ∃ (o : option val), ⌜vᵥ = $ o⌝ ∗ seq_tok E ∗ 
+        spec_ideal tᵢ (fill Kᵢ eᵢ) -∗
+        WP eᵥ @ E {{ vᵥ, ∃ (o : option val), ⌜vᵥ = $ o⌝ ∗
           if o is Some wᵥ then ∃ (vᵢ : val), spec_ideal tᵢ (fill Kᵢ vᵢ) ∗ A wᵥ vᵢ else True }})%I.
 
-  Definition refines_un (E : coPset) (eᵥ : expr) (A : lrel_un Σ) : iProp Σ :=
-    (seq_tok E -∗
-       WP eᵥ @ E {{ vᵥ, A vᵥ ∗ seq_tok E }})%I.
-  
  Global Instance refines_ne E n :
     Proper ((=) ==> (=) ==> (dist n) ==> (dist n)) (refines E).
   Proof. solve_proper. Qed.
@@ -284,18 +124,6 @@ Section refines.
   Proof.
     rewrite /refines.
     intros ?????????. simplify_eq.
-    by repeat f_equiv.
-  Qed.
-  
- Global Instance refines_un_ne E n :
-    Proper ((=) ==> (dist n) ==> (dist n)) (refines_un E).
-  Proof. solve_proper. Qed.
-
-  Global Instance refines_un_proper E  :
-    Proper ((=) ==> (≡) ==> (≡)) (refines_un E).
-  Proof.
-    rewrite /refines_un.
-    intros ??????. simplify_eq.
     by repeat f_equiv.
   Qed.
 
@@ -313,76 +141,13 @@ Notation "'REL' e1 '<<' e2 ':' A" :=
    A at level 200,
     format "'REL'  e1  '/ ' '<<'  e2  '/ ' :  A").
 
-Notation "'TRM' e '@' E ':' A" :=
-  (refines_un E e%E A)
-  (at level 100, E at next level, e at next level,
-   A at level 200,
-   format "'TRM'  e '/ ' '@'  E  :  A").
-
-Notation "'TRM' e ':' A" :=
-  (refines_un ⊤ e%E A)
-  (at level 100, e at next level,
-   A at level 200,
-    format "'TRM'  e '/ ' :  A").
-
-Section semtypes_un.
-  Context `{authG Σ, seqG Σ}.
-
-  Implicit Types e : expr.
-  Implicit Types E : coPset.
-  Implicit Types A B : lrel_un Σ.
-  
-
-  Definition lrel_un_true : lrel_un Σ := LRelUn (λ w, True)%I.
-
-  Definition lrel_un_unit : lrel_un Σ := LRelUn (λ w, ⌜w = #()⌝%I).
-  Definition lrel_un_bool : lrel_un Σ := LRelUn (λ w, ∃ b : bool, ⌜w = #b⌝)%I.
-  Definition lrel_un_int : lrel_un Σ := LRelUn (λ w, ∃ n : Z, ⌜w = #n⌝)%I.
-  Definition lrel_un_string : lrel_un Σ := LRelUn (λ w, ∃ s : string, ⌜w = #s⌝)%I.
-
-  Definition lrel_un_arr (A1 A2 : lrel_un Σ) : lrel_un Σ := LRelUn (λ w,
-    □ ∀ v, A1 v -∗ TRM App w v @ ⊤ : A2)%I.
-  Program Definition lrel_un_arr' : lrel_unC Σ -n> lrel_unC Σ -n> lrel_unC Σ := λne A1 A2, lrel_un_arr A1 A2.
-  Solve Obligations with solve_proper.
-
-  (* Definition lrel_un_ref (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ w,
-    ∃ l : loc, ⌜w = #l⌝ ∧
-      inv (authN .@ "ref" .@ l) (∃ v, l ↦ v ∗ A v))%I.
-  Program Definition lrel_un_ref' : lrel_unC Σ -n> lrel_unC Σ := λne A, lrel_un_ref A.
-  Solve Obligations with solve_proper. *)
-
-  Definition lrel_un_prod (A B : lrel_un Σ) : lrel_un Σ := LRelUn (λ w,
-    ∃ v v',
-      ⌜w = (v,v')%V⌝ ∧ A v ∗ B v')%I.
-  Program Definition lrel_un_prod' : lrel_unC Σ -n> lrel_unC Σ -n> lrel_unC Σ := λne A1 A2, lrel_un_prod A1 A2.
-  Solve Obligations with solve_proper.
-
-  Definition lrel_un_sum (A B : lrel_un Σ) : lrel_un Σ := LRelUn (λ w,
-    ∃ v, (⌜w = InjLV v⌝ ∧ A v) ∨ (⌜w = InjRV v⌝ ∧ B v))%I.
-  Program Definition lrel_un_sum' : lrel_unC Σ -n> lrel_unC Σ -n> lrel_unC Σ := λne A1 A2, lrel_un_sum A1 A2.
-  Solve Obligations with solve_proper.
-
-  Definition lrel_un_option (A : lrel_un Σ) : lrel_un Σ := lrel_un_sum lrel_un_unit A.
-
-  Definition lrel_un_forall {T : ofe} (C : T -n> lrel_un Σ) : lrel_un Σ := LRelUn (λ w,
-    ∀ A : T, (lrel_un_arr lrel_un_true (C A)) w)%I.
-  Program Definition lrel_un_forall' {T : ofe} : (T -n> lrel_unC Σ) -n> lrel_unC Σ := λne C, lrel_un_forall C.
-  Next Obligation. rewrite /lrel_un_forall; solve_proper. Qed.
-
-  Definition lrel_un_exists {T : ofe} (C : T -n> lrel_un Σ) : lrel_un Σ := LRelUn (λ w,
-    ∃ A : T, C A w)%I.
-  Program Definition lrel_un_exists' {T : ofe} : (T -n> lrel_unC Σ) -n> lrel_unC Σ := λne C, lrel_un_exists C.
-  Next Obligation. solve_proper. Qed.
-
-End semtypes_un.
-
-Section semtypes_bin.
-  Context `{authG Σ, seqG Σ}.
+Section semtypes.
+  Context `{authG Σ}.
 
   Implicit Types e : expr.
   Implicit Types E : coPset.
   Implicit Types A B : lrel Σ.
-  
+
   Definition lrel_true : lrel Σ := LRel (λ w1 w2, True)%I.
 
   Definition lrel_unit : lrel Σ := LRel (λ w1 w2, ⌜w1 = #() ∧ w2 = #()⌝%I).
@@ -395,11 +160,11 @@ Section semtypes_bin.
   Program Definition lrel_arr' : lrelC Σ -n> lrelC Σ -n> lrelC Σ := λne A1 A2, lrel_arr A1 A2.
   Solve Obligations with solve_proper.
 
-  (* Definition lrel_ref (A : lrel Σ) : lrel Σ := LRel (λ w1 w2,
+  Definition lrel_ref (A : lrel Σ) : lrel Σ := LRel (λ w1 w2,
     ∃ l1 l2 : loc, ⌜w1 = #l1⌝ ∧ ⌜w2 = #l2⌝ ∧
       inv (authN .@ "ref" .@ (l1,l2)) (∃ v1 v2, l1 ↦ v1 ∗ l2 ↦ᵢ v2 ∗ A v1 v2))%I.
   Program Definition lrel_ref' : lrelC Σ -n> lrelC Σ := λne A, lrel_ref A.
-  Solve Obligations with solve_proper. *)
+  Solve Obligations with solve_proper.
 
   Definition lrel_prod (A B : lrel Σ) : lrel Σ := LRel (λ w1 w2,
     ∃ v1 v2 v1' v2',
@@ -425,14 +190,14 @@ Section semtypes_bin.
   Program Definition lrel_exists' {T : ofe} : (T -n> lrelC Σ) -n> lrelC Σ := λne C, lrel_exists C.
   Next Obligation. solve_proper. Qed.
 
-End semtypes_bin.
+End semtypes.
 
 (** Nice notations *)
 Notation "()" := lrel_unit : lrel_scope.
 Infix "→" := lrel_arr : lrel_scope.
 Infix "*" := lrel_prod : lrel_scope.
 Infix "+" := lrel_sum : lrel_scope.
-(* Notation "'ref' A" := (lrel_ref A) : lrel_scope. *)
+Notation "'ref' A" := (lrel_ref A) : lrel_scope.
 Notation "∀; x .. y , P" :=
   (lrel_forall (λne x, .. (lrel_forall (λne y, P%lrel)) ..))
     (at level 200, x binder, y binder, right associativity) : lrel_scope.

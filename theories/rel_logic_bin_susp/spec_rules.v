@@ -2,7 +2,7 @@ From iris.algebra Require Import auth excl frac agree gmap list.
 From iris.proofmode Require Import proofmode.
 From auth.heap_lang Require Export lang notation tactics.
 From auth.base_logic Require Export spec_ra.
-From auth.rel_logic_bin Require Export model.
+From auth.rel_logic_bin_susp Require Export model.
 Import uPred.
 
 Local Set Default Proof Using "Type".

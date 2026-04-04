@@ -1,4 +1,4 @@
-From auth.heap_lang.lib Require Export serialization.
+From auth.heap_lang.lib Require Export serialization_susp.
 From auth.typing Require Export types typing.
 From auth.prelude Require Import strings.
 

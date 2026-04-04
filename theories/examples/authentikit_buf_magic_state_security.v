@@ -28,7 +28,7 @@ Section proof.
     ∃ (m : gmap string val),
       is_table (g := gwp_upto_bad) v m ∗
       ([∗ map] h ↦ a ∈ m, ∃ (s : string) (t : evi_type),
-          s_is_ser (g := gwp_upto_bad) (evi_type_ser t) a s ∗ ⌜h = hash s⌝ ∗ hashed s).
+          ⌜s_is_ser (evi_type_ser t) a s⌝ ∗ ⌜h = hash s⌝ ∗ hashed s).
 
   Definition Nauth := nroot .@ "authentikit".
   Definition inv_cache (v : val) := seq_inv Nauth (is_cache v).
@@ -144,31 +144,29 @@ Section proof.
     iIntros (??) "Hi".
     i_pures.
     interp_unfold in "Hevi Hauth".
-    iDestruct "Hauth" as (a1 tA s1) "(#Hs1 & -> & #HA & #Hsh1)".
+    iDestruct "Hauth" as (a1 tA s1 Hs1 ->) "(#HA & #Hs1)".
     iDestruct "Hevi" as (tA' ?? ->) "[#Hser #Hdeser]".
     wp_pures. iFrame. iModIntro.
     interp_unfold!.
     iIntros (???? Ψ) "!# (Hi & Htok & Hprf) HΨ".
-    iMod (na_inv_acc with "Hc Htok") as "(Hcache & Htok & Hclose)"; [done|done|].
     i_pures; wp_pures.
 
+    iMod (na_inv_acc with "Hc Htok") as "(>Hcache & Htok & Hclose)"; [done|done|].
     iDestruct "Hcache" as (?) "(Htable & #Hm)".
     wp_apply (gwp_table_lookup with "Htable"); [done|].
     iIntros "Htable".
     destruct (m !! hash s1) as [a|] eqn:Hlookup.
-    - iDestruct (big_sepM_lookup with "Hm") as (s1' t') "(#Hs1' & % & #Hsh1')"; [done|subst].
+    - iDestruct (big_sepM_lookup with "Hm") as (s1' t' ??) "Hs1'"; [done|subst].
       wp_pures.
 
       destruct (decide (collision s1 s1')) as [|Hnc%not_collision].
-      { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "Hsh1 Hsh1'"). }
+      { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "Hs1 Hs1'"). }
       destruct Hnc as [<- |?]; [|simplify_eq].
-      
-      iAssert (⌜a1 = a⌝)%I as "%".
-      { by iApply (evi_type_ser_inj tA t'). }
+      assert (a1 = a) as <- by by eapply (evi_type_ser_inj tA t').
 
       iMod ("Hclose" with "[$Htok $Hm $Htable]") as "Htok".
       iModIntro. iApply ("HΨ" $! (Some _)). iFrame.
-      iExists  _. iFrame "#". by simplify_eq.
+      iExists  _. by iFrame "HA".
     - wp_pures.
       iDestruct "Hprf" as (?) "%".
       wp_apply gwp_list_head; [done|].
@@ -178,7 +176,7 @@ Section proof.
         iModIntro. iApply ("HΨ" $! None). iFrame. }
       wp_pures.
       wp_apply (wp_hash with "[$]").
-      iIntros "#Hsh1'".
+      iIntros "#Hs1'".
       wp_pures.
 
       case_bool_decide; simplify_eq; wp_pures; last first.
@@ -186,7 +184,7 @@ Section proof.
         iModIntro. iApply ("HΨ" $! None). iFrame. }
 
       wp_apply "Hdeser"; [done|].
-      iIntros ([r|]) "Hs1'"; wp_pures; last first.
+      iIntros ([r|] Hs1'); wp_pures; last first.
       { iMod ("Hclose" with "[$Htok $Hm $Htable]") as "Htok".
         iModIntro. iApply ("HΨ" $! None). iFrame. }
 
@@ -197,11 +195,9 @@ Section proof.
       iIntros "/=" (tl Htl). wp_pures.
 
       destruct (decide (collision s1 s1')) as [|Hnc%not_collision].
-      { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "Hsh1 Hsh1'"). }
+      { iExFalso. by iApply (hashes_auth.hashed_inj_or_coll with "Hs1 Hs1'"). }
       destruct Hnc as [<- |?]; [|simplify_eq].
-
-      iAssert (⌜a1 = r⌝)%I as "<-".
-      { by iApply (evi_type_ser_inj tA tA'). }
+      assert (a1 = r) as <- by by eapply (evi_type_ser_inj tA tA').
 
       iMod ("Hclose" with "[$Htok Hm Htable]") as "Htok".
       { iModIntro. iFrame "Htable".
