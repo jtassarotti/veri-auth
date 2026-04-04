@@ -647,8 +647,6 @@ Section fundamental.
     iApply ("IH" with "[$]").
   Qed.
 
-  (** Unary compatibility lemmas — admitted, to be proved separately *)
-
   Lemma un_log_related_var Θ Δ Γ x τ :
     Γ !! x = Some τ →
     ⊢ {Θ;Δ;Γ} ⊨ᵤ Var x : τ.

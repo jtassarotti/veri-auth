@@ -627,13 +627,6 @@ Section prod_serialization.
     iPoseProof (B.(s_is_ser_eq) with "HB") as "HB'".
     iExists s1, s2. iFrame. done.
   Qed.
-(*    split.
-    - intros (? & ? & ? & ? & ?).
-      apply s_is_ser_eq in H as (? & HA).
-      apply s_is_ser_eq in H0 as (? & HB).
-      exists (x1,x2)%V.
-      by exists x1,x2,x,x0.
-    - Admitted.    *)
       
   Lemma prod_is_ser_inj v s1 s2 :
     prod_is_ser v s1 -∗ prod_is_ser v s2 -∗ ⌜s1 = s2⌝.

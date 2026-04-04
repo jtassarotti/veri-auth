@@ -77,7 +77,7 @@ Section map_specs.
   Definition is_map (d : val) (m : gmap K V) : Prop :=
     ∃ l, m = list_to_map l ∧ d = $l ∧ NoDup (fst <$> l).
 
-  Definition map_length (m : gmap K V) : nat := length (map_to_list m).
+  Definition map_length (m : gmap K V) : nat := size m.
 
   Lemma gwp_map_is_empty s E d m:
     G{{{ ⌜is_map d m⌝ }}}
@@ -87,7 +87,7 @@ Section map_specs.
     iIntros (Φ (l & -> & -> & Hdup)) "HΦ".
     rewrite /map_is_empty /map_length.
     destruct l; gwp_pures; iModIntro; iApply "HΦ";
-      iPureIntro; rewrite length_map_to_list; simpl.
+      iPureIntro; simpl.
     - by rewrite map_size_empty.
     - by rewrite (map_size_list_to_map _ Hdup).
   Qed.
