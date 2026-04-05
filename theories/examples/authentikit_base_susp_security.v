@@ -1,10 +1,9 @@
 From auth.prelude Require Import stdpp.
-From auth.rel_logic_bin_susp Require Export model spec_rules spec_tactics interp lib adequacy fundamental.
-From auth.heap_lang Require Import gen_weakestpre typedproph.
+From auth.rel_logic_bin_susp Require Export model interp spec_tactics.
+From auth.heap_lang Require Import typedproph.
 From auth.heap_lang.lib Require Import list serialization_susp.
 From auth.examples Require Export authentikit_susp authenticatable_base_susp.
-From iris.base_logic.lib Require Export invariants na_invariants.
-From iris.algebra Require Import gmap agree.
+From iris.base_logic.lib Require Export na_invariants.
   
 Inductive evi_type : Type :=
 | tprod (t1 t2 : evi_type)
@@ -17,7 +16,7 @@ Definition authSet (N : namespace) : namespace := N .@ "auth".
 Definition authN (N : namespace) (l : loc) : namespace := (authSet N) .@ l.
 
 Section authenticatable.
-  Context `{!heapGS_gen hlc Σ, !seqG Σ} (N : namespace).
+  Context `{!authG Σ, !seqG Σ} (N : namespace).
 
   Definition proph_susp (p : proph_id) (h : string) : iProp Σ :=
     (typed_proph1_prop StringTypedProph) p h.
@@ -786,7 +785,8 @@ Section proof.
         - iDestruct "Hser1" as (??) "[(%&%&#Hser1)|(%&%&#Hinv)]";
             iDestruct "Hser2" as (??) "[(%&%&#Hser2)|(%&%&(%&#Hsusp1&#Hser2))]";
             simplify_eq.
-          + assert (h = h0) as ->; first admit.
+          + iAssert (⌜h = h0⌝)%I as %->.
+            { iDestruct "Hser1" as %H1. iDestruct "Hser2" as %H2. iPureIntro. naive_solver. }
             by iFrame "# ∗".
           + iAssert (⌜h = h0⌝)%I as %->.
             { iDestruct "Hser1" as %H1. iDestruct "Hser2" as %H2. iPureIntro. naive_solver. }
@@ -806,23 +806,27 @@ Section proof.
               iLeft. iExists (InjLV #(hash sb)). iSplit; [done|].
               iExists ab, tb, sb. iFrame "#". iLeft. done.
             * iLeft. iExists (InjLV #h0). iSplit; [done|]. iLeft. iExists h0. done.
-          + iFrame "# ∗".
-            iModIntro. iSplit; iLeft; iExists _; iSplit; try eauto.
-            iDestruct "HAb" as "[(%&%& (%&%&%& #hashs & #Hser & #HA & HAb))|%]"; simplify_eq.
-            iFrame "#". iRight. admit.
+          + iModIntro. iFrame "Htok". iSplit.
+            * iLeft. iExists (InjRV #susp). iSplit; [done|].
+              iDestruct "HAb" as "[(%&%& (%&%&%& #hashs & #Hser & #HA & [%|(%&%&%&%&_)]))|%]"; simplify_eq.
+              iExists a1, t, s1. iFrame "#". iRight. iFrame "#". iSplit; [done|].
+              iDestruct "Hser2" as %H2. iPureIntro. naive_solver.
+            * iLeft. iExists (InjRV #susp). iSplit; [done|].
+              iRight. iExists s, susp. iSplit; [done|]. iFrame "#".
           + iDestruct "HAb" as "[(%&%& (%&%&%& #hashs1 & #Hser & #HA & [%|(%&%&%&%& #Hinv')]))|%]"; simplify_eq.
-            iFrame "Hser #".
             iMod (na_inv_acc with "Hinv' Htok") as "(Hinv1 & Htok & Hclose)"; [solve_ndisj|solve_ndisj|].
-            iDestruct "Hinv1" as ">[(%&%& #hashs2 & %& #Hsusp & #Hser')|(%& %& %& Hsusp & Hproph & #Hser')]";
-              simplify_eq.
-            * assert (h = h0) as ->; first admit.
-              assert (s1 = s0) as ->; first admit.
-              assert (s = some_ser_str (string_ser_str (hash s0))) as ->; first admit.
-              iMod ("Hclose" with "[$Htok]") as "$".
-              { iNext. iLeft. iFrame "#". by iFrame "#". }
-              iModIntro. iSplit; iLeft; iExists _; iSplit; try done; [|iRight; eauto].
-              eauto.
-            * iPoseProof (pointsto_agree with "Hsusp1 Hsusp") as "%". done. }
+            iDestruct "Hinv1" as ">[(%s1' & % & #hashs2 & (% & #Hsusp & #Hser'))|(%& %& %& Hsusp & _ & _)]"; last first.
+            { iExFalso. iDestruct (pointsto_agree with "Hsusp Hsusp1") as %?. done. }
+            iDestruct (pointsto_agree with "Hsusp Hsusp1") as %Heqh. simplify_eq.
+            iMod ("Hclose" with "[$Htok]") as "Htok".
+            { iNext. iLeft. iExists s1'. iSplit; [iPureIntro; congruence|]. iSplit; [iFrame "#"|].
+              iExists h. iFrame "#". }
+            iModIntro. iFrame "Htok". iSplit.
+            * iLeft. iExists (InjRV #susp). iSplit; [done|].
+              iExists a1, t, s1. iFrame "#". iRight. iFrame "#". iSplit; [done|].
+              iDestruct "Hser2" as %H2. iDestruct "Hser'" as %H'. iPureIntro. naive_solver.
+            * iLeft. iExists (InjRV #susp). iSplit; [done|].
+              iRight. iExists s, susp. iSplit; [done|]. iFrame "#". }
       { iApply refines_un_Auth_auth. } }
     { rewrite interp_un_forall_unfold.
       iIntros (A ?) "!# _ Htok"; rewrite -!/interp.

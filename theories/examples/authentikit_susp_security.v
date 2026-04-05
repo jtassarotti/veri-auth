@@ -1,10 +1,10 @@
 From auth.prelude Require Import stdpp.
 From auth.rel_logic_bin_susp Require Export model spec_rules spec_tactics interp lib adequacy fundamental.
-From auth.heap_lang Require Import gen_weakestpre typedproph.
+From auth.heap_lang Require Import typedproph.
 From auth.heap_lang.lib Require Import list map.
 From auth.examples Require Export authentikit_susp authentikit_base_susp_security.
 From iris.base_logic.lib Require Export na_invariants.
-From iris.algebra Require Import auth agree numbers csum excl.
+From iris.algebra Require Import auth agree numbers csum.
 
 
 (** We need [i_Authentikit] to be an expression since [v_Authenticable] needs to initialize its

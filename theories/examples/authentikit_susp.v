@@ -130,28 +130,40 @@ Definition p_bind : val :=
 
 Definition p_auth : val :=
   Λ: λ: "evi" "a",
-      let, ("serialize", "suspend", "unsuspend") := "evi" in
-      let: "unsusp_a" := "unsuspend" "a" in
-      InjL (ref #false, ref #false, "unsusp_a", Hash ("serialize" "unsusp_a")).
+    let, ("serialize", "suspend", "unsuspend") := "evi" in
+    match: ("unsuspend" "a") with
+      NONE => NONEV
+    | SOME "unsusp_a" =>
+        SOME (InjL (
+            NewProph, ref #false, ref #false, 
+            "unsusp_a", Hash ("serialize" "unsusp_a")))
+    end.
 
 Definition p_unauth : val :=
   Λ: λ: "evi" "a" "prf_state",
+    match: "a" with
+      NONE => NONEV
+    | SOME "a" => 
       let, ("pf_stream", "buffer") := "prf_state" in
       let, ("serialize", "suspend", "unsuspend") := "evi" in
       let: "un_a" :=
         match: "a" with
           InjL "susp_data" =>
-            let, ("b", "r", "a", <>) := "susp_data" in
-            if: !"r" then #() else "b" <- #false;;
+            let, ("p", "b", "r", "a", <>) := "susp_data" in
+            (if: !"r" then #() 
+            else
+              resolve_proph: "p" to: #true;;
+              "b" <- #true);;
             "a"
         | InjR "data" =>
             let, ("a", "<>") := "data" in "a"
         end
       in
       let: "susp_un_a" := "suspend" "un_a" in
-      let: "finish" := λ: <>,"serialize" "susp_un_a" in
+      let: "finish" := λ: <>, "serialize" "susp_un_a" in
       let: "prf_state'" := ("pf_stream", "finish" :: "buffer") in
-      ("prf_state'", "susp_un_a").
+      SOME ("prf_state'", "susp_un_a")
+    end.
                      
 Definition flush_buf_stream : val :=
   rec: "aux" "buffer" "pf_stream" :=

@@ -23,7 +23,6 @@ Definition option_count : val :=
 
 Definition auth_scheme : serialization_scheme :=
   option_serialization_scheme string_serialization_scheme.
-Arguments s_serializer : simpl never.
 Arguments s_serializer' : simpl never.
 Arguments s_deserializer : simpl never.
 
@@ -99,36 +98,67 @@ Definition v_Auth_string : val :=
 Definition v_Auth_int : val :=
   (int_ser', λ: <>, int_deser, int_count).
 
+
+(* Definition new_br : val :=
+  λ: <>, (ref #false, NewProph).
+
+(* Prophecy can only be resolved once (false -> true). This doesn't return anything *)
+Definition resolve_br_proph : val :=
+  λ: "p" "val",
+    let, ("val", "proph") := "val" in
+    if: "val" then #()
+    else
+      resolve_proph: "proph" to: (Hash "y");;
+      "val" <- #true.
+
+Definition read_br : val :=
+  λ: "val",
+    let, ("val", "p") := "val" in "val". *)
+
+
 Definition auth_ser_p : val :=
   λ: "a",
-    let: "a_ser" := auth_scheme.(s_deserializer) in
     match: "a" with
-      InjL "d" =>
-        let, ("a", "h") := "d" in
-        "a_ser" (InjR "h")
-    | InjR "d" =>
-        let, ("b", <>, "a", "h") := "d" in
-        if: !"b" then "a_ser" (InjL #"")
-        else "a_ser" (InjR "h")
+      NONE => NONEV
+    | SOME "a" =>
+      let: "a_ser" := auth_scheme.(s_serializer') in
+      match: "a" with
+        InjL "d" =>
+          let, ("a", "h") := "d" in
+          "a_ser" (InjR "h")
+      | InjR "d" =>
+          let, ("p", "b", <>, "a", "h") := "d" in
+          if: !"b" then "a_ser" (InjL #"")
+          else "a_ser" (InjR "h")
+      end
     end.
 
 Definition auth_suspend_p : val :=
   λ: "a",
     match: "a" with
-      InjL "d" =>
-        let, ("a", "h") := "d" in
-        InjR (ref #false, ref #false, "a", "h")
-    | InjR <> => NONE
+      NONE => NONEV
+    | SOME "a" =>
+      match: "a" with
+        InjL "d" =>
+          let, ("a", "h") := "d" in
+          InjR (NewProph, ref #false, ref #false, "a", "h")
+      | InjR <> => NONEV
+      end
     end.
 
 Definition auth_unsuspend_p : val :=
   λ: "a",
     match: "a" with
-      InjL "d" => NONE
-    | InjR "d" =>
-        let, ("b", "r", "a", "h") := "d" in
-        "r" <- #true;;
-        InjL ("a", "h")
+      NONE => NONEV
+    | SOME "a" =>
+      match: "a" with
+        InjL "d" => NONEV
+      | InjR "d" =>
+          let, ("p", "b", "r", "a", "h") := "d" in
+          resolve_proph: "p" to: #false;;
+          "r" <- #true;;
+          SOME (InjL ("a", "h"))
+      end
     end.
 
 (** type 'a evidence = 'a -> string; suspend : 'a -> 'a; unsuspend : 'a -> 'a *)
