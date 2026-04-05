@@ -14,32 +14,31 @@ Definition i_Authenticable : expr :=
 Definition i_Authentikit : expr := (i_return, i_bind, i_Authenticable).
 
 
-Definition poisonOSR := authUR (optionUR (optionUR (agree unitUR))).
+Definition poisonOSR := authUR (optionUR (optionUR unitUR)).
 Class poisonOSG Σ := PoisonOSG { poisonOS_inG :> inG Σ poisonOSR; poisonOSG_name : gname }.
 
 Definition idcntrUR := authUR nat.
 Class idcntrG Σ := IdcntrG { idcntr_inG :> inG Σ idcntrUR; idcntrG_name : gname }.
 
 Lemma pos_alloc `{inG Σ poisonOSR} :
-  ⊢ |==> ∃ _ : poisonOSG Σ, 
-      (own poisonOSG_name (●{DfracOwn (1/2)} None)) ∗ 
+  ⊢ |==> ∃ _ : poisonOSG Σ,
+      (own poisonOSG_name (●{DfracOwn (1/2)} None)) ∗
       (own poisonOSG_name (●{DfracOwn (1/2)} None))%I.
 Proof.
-  iMod (own_alloc (● None)) as (γ) "[Hauth1 Hauth2]"; [admit|].
-  set (H1 := PoisonOSG _ _ γ).
-  iExists _. by iFrame.
-Admitted.
+  iMod (own_alloc (●{DfracOwn (1/2)} None ⋅ ●{DfracOwn (1/2)} None)) as (γ) "[H1 H2]".
+  { apply auth_auth_dfrac_op_valid. split; [|split]; done. }
+  iExists (PoisonOSG _ _ γ). iFrame. done.
+Qed.
 
 Lemma idcntr_alloc `{inG Σ idcntrUR} :
-  ⊢ |==> ∃ _ : idcntrG Σ, 
-      (own idcntrG_name (●{DfracOwn (1/2)} 0) ∗ 
+  ⊢ |==> ∃ _ : idcntrG Σ,
+      (own idcntrG_name (●{DfracOwn (1/2)} 0) ∗
       own idcntrG_name (●{DfracOwn (1/2)} 0))%I.
 Proof.
-  iMod (own_alloc (● 0 ⋅ ◯ 0)) as (γ) "[Hauth _]"; [admit|].
-  set (H1 := IdcntrG _ _ γ).
-  iExists _.
-  by iDestruct "Hauth" as "[$ $]".
-Admitted.
+  iMod (own_alloc (●{DfracOwn (1/2)} 0 ⋅ ●{DfracOwn (1/2)} 0)) as (γ) "[H1 H2]".
+  { apply auth_auth_dfrac_op_valid. split; [|split]; done. }
+  iExists (IdcntrG _ _ γ). iFrame. done.
+Qed.
   
 Section proof.
   Context `{!authG Σ, !seqG Σ, !poisonOSG Σ, !idcntrG Σ}.
@@ -56,46 +55,83 @@ Section proof.
   Local Notation lrel_evidence := (lrel_evidence authBaseN).
   Local Notation lrel_auth := (lrel_auth authBaseN).
   
-  Definition pos_car := optionUR (optionUR (agree unitUR)).
+  Definition pos_car := optionUR (optionUR unitUR).
 
   Definition pos (o : pos_car) := own poisonOSG_name (●{DfracOwn (1/2)} o).
   Definition good_pos := pos None.
   Definition bad_pos := pos (Some None).
-  Definition done_pos := pos (Some (Some (to_agree ()))).
+  Definition done_pos := pos (Some (Some ())).
   Definition valid_pos o : iProp Σ := pos o ∧ ⌜o = None ∨ o = Some None⌝.
 
   Definition pos_frag (o : pos_car) := own poisonOSG_name (◯ o).
   Definition good_pos_frag := pos_frag None.
   Definition bad_pos_frag := pos_frag (Some None).
-  Definition done_pos_frag := pos_frag (Some (Some (to_agree ()))).
+  Definition done_pos_frag := pos_frag (Some (Some ())).
 
   Definition id_frag (id : nat) := own idcntrG_name (●{DfracOwn (1/2)} id).
 
 
   Lemma pos_agree (o o' : pos_car) :
     pos o -∗ pos o' -∗ ⌜o' = o⌝ ∗ pos o ∗ pos o'.
-  Proof. Admitted.
+  Proof.
+    rewrite /pos. iIntros "H1 H2". iCombine "H1 H2" as "H".
+    iDestruct (own_valid with "H") as %Hv.
+    apply auth_auth_dfrac_op_valid in Hv as [_ [Heq _]].
+    iDestruct "H" as "[H1 H2]". iFrame.
+    iPureIntro. symmetry. apply leibniz_equiv. exact Heq.
+  Qed.
 
   Lemma pos_auth_frag_valid (o o' : pos_car) :
     pos o -∗ pos_frag o' -∗ ⌜o' ≼ o⌝ ∗ pos o ∗ pos_frag o'.
-  Proof. Admitted.
+  Proof.
+    rewrite /pos /pos_frag. iIntros "H1 H2".
+    iDestruct (own_valid_2 with "H1 H2") as %Hv.
+    apply auth_both_dfrac_valid_discrete in Hv as [_ [Hincl _]].
+    iFrame. iPureIntro. exact Hincl.
+  Qed.
 
   Lemma pos_update1 :
     good_pos -∗ good_pos ==∗ bad_pos ∗ bad_pos ∗ bad_pos_frag.
-  Proof. Admitted.
+  Proof.
+    rewrite /good_pos /bad_pos /bad_pos_frag /pos /pos_frag.
+    iIntros "H1 H2". iCombine "H1 H2" as "H".
+    iMod (own_update with "H") as "[H Hfrag]".
+    { apply auth_update_alloc.
+      apply (alloc_option_local_update (None : optionUR unitUR)). done. }
+    iDestruct "H" as "[H1 H2]". iFrame. done.
+  Qed.
 
   Lemma pos_update2 :
     bad_pos -∗ bad_pos ==∗ done_pos ∗ done_pos ∗ done_pos_frag.
-  Proof. Admitted.
+  Proof.
+    rewrite /bad_pos /done_pos /done_pos_frag /pos /pos_frag.
+    iIntros "H1 H2". iCombine "H1 H2" as "H".
+    iMod (own_update with "H") as "[H Hfrag]".
+    { apply auth_update_alloc. apply option_local_update_None.
+      apply (alloc_option_local_update (() : unitUR)). done. }
+    iDestruct "H" as "[H1 H2]". iFrame. done.
+  Qed.
 
   
   Lemma id_agree id id' :
     id_frag id -∗ id_frag id' -∗ ⌜id = id'⌝ ∗ id_frag id ∗ id_frag id'.
-  Proof. Admitted.
+  Proof.
+    rewrite /id_frag. iIntros "H1 H2". iCombine "H1 H2" as "H".
+    iDestruct (own_valid with "H") as %Hv.
+    apply auth_auth_dfrac_op_valid in Hv as [_ [Heq _]].
+    iDestruct "H" as "[H1 H2]". iFrame.
+    iPureIntro. apply leibniz_equiv. exact Heq.
+  Qed.
 
-  Lemma id_update id id':
+  Lemma id_update id id' (Hle : id ≤ id') :
     id_frag id -∗ id_frag id ==∗ id_frag id' ∗ id_frag id'.
-  Proof. Admitted.
+  Proof.
+    rewrite /id_frag. iIntros "H1 H2". iCombine "H1 H2" as "H".
+    iMod (own_update with "H") as "H".
+    { apply (auth_update_auth id id' (id' - id)).
+      apply (nat_local_update id 0 id' (id' - id)). lia. }
+    iDestruct "H" as "[H1 H2]". iFrame. done.
+  Qed.
 
 
   Definition finish_spec1 (finish : val) (x a ser : val) : iProp Σ :=
@@ -798,7 +834,7 @@ Section proof.
         iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & >Hid' & >%Hidinv)".
 
         iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-        iMod (id_update _ (ctr+1) with "Hid Hid'") as "[Hid Hid']".
+        iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
 
         iMod ("Hclose_tab" with "[$Htok $Hl $Hbigsep $Hge $Hid']") as "Htok".
         { iNext. iFrame "%". iPureIntro. intros ??. apply Hidinv. lia. }
@@ -820,7 +856,7 @@ Section proof.
         iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & Hid' & >%Hidinv)". wp_load.
 
         iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-        iMod (id_update _ (ctr+1) with "Hid Hid'") as "[Hid Hid']".
+        iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
 
         wp_pures. wp_bind (map.map_insert _ _ _).
         wp_apply (gwp_map_insert #ctr); try done.
@@ -868,7 +904,7 @@ Section proof.
         iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & >Hid' & >%Hidinv)".
 
         iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-        iMod (id_update _ (ctr+1) with "Hid Hid'") as "[Hid Hid']".
+        iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
 
         iMod ("Hclose_tab" with "[$Htok $Hl $Hbigsep $Hge $Hid']") as "Htok".
         { iNext. iFrame "%". iPureIntro. intros ??. apply Hidinv. lia. }
@@ -890,7 +926,7 @@ Section proof.
         iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & Hid' & >%Hidinv)". wp_load.
 
         iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-        iMod (id_update _ (ctr+1) with "Hid Hid'") as "[Hid Hid']".
+        iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
 
         wp_bind (map.map_insert _ _ _). wp_pures.
         iApply (gwp_map_insert #ctr (#c0, finish)%V d m _ _); [done|done|].
@@ -1011,7 +1047,7 @@ Section proof.
                   iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & Hid' & >%Hidinv)". wp_load.
 
                   iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-                  iMod (id_update _ (ctr+1) with "Hid Hid'") as "[Hid Hid']".
+                  iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
 
                   iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' Hge]]]";
                     iPoseProof (pos_agree with "Hpos Hpos'") as (?) "[Hpos Hpos']"; 
@@ -1059,7 +1095,7 @@ Section proof.
                   iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & >Hid' & >%Hidinv)".
 
                   iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-                  iMod (id_update _ (ctr+1) with "Hid Hid'") as "[Hid Hid']".
+                  iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
 
                   iMod ("Hclose_tab" with "[$Htok $Hl $Hbigsep $Hge $Hid']") as "Htok".
                   { iNext. iFrame "%". iPureIntro. intros ??. apply Hidinv. lia. }
@@ -1083,7 +1119,7 @@ Section proof.
                   iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & Hid' & >%Hidinv)". wp_load.
 
                   iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-                  iMod (id_update _ (ctr+1) with "Hid Hid'") as "[Hid Hid']".
+                  iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
 
                   iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' Hge]]]";
                     iPoseProof (pos_agree with "Hpos Hpos'") as (?) "[Hpos Hpos']"; 
@@ -1133,7 +1169,7 @@ Section proof.
                   iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & Hid' & >%Hidinv)". wp_load.
 
                   iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-                  iMod (id_update _ (ctr+1) with "Hid Hid'") as "[Hid Hid']".
+                  iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
 
                   iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' Hge]]]";
                     iPoseProof (pos_agree with "Hpos Hpos'") as (?) "[Hpos Hpos']"; 
@@ -1183,7 +1219,7 @@ Section proof.
                   iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & >Hid' & >%Hidinv)".
 
                   iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-                  iMod (id_update _ (ctr+1) with "Hid Hid'") as "[Hid Hid']".
+                  iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
 
                   iMod ("Hclose_tab" with "[$Htok $Hl $Hbigsep $Hge $Hid']") as "Htok".
                   { iNext. iFrame "%". iPureIntro. intros ??. apply Hidinv. lia. }
@@ -1207,7 +1243,7 @@ Section proof.
                   iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & Hid' & >%Hidinv)". wp_load.
 
                   iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-                  iMod (id_update _ (ctr+1) with "Hid Hid'") as "[Hid Hid']".
+                  iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
 
                   iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' Hge]]]";
                     iPoseProof (pos_agree with "Hpos Hpos'") as (?) "[Hpos Hpos']"; 
