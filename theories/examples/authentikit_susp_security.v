@@ -13,10 +13,11 @@ Definition i_Authenticable : expr :=
   (i_Auth_auth, i_Auth_mu, i_Auth_pair, i_Auth_sum, i_Auth_string, i_Auth_int, i_auth, i_unauth).
 Definition i_Authentikit : expr := (i_return, i_bind, i_Authenticable).
 
-
+(* Tracks whether we are in the bad case or not. *)
 Definition poisonOSR := authUR (optionUR (optionUR unitUR)).
 Class poisonOSG Σ := PoisonOSG { poisonOS_inG :> inG Σ poisonOSR; poisonOSG_name : gname }.
 
+(* Tracks the counter. *)
 Definition idcntrUR := authUR nat.
 Class idcntrG Σ := IdcntrG { idcntr_inG :> inG Σ idcntrUR; idcntrG_name : gname }.
 
@@ -90,7 +91,7 @@ Section proof.
     iFrame. iPureIntro. exact Hincl.
   Qed.
 
-  Lemma pos_update1 :
+  Lemma pos_update_bad :
     good_pos -∗ good_pos ==∗ bad_pos ∗ bad_pos ∗ bad_pos_frag.
   Proof.
     rewrite /good_pos /bad_pos /bad_pos_frag /pos /pos_frag.
@@ -101,7 +102,7 @@ Section proof.
     iDestruct "H" as "[H1 H2]". iFrame. done.
   Qed.
 
-  Lemma pos_update2 :
+  Lemma pos_update_done :
     bad_pos -∗ bad_pos ==∗ done_pos ∗ done_pos ∗ done_pos_frag.
   Proof.
     rewrite /bad_pos /done_pos /done_pos_frag /pos /pos_frag.
@@ -133,6 +134,19 @@ Section proof.
     iDestruct "H" as "[H1 H2]". iFrame. done.
   Qed.
 
+  (* 4 kinds of finish specs that go into the susp_table.
+    2 for the pre-filled auth case, 2 for the other auth case.
+    2 for the good case, 2 for the bad case. The bad case
+    returns none, and has an explicit non-equality precond.
+    
+    Note that the good case can still return None. This is because, we characterize
+    the good case by whether the prophecies give us the logical relation or not.
+    But it is still possible that the suspended value was never filled for this case,
+    in which case serialization would return none.
+    Further, note that some finish calls in the bad case may still return Some.
+    The good finish specs serve that purpose as well.
+    So in some sense the good case isn't really only good here.
+    *)
 
   Definition finish_spec1 (finish : val) (x a ser : val) : iProp Σ :=
     ∀ (E: coPset) (s s' : string) (t : evi_type),
@@ -191,6 +205,13 @@ Section proof.
             (good_finish_specs finish x a ser ∨
               (∃ s, bad_pos_frag ∗ bad_finish_specs finish x a ser s s'))).
 
+  (* This spec is important for the final if-condition in v_run.
+    good_pos represents the good case, and doesn't have anything extra.
+    bad_pos represents the bad case. Here we make sure that the map always has
+    atleast one finish spec that will return None for sure. So either the spec is called
+    and returns None (in which case we transition to done_pos to close the invariant),
+    or keep going. If we still have this when we reach the conditional, it will 
+    be false and return None. *)
   Definition susp_bad_ge1 (m : gmap val val) : iProp Σ :=
     good_pos ∨ done_pos ∨
       (bad_pos ∗ 
@@ -199,6 +220,10 @@ Section proof.
           s_is_ser_proph t x s' ∗ ser_spec ser t ∗
           bad_finish_specs finish x a ser s s').
       
+  (* The id_frag here makes sure that we don't overwrite an existing entry in the
+    map since id is monotonically increasing. 
+    Especially important to ensure that we don't overwrite an existing bad spec when we
+    are in the bad case. Then we won't be able to close ensure susp_bad_ge1 for the bad case. *)
   Definition is_susp_table (l : loc) : iProp Σ :=
     ∃ (d : val) (m : gmap val val) (ctr : nat),
       l ↦ d ∗ ⌜is_map d m⌝ ∗ susp_big_sep m ∗ susp_bad_ge1 m ∗
@@ -227,6 +252,7 @@ Section proof.
     iIntros "(Htok & #[[% Hsers]|%])"; simplify_eq; wp_pures;
     wp_apply (wp_hash); try done;
     iIntros "#hashs'"; wp_pures;
+    (* Note that we don't care for hashes here. *)
     case_bool_decide; simplify_eq; wp_pures.
     - iApply ("HΦ" $! (Some _)); by iFrame "∗ #".
     - iApply ("HΦ" $! None); by iFrame "∗ #".
@@ -253,6 +279,7 @@ Section proof.
     wp_apply (wp_hash); try done;
     iIntros "#hashs'"; wp_pures;
     case_bool_decide; simplify_eq; wp_pures.
+    (* We care for hashes here. *)
     { iPoseProof (hashes_auth.hashed_s_equal s s' with "[//] hashs hashs'") as "->". done. }
     iApply ("HΦ" $! None); by iFrame "∗ #".
   Qed.
@@ -281,7 +308,8 @@ Section proof.
     
     iDestruct "Hinv1" as ">[(%s1&%& #hashs1 & %& #Hsusp & %Hser)|(%&%&%& Hsusp & Hproph & %Hser)]";
       wp_load; wp_pures; destruct! Hser; simplify_eq.
-    - iMod ("Hclose" with "[$Htok]") as "Htok".
+    - (* Case when we call finish on a suspended value that had been filled already. *)
+      iMod ("Hclose" with "[$Htok]") as "Htok".
       { iNext. iLeft. iFrame "#". iSplit; eauto. 
         iRight. repeat iExists _. iSplit; eauto. }
       iMod ("Hclose_tab" with "[$Htok $Htabo]") as "Htok".
@@ -291,12 +319,14 @@ Section proof.
       + iApply ("HΦ" $! (Some _)); by iFrame "∗ #".
       + iApply ("HΦ" $! None); by iFrame "∗ #".
     
-    - wp_apply wp_hash; try done; iIntros "#hashs'"; wp_pures.
+    - (* Case when we call finish on a suspended value. *)
+      wp_apply wp_hash; try done; iIntros "#hashs'"; wp_pures.
       wp_apply (typed_proph_wp_resolve1 StringTypedProph with "Hproph"); try done.
       wp_pures. iModIntro. iIntros (?). wp_pures.
 
       iDestruct "Htabo" as (???) "(Hl & %Hm & Hbigsep & Hge & Hid)".
       wp_apply wp_hash; try done; iIntros "_"; wp_pures; wp_store.
+      (* If we fill the value once, it is never overwritten. *)
       iMod (pointsto_persist with "Hsusp") as "#Hsusp".
 
       wp_load. wp_bind (map_lookup _ _).
@@ -311,33 +341,64 @@ Section proof.
 
       iDestruct (big_sepM_lookup_acc with "Hbigsep") as "[[% #Hs] Hbigsep]"; [done|subst].
       iDestruct "Hs" as (?????? Hv) "Hs"; destruct! Hv; simplify_eq; wp_pures.
+      
+      (* Big disjunction follows. First disjunction over whether counter is 1 or not.
+        If it is one, we call finish on the parent.
+        
+        Also destruct on whether we are in the bad case or the good case.
+        
+        Also destruct on whether the parent has a bad finish or not.
+
+        If we are in the good case, we can't have a bad finish, which we rule out.
+        (2,6).
+
+        Also close the auth invariant for all branches.
+        *)
+
+      (* counter =/≠ 1 *)
       case_bool_decide; simplify_eq; wp_pures; wp_load;
-        wp_bind (map_remove _ _); wp_apply (gwp_map_remove with "[//]");
+      wp_bind (map_remove _ _); wp_apply (gwp_map_remove with "[//]");
         try done; iIntros (??); wp_store; wp_pures;
         iPoseProof ("Hbigsep" with "[$Hs]") as "Hbigsep";
           try (iFrame; iExists ctr0; iSplit; try done; iRight; iFrame "#");
         iDestruct (big_sepM_delete _ m #pid ((#ctr0, finish)%V) with "Hbigsep")
           as "[_ Hbigsep']"; try done;
-        destruct Ho' as [-> | ->];
-          iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' Hge]]]";
-          iPoseProof (pos_agree with "Hpos Hpos'") as (?) "[Hpos Hpos']";
-        iDestruct "Hs" as 
-          "(#Hser' & #Hserspec' & [#Hfinish|(%& Hfrag &#Hfinish)])";
-          simplify_eq;
-        iMod ("Hclose" with "[$Htok]") as "Htok";
-          try (iNext; iLeft; iFrame "hashs' #"; iSplit; eauto;
-              iRight; repeat iExists _; iSplit; eauto).
+          
+      (* good/bad case *)
+      destruct Ho' as [-> | ->];
+        iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' Hge]]]";
+        iPoseProof (pos_agree with "Hpos Hpos'") as (?) "[Hpos Hpos']";
+        simplify_eq;
+
+      (* Whether the parent has a good/bad spec *)
+      iDestruct "Hs" as 
+        "(#Hser' & #Hserspec' & [#Hfinish|(%& Hfrag &#Hfinish)])";
+        simplify_eq;
+      
+      (* Closing the value invariant for all branches. *)
+      iMod ("Hclose" with "[$Htok]") as "Htok";
+        try (iNext; iLeft; iFrame "hashs' #"; iSplit; eauto;
+            iRight; repeat iExists _; iSplit; eauto).
 
       2,6:
         iPoseProof (pos_auth_frag_valid with "Hpos Hfrag") as (Hincl) "[Hpos #Hfrag']";
         simplify_eq; apply option_included in Hincl; destruct! Hincl; simplify_eq.
 
+      (* Run insert when counter ≠ 1 *)
       4,5,6:
         wp_load; wp_pures; wp_bind (map.map_insert _ _ _);
           wp_apply (gwp_map_insert with "[//]"); try done;
-          iIntros (??); wp_store.
+          iIntros (??); wp_store;
+        iDestruct (big_sepM_insert _ (delete #pid m) #pid ((#(ctr0-1), finish)%V) with "[$Hbigsep']")
+          as "Hbigsep'"; try apply lookup_delete;
+          try (iFrame "Hser' Hserspec'"); try (iExists (ctr0-1)); repeat iExists _;
+          try iSplit; 
+            try (iPureIntro; split; repeat f_equal; try lia;
+              inversion H1; try lia; by simplify_eq);
+            try (by iLeft); try (iRight; iFrame "#").
 
-      + iMod ("Hclose_tab" with "[$Hl $Hbigsep' $Htok Hpos' Hid]") as "Htok".
+      + (* Counter = 1, good case *)
+        iMod ("Hclose_tab" with "[$Hl $Hbigsep' $Htok Hpos' Hid]") as "Htok".
         { iNext. iExists ctr. iSplit; iFrame; try done.
           iDestruct "Hid" as "[$ %]". iPureIntro.
           intros ??. rewrite lookup_delete_None. eauto. }
@@ -347,10 +408,13 @@ Section proof.
         { wp_apply ("Hfinish" with "[//] [$Htok $Hser' $Hserspec' Hpos]");
           iFrame "# ∗"; eauto. }
 
-      + iDestruct "Hge" as (?????????? ?) "Hge". destruct! H4.
+      + (* Counter = 1, bad case, ok finish *)
+        iDestruct "Hge" as (b_pid ????????? ?) "Hge". destruct! H4.
 
-        destruct (decide (#pid = #pid0)); simplify_eq.
-        { iMod (pos_update2 with "Hpos Hpos'") as "(Hpos & Hpos' & _)".
+        (* In case parent id is equal to the bad parent id (from susp_ge_1),
+          then use the bad finish. *)
+        destruct (decide (#pid = #b_pid)); simplify_eq.
+        { iMod (pos_update_done with "Hpos Hpos'") as "(Hpos & Hpos' & _)".
           iMod ("Hclose_tab" with "[$Hl $Hbigsep' $Htok Hpos' Hid]") as "Htok".
           { iNext. iExists ctr. iSplit; iFrame; try done.
             iDestruct "Hid" as "[$ %]". iPureIntro.
@@ -361,15 +425,17 @@ Section proof.
             wp_apply ("Hfinish" with "[//] [$Htok $Hser1 $Hser1' $hashs]"); eauto;
             iIntros (?) "[Htok ->]"; iApply ("HΦ" $! None); by iFrame. }
 
+        (* In the alternate case, we have to make sure that map is not empty.
+          We get that since there should be an entry with the bad parent id. *)
         destruct (size (delete #pid m)) as [|size] eqn:Hsize.
         { rewrite map_size_empty_iff in Hsize.
-          eassert (delete #pid m !! #pid0 = Some _).
+          eassert (delete #pid m !! #b_pid = Some _).
           { rewrite lookup_delete_Some /=. eauto. }
           rewrite Hsize in H6. done. }
 
         iMod ("Hclose_tab" with "[$Hl $Hbigsep' Hge $Htok Hpos' Hid]") as "Htok"; iFrame "%".
         { iNext. iExists ctr. iSplitL "Hpos' Hge".
-          { do 2 iRight. iFrame "∗ # %". iExists pid0, ctr1, _. iPureIntro.
+          { do 2 iRight. iFrame "∗ # %". iExists b_pid, ctr1, _. iPureIntro.
             by rewrite (lookup_delete_ne _ _ _ n). }
           iDestruct "Hid" as "[$ %]". iPureIntro.
           intros ??. rewrite lookup_delete_None. eauto. }
@@ -379,7 +445,8 @@ Section proof.
         { wp_apply ("Hfinish" with "[//] [$Htok $Hser' $Hserspec' Hpos]");
           iFrame "# ∗"; eauto. }
 
-      + iMod (pos_update2 with "Hpos Hpos'") as "(Hpos & Hpos' & _)".
+      + (* Counter = 1, bad case, bad finish *)
+        iMod (pos_update_done with "Hpos Hpos'") as "(Hpos & Hpos' & _)".
         iMod ("Hclose_tab" with "[$Hl $Hbigsep' $Htok Hpos' Hid]") as "Htok".
         { iNext. iExists ctr. iSplit; iFrame; try done.
           iDestruct "Hid" as "[$ %]". iPureIntro.
@@ -390,13 +457,7 @@ Section proof.
         try solve_ndisj; iFrame "# ∗"; eauto;
         iIntros (?) "[Htok ->]"; iApply ("HΦ" $! None); by iFrame.
 
-      + iDestruct (big_sepM_insert _ (delete #pid m) #pid ((#(ctr0-1), finish)%V) with "[$Hbigsep']")
-          as "Hbigsep'"; try apply lookup_delete;
-          try (iFrame "Hser' Hserspec'"); try (iExists (ctr0-1)); repeat iExists _;
-          try iSplit; 
-            try (iPureIntro; split; repeat f_equal; try lia;
-              inversion H1; try lia; by simplify_eq);
-            try (by iLeft).
+      + (* Counter ≠ 1, good case *)
         iMod ("Hclose_tab" with "[$Hl $Hbigsep' $Htok Hpos' Hid]") as "Htok".
         { iNext. iExists ctr. iSplit; iFrame; try done.
           iDestruct "Hid" as "[$ %]". iPureIntro.
@@ -406,25 +467,19 @@ Section proof.
           rewrite lookup_delete_ne; eauto. }
         iApply ("HΦ" $! (Some _)); iModIntro. iFrame.
 
-      + iDestruct (big_sepM_insert _ (delete #pid m) #pid ((#(ctr0-1), finish)%V) with "[$Hbigsep']")
-          as "Hbigsep'"; try apply lookup_delete;
-          try (iFrame "Hser' Hserspec'"); try (iExists (ctr0-1)); repeat iExists _;
-          try iSplit; 
-            try (iPureIntro; split; repeat f_equal; try lia;
-              inversion H1; try lia; by simplify_eq);
-            try (by iLeft).
+      + (* Counter ≠ 1, bad case, ok finish *)
         iMod ("Hclose_tab" with "[$Hl $Hbigsep' $Htok Hge Hpos' Hid]") as "Htok".
         { iNext. iExists ctr. iSplit; try done. 
           iSplitL "Hge Hpos'".
           { do 2 iRight; iFrame.
-            iDestruct "Hge" as (?????????? ?) "$". 
+            iDestruct "Hge" as (b_pid ????????? ?) "$". 
             destruct! H5. simplify_eq.
-            destruct (decide (#pid = #pid0)); simplify_eq.
-            { iExists pid0, (ctr0-1), _. iPureIntro.
+            destruct (decide (#pid = #b_pid)); simplify_eq.
+            { iExists b_pid, (ctr0-1), _. iPureIntro.
               rewrite lookup_insert_Some. split; eauto.
               split; repeat f_equal; try lia.
               inversion H1; try lia. by simplify_eq. }
-            { iExists pid0, ctr1, _. iPureIntro.
+            { iExists b_pid, ctr1, _. iPureIntro.
               rewrite (lookup_insert_ne _ _ _ _ n).
               rewrite lookup_delete_Some /=. split; eauto. } }
           iDestruct "Hid" as "[$ %]". iPureIntro.
@@ -435,13 +490,7 @@ Section proof.
 
         iApply ("HΦ" $! (Some _)); iModIntro. iFrame.
 
-      + iDestruct (big_sepM_insert _ (delete #pid m) #pid ((#(ctr0-1), finish)%V) with "[$Hbigsep']")
-          as "Hbigsep'"; try apply lookup_delete;
-          try (iFrame "Hser' Hserspec'"); try (iExists (ctr0-1)); repeat iExists _;
-          try iSplit;
-            try (iPureIntro; split; repeat f_equal; try lia;
-              inversion H1; try lia; by simplify_eq);
-            try (iRight; iFrame "#").
+      + (* Counter ≠ 1, bad case, bad finish *)
         iMod ("Hclose_tab" with "[$Hl $Hbigsep' $Htok Hpos' Hid]") as "Htok".
         { iNext; iExists ctr; iSplit; try done. 
           iSplitL "Hpos'".
@@ -507,10 +556,12 @@ Section proof.
     LRel (λ v1 a2, ∃ a1 prf1 counter, ⌜v1 = (prf1, a1)%V⌝ ∗ 
       is_proof_state prf1 counter ∗ A a1 a2)%I.
 
+  (* The bad case lrel_auth_comp_post keeps the unary relation. *)
   Definition lrel_auth_comp_post_bad (A_un : lrel_un Σ) : lrel_un Σ :=
     LRelUn (λ v1, ∃ prf1 x counter,
           ⌜v1 = (prf1, x)%V⌝ ∗ is_proof_state prf1 counter ∗ A_un x)%I.
 
+  (* The good case lrel_auth_comp may return a good or a bad post. *)
   Definition lrel_bin_auth_comp' (A : lrel_bi Σ) : lrel Σ := LRel (λ v1 v2,
     ∀ t K (w w' : val) (cntr : nat),
       {{{ spec_ideal t (fill K (v2 w')) ∗ seq_tok ⊤ ∗ 
@@ -526,6 +577,7 @@ Section proof.
                     lrel_auth_comp_post_bad (lrel_bi_un A) w1 ∗ bad_pos)
             else True }}})%I.
 
+  (* The bad case lrel_auth_comp always returns a bad post. *)
   Definition lrel_un_auth_comp' (A_un : lrel_un Σ) : lrel_un Σ := LRelUn (λ v1,
     ∀ (w : val) (cntr : nat),
       {{{ seq_tok ⊤ ∗ is_proof_state w cntr ∗ bad_pos ∗ id_frag cntr }}}
@@ -702,6 +754,8 @@ Section proof.
                 wp_bind (w1 _)%E.
                 iDestruct "HmB" as "[_ HmB]".
                 rewrite interp_un_arr_unfold.
+                (* The entire reason we had to go through the unary/binary lrel business
+                  For the bad case, here we need a unary arrow relation. *)
                 iSpecialize ("HmB" with "[HA] [$Htok]").
                 { by interp_unfold!. }
                 wp_apply (wp_wand with "HmB").
@@ -765,6 +819,7 @@ Section proof.
       iApply (refines_un_auth_bind with "HmA HmB"). }
   Qed.
 
+  (* Extremely ugly. *)
   Lemma refines_un_auth_unauth c :
     ∀ (ser deser count v : val) tA' A,
     inv_susp_table c -∗
@@ -818,6 +873,7 @@ Section proof.
     iIntros ([]); last first.
     { iIntros "_". wp_pures. iApply ("HΦ" $! None). iFrame. eauto. }
     
+    (* Disjunct over the kind of auth value. *)
     iPoseProof "Hauth_un" as "[(%&%)|(%&%&%&#Hinv)]";
       simplify_eq; iIntros "[HA [% #Hserproph]]";
       wp_pures; wp_apply ("Hcount" $! _ _ ⊤ with "[//] [$Hserproph $Htok]");
@@ -825,6 +881,7 @@ Section proof.
     - wp_apply v_finish_spec1; try done.
       iIntros (finish) "Hfinish". wp_pures.
 
+      (* Whether count is 0 or not. *)
       case_bool_decide; wp_pures; simplify_eq.
       + wp_bind (finish #()).
         assert (c0 = 0); [lia|]. simplify_eq.
@@ -1025,252 +1082,136 @@ Section proof.
             iIntros ([]); last first.
             { iIntros "_". wp_pures. iApply ("HΦ" $! None). iFrame. eauto. }
             
+            (* Destructing on kind of auth value. *)
             iDestruct "Hauth_bi'" as "[%|(%&%&%&%&#Hinv)]";
               simplify_eq; iIntros "(%s2 & #Hserproph & #HA_un & Heq)";
             wp_pures; wp_apply ("Hcount" $! _ _ ⊤ with "[//] [$Hserproph $Htok]");
-              iIntros (?) "[_ Htok]"; wp_pures.
+              iIntros (?) "[_ Htok]"; wp_pures;
+            
+            (* This is where we disjunct on the good/bad case. We decide that the prophecy
+              either resolves to a good or a bad string. *)
+            destruct (decide (s1 = s2)); simplify_eq;
+            [wp_apply v_finish_spec1|wp_apply v_finish_spec1_bad|
+              wp_apply v_finish_spec2|wp_apply v_finish_spec2_bad];
+              try done; iIntros (finish) "Hfinish"; wp_pures;
+            
+            (* See if the counter is 1 or not. *)
+            case_bool_decide; wp_pures; simplify_eq.
+              1,3,5,7: assert (c0 = 0); try lia; simplify_eq;
+              wp_bind (finish #()).
+              
+            (* Bad cases where counter is 0. *)
+            2: iApply ("Hfinish" $! ⊤ with "[//] [$Htok $Hserproph $Hser $hashs1 //]").
+            4: iApply ("Hfinish" $! ⊤ with "[//] [$Htok $Hserproph $Hser $hashs1 $Hinv //]").
+            2,4:
+              iNext; iIntros ([]) "[Htok %]"; simplify_eq; wp_pures;
+                iApply ("HΦ" $! (None)); by iFrame.
 
-            - destruct (decide (s2 = s1)); simplify_eq; last first.
+            (* Good cases where counter is 0. *)
+            1,2:
+              iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)";
+                try solve_ndisj;
+              iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & >Hid' & >%Hidinv)";
 
-              + wp_apply v_finish_spec1_bad; try done.
-                iIntros (finish) "Hfinish". wp_pures.
+              iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']";
+              iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']";
 
-                case_bool_decide; wp_pures; simplify_eq.
-                * wp_bind (finish #()).
-                  assert (c0 = 0); [lia|]. simplify_eq.
+              iMod ("Hclose_tab" with "[$Htok $Hl $Hbigsep $Hge $Hid']") as "Htok";
+                try (iNext; iFrame "%"; iPureIntro; intros ??; apply Hidinv; lia).
 
-                  iApply ("Hfinish" $! ⊤ with "[//] [$Htok $Hserproph $Hser $hashs1 //]").
-                  iNext. iIntros ([]) "[Htok %]"; simplify_eq; wp_pures.
-                  iApply ("HΦ" $! (None)). by iFrame.
+            1: iApply ("Hfinish" $! ⊤ with "[//] [$Htok $Hserproph $Hser //]").
+            2: iApply ("Hfinish" $! ⊤ with "[//] [$Htok $Hserproph $Hser $Hinv $Hpos]"); eauto.
 
-                * iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
-                  iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & Hid' & >%Hidinv)". wp_load.
+            1,2:
+              iNext; iIntros ([]) "Htok"; simplify_eq; wp_pures; last first;
+                try (iApply ("HΦ" $! (None)); by iFrame);
+                try (iDestruct "Htok" as "[Htok Hpos]");
 
-                  iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-                  iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
+              wp_pures; wp_apply (gwp_list_tail with "[//]");
+                iIntros "/=" (tl Htl); wp_pures;
 
-                  iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' Hge]]]";
-                    iPoseProof (pos_agree with "Hpos Hpos'") as (?) "[Hpos Hpos']"; 
-                    simplify_eq.
+              iMod ("Heq" $! ⊤ with "[//] [//] Htok") as "[Htok #HA']";
+              iApply ("HΦ" $! (Some _));
+              iFrame "# ∗"; iModIntro; repeat (iExists _);
+              iSplit; try (iSplit; try done; iPureIntro; repeat f_equal; lia);
+              iLeft; iFrame "# ∗ %"; iExists _, (ctr+1);
+                iSplit; iPureIntro; repeat f_equal; lia.
 
-                  iMod (pos_update1 with "Hpos Hpos'") as "(Hpos & Hpos' & Hfrag)".
+            (* Cases where counter ≠ 0. *)
+            all:
+              iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)";
+                try solve_ndisj;
+              iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & Hid' & >%Hidinv)"; wp_load;
 
-                  wp_bind (map.map_insert _ _ _). wp_pures.
-                  iApply (gwp_map_insert #ctr (#c0, finish)%V d m _ _); [done|done|].
-                  
-                  iModIntro. iIntros (d') "%Hmap'". wp_store.
-                  wp_pures. wp_apply (gwp_list_tail with "[//]").
-                  iIntros "/=" (tl Htl). wp_pures.
-                  iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok Hfinish Hpos' Hfrag $Hid']") as "Htok".
-                  { iNext. iFrame "# %". iSplit; [|iSplitL].
-                    { iApply (big_sepM_insert_2 with "[Hfinish Hfrag]"); last done.
-                      assert (c0 > 0).
-                      { apply Nat.neq_0_lt_0. intros ->. by apply H0. }
-                      repeat iExists _. repeat (try (iSplit; eauto)).
-                      iRight. iFrame. iExists _. iLeft. by iFrame "# ∗". }
-                    { do 2 iRight. iFrame "∗ #". iExists ctr, c0. repeat iExists _.
-                      iSplit; [|iLeft; by iFrame]. iPureIntro.
-                      rewrite lookup_insert. repeat (split; eauto).
-                      assert (c0 ≠ 0); try lia.
-                      intros ?. simplify_eq. } 
-                    iPureIntro. intros ??.
-                    specialize (Hidinv ctr' ltac:(lia)).
-                    rewrite lookup_insert_None. split; eauto.
-                    intros ?. simplify_eq. lia. }
+              iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']";
+              iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']";
 
-                  iModIntro. iApply ("HΦ" $! (Some _)). iFrame "∗ % #". 
-                  repeat (iExists _). iSplit.
-                  { iPureIntro. split; repeat f_equal. lia. }
-                  iRight; iFrame "# ∗ %"; iExists _, (ctr+1);
-                    iSplit; iPureIntro; repeat f_equal; lia.
-                  
-              + wp_apply v_finish_spec1; try done.
-                iIntros (finish) "Hfinish". wp_pures.
+              iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' Hge]]]";
+                iPoseProof (pos_agree with "Hpos Hpos'") as (?) "[Hpos Hpos']"; 
+                simplify_eq.
 
-                case_bool_decide; wp_pures; simplify_eq.
-                * wp_bind (finish #()).
-                  assert (c0 = 0); [lia|]. simplify_eq.
+            2,4: 
+              (* For bad cases where counter ≠ 0. *)
+              iMod (pos_update_bad with "Hpos Hpos'") as "(Hpos & Hpos' & Hfrag)".
 
-                  iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
-                  iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & >Hid' & >%Hidinv)".
+            all:
+              wp_bind (map.map_insert _ _ _); wp_pures;
+              iApply (gwp_map_insert #ctr (#c0, finish)%V d m _ _); try done;
+              
+              iModIntro; iIntros (d') "%Hmap'"; wp_store; wp_pures; 
+              
+              wp_apply (gwp_list_tail with "[//]");
+                iIntros "/=" (tl Htl); wp_pures.
 
-                  iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-                  iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
+            1,4: (* Good cases *)
+              iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok Hfinish Hpos Hid']") as "Htok";
+              [ iNext; iFrame "% ∗"; iSplitL;
+                [ iApply (big_sepM_insert_2 with "[Hfinish]"); last done;
+                  assert (c0 > 0);
+                  [ apply Nat.neq_0_lt_0; intros ->; by apply H0 |
+                  repeat iExists _; repeat (try (iSplit; eauto));
+                  try (do 2 iLeft; iFrame; by eauto);
+                  try (iLeft; iRight; iFrame; by eauto) ] |
 
-                  iMod ("Hclose_tab" with "[$Htok $Hl $Hbigsep $Hge $Hid']") as "Htok".
-                  { iNext. iFrame "%". iPureIntro. intros ??. apply Hidinv. lia. }
+                (* highest id in map *)
+                iPureIntro; intros ??; specialize (Hidinv ctr' ltac:(lia));
+                rewrite lookup_insert_None; split; eauto;
+                intros ?; simplify_eq; lia ] |
 
-                  iApply ("Hfinish" $! ⊤ with "[//] [$Htok $Hserproph $Hser //]").
-                  iNext. iIntros ([]) "Htok"; simplify_eq; wp_pures; last first.
-                  { iApply ("HΦ" $! (None)). by iFrame. }
+              iApply ("HΦ" $! (Some _));
+              iMod ("Heq" $! ⊤ with "[//] [//] Htok") as "[Htok #HA']";
+              iFrame "# ∗"; iModIntro; repeat (iExists _);
+              iSplit; try (iSplit; try done; iPureIntro; repeat f_equal; lia);
+              iLeft; iFrame "# ∗ %"; iExists _, (ctr+1);
+              iSplit; iPureIntro; repeat f_equal; lia].
 
-                  wp_pures. wp_apply (gwp_list_tail with "[//]").
-                  iIntros "/=" (tl Htl). wp_pures.
+            all: (* Bad cases *)
+              iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok Hfinish Hpos' Hfrag $Hid']") as "Htok";
+              [ iNext; iFrame "# %"; iSplit; [|iSplitL];
+                [ iApply (big_sepM_insert_2 with "[Hfinish Hfrag]"); last done;
+                  assert (c0 > 0);
+                  [ apply Nat.neq_0_lt_0; intros ->; by apply H0 |
+                  repeat iExists _; repeat (try (iSplit; eauto));
+                  iRight; iFrame; iExists _; 
+                    try (iLeft; by iFrame "# ∗");
+                    try (iRight; by iFrame "# ∗")] |
 
-                  iMod ("Heq" $! ⊤ with "[//] [//] Htok") as "[Htok #HA']".
-                  iApply ("HΦ" $! (Some _)).
-                  iFrame "# ∗". iModIntro; repeat (iExists _);
-                  iSplit; try (iSplit; try done; iPureIntro; repeat f_equal; lia);
-                  iLeft; iFrame "# ∗ %"; iExists _, (ctr+1);
-                    iSplit; iPureIntro; repeat f_equal; lia.
-                    
-                * iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
-                  iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & Hid' & >%Hidinv)". wp_load.
+                  (* susp_bad_ge1 *)
+                  do 2 iRight; iFrame "∗ #"; iExists ctr, c0; repeat iExists _;
+                  iSplit; [|try (iLeft; by iFrame); try (iRight; by iFrame)]; 
+                  iPureIntro; rewrite lookup_insert; repeat (split; eauto);
+                  assert (c0 ≠ 0); try lia; intros ?; simplify_eq |
 
-                  iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-                  iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
+                  (* highest id in map *)
+                  iPureIntro; intros ??; specialize (Hidinv ctr' ltac:(lia));
+                  rewrite lookup_insert_None; split; eauto;
+                  intros ?; simplify_eq; lia ] |
 
-                  iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' Hge]]]";
-                    iPoseProof (pos_agree with "Hpos Hpos'") as (?) "[Hpos Hpos']"; 
-                    simplify_eq.
-
-                  wp_bind (map.map_insert _ _ _). wp_pures.
-                  iApply (gwp_map_insert #ctr (#c0, finish)%V d m _ _); [done|done|].
-                  
-                  iModIntro. iIntros (d') "%Hmap'". wp_store.
-
-                  wp_pures. wp_apply (gwp_list_tail with "[//]").
-                  iIntros "/=" (tl Htl). wp_pures.
-                  iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok Hfinish Hpos Hid']") as "Htok".
-                  { iNext. iFrame "% ∗". iSplitL.
-                    { iApply (big_sepM_insert_2 with "[Hfinish]"); last done.
-                      assert (c0 > 0).
-                      { apply Nat.neq_0_lt_0. intros ->. by apply H0. }
-                      repeat iExists _. repeat (try (iSplit; eauto)).
-                      do 2 iLeft. iFrame. eauto. }
-                    iPureIntro. intros ??.
-                    specialize (Hidinv ctr' ltac:(lia)).
-                    rewrite lookup_insert_None. split; eauto.
-                    intros ?. simplify_eq. lia. }
-
-                  iApply ("HΦ" $! (Some _)).
-                  iMod ("Heq" $! ⊤ with "[//] [//] Htok") as "[Htok #HA']".
-                  iFrame "# ∗"; iModIntro; repeat (iExists _).
-                  iSplit; try (iSplit; try done; iPureIntro; repeat f_equal; lia).
-                  iLeft. iFrame "# ∗ %"; iExists _, (ctr+1);
-                    iSplit; iPureIntro; repeat f_equal; lia.
-
-            - destruct (decide (s1 = s2)); simplify_eq; last first.
-
-              + wp_apply v_finish_spec2_bad; try done.
-                iIntros (finish) "Hfinish". wp_pures.
-
-                case_bool_decide; wp_pures; simplify_eq.
-                * wp_bind (finish #()).
-                  assert (c0 = 0); [lia|]. simplify_eq.
-
-                  iApply ("Hfinish" $! ⊤ with "[//] [$Htok $Hserproph $Hser $hashs1 $Hinv //]").
-                  iNext. iIntros ([]) "[Htok %]"; simplify_eq; wp_pures.
-                  iApply ("HΦ" $! (None)). by iFrame.
-                
-                * iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
-                  iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & Hid' & >%Hidinv)". wp_load.
-
-                  iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-                  iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
-
-                  iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' Hge]]]";
-                    iPoseProof (pos_agree with "Hpos Hpos'") as (?) "[Hpos Hpos']"; 
-                    simplify_eq.
-
-                  iMod (pos_update1 with "Hpos Hpos'") as "(Hpos & Hpos' & Hfrag)".
-
-                  wp_bind (map.map_insert _ _ _). wp_pures.
-                  iApply (gwp_map_insert #ctr (#c0, finish)%V d m _ _); [done|done|].
-                  
-                  iModIntro. iIntros (d') "%Hmap'". wp_store.
-
-                  (* iMod (msize_update _ (s+1) with "[$Hms $Hs]") as "[Hms Hs]". *)
-                  wp_pures. wp_apply (gwp_list_tail with "[//]").
-                  iIntros "/=" (tl Htl). wp_pures.
-                  iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok Hfinish Hpos' Hfrag Hid']") as "Htok".
-                  { iNext. iFrame "% ∗". iSplit; [|iSplitL].
-                    { iApply (big_sepM_insert_2 with "[Hfinish Hfrag]"); last done.
-                      assert (c0 > 0).
-                      { apply Nat.neq_0_lt_0. intros ->. by apply H0. }
-                      repeat iExists _. repeat (try (iSplit; eauto)).
-                      iRight. iFrame. iExists _. iRight. by iFrame "# ∗". }
-                    { do 2 iRight. iFrame "∗ #". iExists ctr, c0. repeat iExists _.
-                      iSplit; [|iRight; by iFrame]. iPureIntro.
-                      rewrite lookup_insert. repeat (split; eauto).
-                      assert (c0 ≠ 0); try lia.
-                      intros ?. simplify_eq. } 
-                    iPureIntro. intros ??.
-                    specialize (Hidinv ctr' ltac:(lia)).
-                    rewrite lookup_insert_None. split; eauto.
-                    intros ?. simplify_eq. lia. }
-                  
-                  iModIntro. iApply ("HΦ" $! (Some _)). iFrame "∗ % #". 
-                  repeat (iExists _). iSplit.
-                  { iPureIntro. split; repeat f_equal. lia. }
-                  iRight; iFrame "# ∗ %"; iExists _, (ctr+1);
-                    iSplit; iPureIntro; repeat f_equal; lia.
-
-              + wp_apply (v_finish_spec2 with "Htab").
-                iIntros (finish) "Hfinish". wp_pures.
-
-                case_bool_decide; wp_pures; simplify_eq.
-                * wp_bind (finish #()).
-                  assert (c0 = 0); [lia|]. simplify_eq.
-
-                  iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
-                  iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & >Hid' & >%Hidinv)".
-
-                  iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-                  iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
-
-                  iMod ("Hclose_tab" with "[$Htok $Hl $Hbigsep $Hge $Hid']") as "Htok".
-                  { iNext. iFrame "%". iPureIntro. intros ??. apply Hidinv. lia. }
-
-                  iApply ("Hfinish" $! ⊤ with "[//] [$Htok $Hserproph $Hser $Hinv $Hpos]"); eauto.
-                  iNext. iIntros ([]) "[Htok Hpos]"; wp_pures; last first.
-                  { iApply ("HΦ" $! (None)). eauto. }
-
-                  wp_apply gwp_list_tail; [done|].
-                  iIntros (vl Hl). wp_pures.
-
-                  iApply ("HΦ" $! (Some _)).
-                  iMod ("Heq" $! ⊤ with "[//] [//] Htok") as "[Htok #HA']".
-                  iFrame "# ∗"; iModIntro; repeat (iExists _).
-                  iSplit; try (iSplit; try done; iPureIntro; repeat f_equal; lia).
-                  iLeft. iFrame "# ∗ %"; iExists _, (ctr+1);
-                    iSplit; iPureIntro; repeat f_equal; lia.
-                
-                * iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; [solve_ndisj|solve_ndisj|].
-                  iDestruct "Htabo" as (???) "(Hl & >%Hm & Hbigsep & Hge & Hid' & >%Hidinv)". wp_load.
-
-                  iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-                  iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
-
-                  iDestruct "Hge" as "[Hpos'|[Hpos'|[Hpos' Hge]]]";
-                    iPoseProof (pos_agree with "Hpos Hpos'") as (?) "[Hpos Hpos']"; 
-                    simplify_eq.
-
-                  wp_bind (map.map_insert _ _ _). wp_pures.
-                  iApply (gwp_map_insert #ctr (#c0, finish)%V d m _ _); [done|done|].
-                  
-                  iModIntro. iIntros (d') "%Hmap'". wp_store.
-
-                  wp_pures. wp_apply (gwp_list_tail with "[//]").
-                  iIntros "/=" (tl Htl). wp_pures.
-                  iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok Hfinish Hpos Hid']") as "Htok".
-                  { iNext. iFrame "% ∗". iSplitL.
-                    { iApply (big_sepM_insert_2 with "[Hfinish]"); last done.
-                      assert (c0 > 0).
-                      { apply Nat.neq_0_lt_0. intros ->. by apply H0. }
-                      repeat iExists _. repeat (try (iSplit; [done|])).
-                      iLeft. iRight. by iFrame "# ∗". }
-                    iPureIntro. intros ??.
-                    specialize (Hidinv ctr' ltac:(lia)).
-                    rewrite lookup_insert_None. split; eauto.
-                    intros ?. simplify_eq. lia. }
-                  
-                  iApply ("HΦ" $! (Some _)).
-                  iMod ("Heq" $! ⊤ with "[//] [//] Htok") as "[Htok #HA']".
-                  iFrame "# ∗"; iModIntro; repeat (iExists _).
-                  iSplit; try (iSplit; try done; iPureIntro; repeat f_equal; lia).
-                  iLeft. iFrame "# ∗ %"; iExists _, (ctr+1);
-                    iSplit; iPureIntro; repeat f_equal; lia. }
+              iModIntro; iApply ("HΦ" $! (Some _)); iFrame "∗ % #";
+              repeat (iExists _); iSplit;
+              try (iPureIntro; split; repeat f_equal; lia);
+              iRight; iFrame "# ∗ %"; iExists _, (ctr+1);
+                iSplit; iPureIntro; repeat f_equal; lia]. }
               
           { iDestruct "Hevi_un" as (?????) "(#Hser_un' & #Hser_un & #Hcount_un & #Hdeser_un)".
             simplify_eq.
@@ -1340,10 +1281,9 @@ Section proof.
     rewrite /i_Authenticable /v_Authenticable /v_Authenticable_run.
     wp_apply gwp_map_empty; [done|].
     iIntros (d) "Hd". wp_alloc l as "Hl". wp_pures.
-    
+
     iMod pos_alloc as (γm) "[Hpos Hpos']".
     iMod idcntr_alloc as (γi) "[Hid Hid']".
-    
     iMod (na_inv_alloc seqG_name ⊤ tableN (is_susp_table l) with "[$Hd $Hl Hpos' Hid']") as "#Htab".
     { iNext. iExists _. iSplit; try by iApply big_sepM_empty.
       iSplitL "Hpos'". { iLeft. admit. }
@@ -1482,7 +1422,7 @@ Section proof.
   Proof.
     iIntros (??) "[Hi Htok]".
     rewrite /i_Authentikit /v_Authentikit.
-    
+
     i_bind (i_Authenticable).
     iPoseProof (refines_Authenticatable with "[$Hi $Htok]") as "H".
     wp_apply (wp_wand with "H").
@@ -1532,9 +1472,10 @@ Section proof.
   Lemma refines_run w (c1 c2 : expr) A :
     is_proof w -∗
     (REL c1 << c2 : lrel_auth_comp A) -∗
+    good_pos -∗ good_pos -∗ id_frag 0 -∗ id_frag 0 -∗
     refines_Some ⊤ (v_run #~ c1 w) (i_run #~ c2) A.
   Proof.
-    iIntros "#Hprf Hc".
+    iIntros "#Hprf Hc Hpos Hpos' Hid Hid'".
     iIntros (??) "[Hi Htok]".
     rewrite /v_run /i_run.
     wp_bind c1; i_bind c2.
@@ -1545,14 +1486,11 @@ Section proof.
     rewrite /i_Authenticable /v_Authenticable /v_Authenticable_run.
     wp_apply gwp_map_empty; [done|].
     iIntros (d) "Hd". wp_alloc l as "Hl". wp_pures.
-    
-    iMod pos_alloc as (γm) "[Hpos Hpos']".
-    iMod idcntr_alloc as (γi) "[Hid Hid']".
-    
+
     iMod (na_inv_alloc seqG_name ⊤ tableN (is_susp_table l) with "[$Hd $Hl Hpos' Hid']") as "#Htab".
     { iNext. iExists _. iSplit; try by iApply big_sepM_empty.
-      iSplitL "Hpos'". { iLeft. admit. }
-      iSplitL. { admit. }
+      iSplitL "Hpos'". { iLeft. iFrame "Hpos'". }
+      iSplitL "Hid'". { iFrame "Hid'". }
       iPureIntro. intros ??. apply lookup_empty. }
 
     wp_rec. wp_pures.
@@ -1560,7 +1498,7 @@ Section proof.
     wp_pures; i_pures.
 
     wp_apply ("Hc" with "[$Hi $Htok $Hprf Hpos Hid]").
-    { instantiate (1 := 0). iSplit. { iPureIntro. f_equal. } admit. }
+    { instantiate (1 := 0). iSplit. { iPureIntro. f_equal. } iFrame "Hpos Hid". }
 
     iIntros (?) "(Htok & Ho)".
     destruct o1; last first.
@@ -1652,14 +1590,14 @@ Proof.
   iAssert (spec_ctx) as "#Hctx"; [by iExists _|].
   iMod na_alloc as (np) "Htok".
   set (Hseq := Build_seqG _ _ np).
-  iMod pos_alloc as (γp) "Hpos".
+  iMod pos_alloc as (γp) "[Hgp Hgp']".
   set (Hpos := PoisonOSG _ _ poisonOSG_name).
-  iMod idcntr_alloc as (γi) "Hid".
+  iMod idcntr_alloc as (γi) "[Hgi Hgi']".
   set (Hid := IdcntrG _ _ idcntrG_name).
 
   wp_apply wp_fupd.
   wp_apply (wp_wand with "[-]").
-  { iPoseProof (refines_run (seqG0 := Hseq) (poisonOSG0 := Hpos) (idcntrG0 := Hid) prf with "[] []") as "Hrun".
+  { iPoseProof (refines_run (seqG0 := Hseq) (poisonOSG0 := Hpos) (idcntrG0 := Hid) prf with "[] [] Hgp Hgp' Hgi Hgi'") as "Hrun".
     - by iExists _.
     - iApply Hcomp.
     - iApply ("Hrun" $! empty_ectx with "[$Hctx $Heᵢ $Htok]"). }

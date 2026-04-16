@@ -72,13 +72,13 @@ Program Fixpoint π_bin {Σ} (κ : kind) : kindO Σ κ -n> kind_binO Σ κ :=
   end.
 Solve All Obligations with solve_proper.
 
-Lemma π_un_ι_un_section {Σ} (κ : kind) (A_un : kind_unO Σ κ) :
+(* Lemma π_un_ι_un_section {Σ} (κ : kind) (A_un : kind_unO Σ κ) :
   π_un κ (ι_un κ A_un) ≡ A_un.
 Proof.
   induction κ as [| κ1 IH1 κ2 IH2].
   - done.
   - intro A_un'. simpl. rewrite IH2. f_equiv. apply IH1.
-Qed.
+Qed. *)
 
 (** * The OFE structure on well-kinded type contexts *)
 Section interp_ctx.
@@ -115,7 +115,7 @@ Section semtypes.
 
   Program Definition ext {Σ Θ κ} : ctxO Σ Θ →  kindO Σ κ → ctxO Σ (Θ ▹ κ) := Inc.maybe.
 
-  Program Definition interp_un_tvar {Θ : Ctx kind} {κ : kind} (x : dom Θ) (EQ : Θ x = κ) : ctxO Σ Θ -n> kind_unO Σ κ :=
+  (* Program Definition interp_un_tvar {Θ : Ctx kind} {κ : kind} (x : dom Θ) (EQ : Θ x = κ) : ctxO Σ Θ -n> kind_unO Σ κ :=
     λne Δ, eq_rect (Θ x) (kind_unO Σ) (π_un (Θ x) (Δ x)) κ EQ.
   Solve Obligations with solve_proper.
 
@@ -190,7 +190,7 @@ Section semtypes.
     | TRec κ => interp_un_rec
     | TForall κ => lrel_un_forall'
     | TExists κ => lrel_un_exists'
-    end.
+    end. *)
 
   Program Definition interp_tvar {Θ : Ctx kind} {κ : kind} (x : dom Θ) (EQ : Θ x = κ) : ctxO Σ Θ -n> kindO Σ κ :=
     λne Δ, eq_rect (Θ x) (kindO Σ) (Δ x) κ EQ.
@@ -336,7 +336,7 @@ Section semtypes.
 
   #[global] Arguments interp {Θ κ} τ.
 
-  #[local] Fixpoint interp_un_def {Θ κ} (τ : typ κ Θ) : ctxO Σ Θ -n> kind_unO Σ κ :=
+  (* #[local] Fixpoint interp_un_def {Θ κ} (τ : typ κ Θ) : ctxO Σ Θ -n> kind_unO Σ κ :=
     match τ in type _ κ return ctxO Σ Θ -n> kind_unO Σ κ with
     | TVar x EQ   => interp_un_tvar x EQ
     | TLam τ      => interp_un_tlam (interp_un_def τ)
@@ -347,12 +347,12 @@ Section semtypes.
   #[local] Definition interp_un_aux : seal (@interp_un_def). Proof. by eexists. Qed.
   Definition interp_un := interp_un_aux.(unseal).
   Definition interp_un_unseal : @interp_un = @interp_un_def := interp_un_aux.(seal_eq).
-  #[global] Arguments interp_un {Θ κ} τ.
+  #[global] Arguments interp_un {Θ κ} τ. *)
 
 End semtypes.
 
 Notation "⟦ τ ⟧" := (interp τ).
-Notation "⟦ τ ⟧_un" := (interp_un τ).
+(* Notation "⟦ τ ⟧_un" := (interp_un τ). *)
 
 Section semtypes_lemmas.
   Context `{!authG Σ, !seqG Σ}.
