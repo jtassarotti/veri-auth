@@ -15,10 +15,11 @@ Definition authN (N : namespace) (l : loc) : namespace := (authSet N) .@ l.
   
   For the suspended security proof, we need separate binary and unary logical relations,
   for reasons which become more clear in the authentikit_susp_security.v file.
-  So, we essentially need to define and prove unary versions of lrel_evidence and lrel_auth.
-  To give a brief intuition here, the verifier doesn't immediately know that the proof it has
-  received is bad until possibly much later (finish may be called much later). The unary
-  branch denotes the case where we decide that the computation has to return None.
+  To give a brief intuition here, when the verifier receives a bad proof, it doesn't
+  immediately know so, and isn't able to return None until possibly much later 
+  (finish may be called much later). In this case, we can't establish a binary logical relation
+  required for the postcondition of the lrel_auth_comp. So we create a separate "bad" lrel_auth_comp
+  which just makes sure that the verifier doesn't get stuck and returns None at some point.
 
   This proof also makes heavy use of non-atomic invariants. For this proof it is very reasonable
   to assume that there is no concurrency.
@@ -26,6 +27,8 @@ Definition authN (N : namespace) (l : loc) : namespace := (authSet N) .@ l.
 
 Section authenticatable.
   Context `{!authG Σ, !seqG Σ} (N : namespace).
+
+  (* TODO: simplify serialization. do away with serialization_susp. *)
   
   Inductive evi_type : Type :=
   | tprod (t1 t2 : evi_type)
@@ -50,7 +53,8 @@ Section authenticatable.
       s_is_ser (g:=gwp_upto_bad) auth_scheme (SOMEV #h) s.
 
   (* When the auth value is initialized with a suspension, and not yet filled.
-    We prophesize what the value will be filled to. *)
+    We prophesize what the value will be filled to. This prophecy would be resolved 
+    when the finish function is called with this value. *)
   Definition auth_is_ser_3 (s : string) (susp : loc) : iProp Σ :=
     ∃ (pid: nat) (p : proph_id) (h : string),
       susp ↦ InjLV (#pid, #p) ∗ proph_susp p h ∗
@@ -138,14 +142,19 @@ Section authenticatable.
 
   (* This does the same as above, and then some. Probably the most crucial specification
     in the proof.
-    In the precondition, it takes in what verifier-value the logical relation holds for, 
-    and what it serializes to. We then say that if for the deserialized object, the
-    prophesized string is the same as the input-serialization string, we will get the
-    logical relation for the deserialized value also.
-    
-    In earlier proofs, to derive the same kind of relations, we usually made some arguments
-    that if s' = s'', vᵥ = v. However, that may no longer be the case because
-    auth_is_ser_1 vᵥ s' and auth_is_ser_2 v s'' may both hold for different kinds of values. *)
+
+    Recall that deserialization is called inside the unauth call for a value "a" ~ "auth vᵥ". 
+    The verifier's goal is that if the deserialized value "x" is not similar to "vᵥ", it should 
+    return None. (We say similar, and not same, because we treat case 1 and case 2 for authenticated 
+    values as the same.) In earlier proofs, this was found by simply comparing the hash of "vᵥ"
+    (which is the serialization of "a"), and the hash of "x". However, in this proof, we can't do this
+    eagerly within the same unauth call, and this check is deferred until a finish call is made.
+    This is because "x" might not be complete yet and might be constituent of suspended values.
+
+    So we prophesy what "x" would serialize to in the future, and the compare its serialization "s''",
+    to "vᵥ"'s serialization "s'". If they are the same, we also get that "A x aᵢ" holds. If not, 
+    this is where the 'bad' branch starts, and we make sure that the verifier returns None for this
+    branch. This explanation appears in the file with the full security proof. *)
   Definition deser_spec_bin (A : lrel_bi Σ) (deser : val) (t : evi_type) : iProp Σ :=
     ∀ (pid : nat),
       {{{ True }}}

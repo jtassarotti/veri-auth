@@ -17,7 +17,7 @@ Definition i_Authentikit : expr := (i_return, i_bind, i_Authenticable).
 Definition poisonOSR := authUR (optionUR (optionUR unitUR)).
 Class poisonOSG Σ := PoisonOSG { poisonOS_inG :> inG Σ poisonOSR; poisonOSG_name : gname }.
 
-(* Tracks the counter. *)
+(* Tracks the counter in verifier's proof state. *)
 Definition idcntrUR := authUR nat.
 Class idcntrG Σ := IdcntrG { idcntr_inG :> inG Σ idcntrUR; idcntrG_name : gname }.
 
@@ -59,6 +59,11 @@ Section proof.
   Definition pos_car := optionUR (optionUR unitUR).
 
   Definition pos (o : pos_car) := own poisonOSG_name (●{DfracOwn (1/2)} o).
+  (* good_pos represents the good case.
+    bad_pos represents the bad case.
+    done_pos represents a corner case which we transition to from the bad case,
+    when we are sure that the verifier is going to return None immediately.
+    Explained in more detail later. *)
   Definition good_pos := pos None.
   Definition bad_pos := pos (Some None).
   Definition done_pos := pos (Some (Some ())).
@@ -136,17 +141,23 @@ Section proof.
 
   (* 4 kinds of finish specs that go into the susp_table.
     2 for the pre-filled auth case, 2 for the other auth case.
-    2 for the good case, 2 for the bad case. The bad case
+    2 for the ok case, 2 for the bad case. The bad case
     returns none, and has an explicit non-equality precond.
+
+    Why does the bad case always return None? Here's what a finish call looks like:
+    ("v_finish" "susp_table" "a" "x" "serialize"). Here, "a" (which has serialization
+    "hash s'") is the essentially the authenticated value, and "x" is the value 
+    obtained via deserialization in the unauth call for "a". Recall that the bad case 
+    was charecterized by saying that the prophesied serialization of "x" "s''", st, 
+    "s'' ≠ s'". Thus, for the first 2 kinds of authenticated values, the finish
+    function returns None as the equality check would fail. The third case is more
+    interesting. For a suspended value, "hash s'" is what the prophecy variable is 
+    supposed to resolve to. However, we trivially get a contradiction here, as in the
+    absence of hash collisions, "hash s' ≠ hash s''".
     
-    Note that the good case can still return None. This is because, we characterize
-    the good case by whether the prophecies give us the logical relation or not.
-    But it is still possible that the suspended value was never filled for this case,
-    in which case serialization would return none.
-    Further, note that some finish calls in the bad case may still return Some.
-    The good finish specs serve that purpose as well.
-    So in some sense the good case isn't really only good here.
-    *)
+    The ok case is used to specify finish that may or may not return None. Essentially,
+    just showing that finish isn't stuck when called from either the good or the bad case.
+*)
 
   Definition finish_spec1 (finish : val) (x a ser : val) : iProp Σ :=
     ∀ (E: coPset) (s s' : string) (t : evi_type),
@@ -164,6 +175,10 @@ Section proof.
         finish #()
         {{{ (o : option val), RET $o; seq_tok E ∗ ⌜o = None⌝ }}}.
 
+  (* Here, valid_pos makes sure that we don't call this with the done case.
+    The postconditin say that if the function returns some value, then it shouldn't
+    transition valid_pos. It's possible that it transitions to the done case, but
+    then it should return None. *)
   Definition finish_spec2 (finish : val) (x a ser : val) : iProp Σ :=
     ∀ (E: coPset) (s' s'' : string) (t : evi_type) (susp : loc) (o' : pos_car),
       ⌜↑authSet authBaseN ⊆ E ∧ ↑tableN ⊆ E⌝ -∗
@@ -208,10 +223,10 @@ Section proof.
   (* This spec is important for the final if-condition in v_run.
     good_pos represents the good case, and doesn't have anything extra.
     bad_pos represents the bad case. Here we make sure that the map always has
-    atleast one finish spec that will return None for sure. So either the spec is called
-    and returns None (in which case we transition to done_pos to close the invariant),
-    or keep going. If we still have this when we reach the conditional, it will 
-    be false and return None. *)
+    atleast one finish spec that will return None for sure. So either the spec is used
+    at some point and we return None (in which case we transition to done_pos to close 
+    the invariant), or it stays in the map. If we still have this in-map when we reach the 
+    conditional, the verifier would return None. *)
   Definition susp_bad_ge1 (m : gmap val val) : iProp Σ :=
     good_pos ∨ done_pos ∨
       (bad_pos ∗ 
