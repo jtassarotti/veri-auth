@@ -1093,7 +1093,7 @@ Section proof.
 
             wp_pures. wp_apply "Hdeser"; [done|].
             iIntros (?) "Hdepar".
-            wp_apply ("Hdepar" with "[$HA $Hser1]").
+            wp_apply "Hdepar"; try done.
             iIntros ([]); last first.
             { iIntros "_". wp_pures. iApply ("HΦ" $! None). iFrame. eauto. }
             
@@ -1145,7 +1145,7 @@ Section proof.
               wp_pures; wp_apply (gwp_list_tail with "[//]");
                 iIntros "/=" (tl Htl); wp_pures;
 
-              iMod ("Heq" $! ⊤ with "[//] [//] Htok") as "[Htok #HA']";
+              iMod ("Heq" $! ⊤ with "[//] [//] Htok HA Hser1") as "[Htok #HA']";
               iApply ("HΦ" $! (Some _));
               iFrame "# ∗"; iModIntro; repeat (iExists _);
               iSplit; try (iSplit; try done; iPureIntro; repeat f_equal; lia);
@@ -1194,7 +1194,7 @@ Section proof.
                 intros ?; simplify_eq; lia ] |
 
               iApply ("HΦ" $! (Some _));
-              iMod ("Heq" $! ⊤ with "[//] [//] Htok") as "[Htok #HA']";
+              iMod ("Heq" $! ⊤ with "[//] [//] Htok HA Hser1") as "[Htok #HA']";
               iFrame "# ∗"; iModIntro; repeat (iExists _);
               iSplit; try (iSplit; try done; iPureIntro; repeat f_equal; lia);
               iLeft; iFrame "# ∗ %"; iExists _, (ctr+1);
