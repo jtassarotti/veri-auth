@@ -902,7 +902,9 @@ Section proof.
         iIntros (?) "[% Hbrproph]". 
         simplify_eq. simpl in Hin.
         exfalso. apply Hin. eauto.
-      + wp_apply ("Hpsuspspec" with "[$HA $Hpserp //]").
+      + 
+        admit.
+        (* wp_apply ("Hpsuspspec" with "[$HA $Hpserp //]").
         iIntros (?) "[#HA' [Hpserp' [% #Hpserr]]]". 
         wp_pures.
         
@@ -1075,15 +1077,550 @@ Section proof.
             (((p_finish, s') :: combine bufl ps1) = 
               combine (p_finish :: bufl) (s' :: ps1))
             as -> by done.
-          iFrame "Hbuf". iExists v, ps'. by iFrame "%".
+          iFrame "Hbuf". iExists v, ps'. by iFrame "%". *)
 
     - iMod (na_inv_acc with "Hinv_unfill Htok") as "(>Hinvo & Htok & Hclose_inv)"; try solve_ndisj.
       iDestruct "Hinvo" as (?) "(Hmfrag & 
-            [(%& Hlb & Hlr & Hprbr & Hone)|
-              (%&%&%& Hlb & Hlr & Hprbr & Hone)])";
+            [(%& Hlb & Hlr & Hbrproph & Hone)|
+              (%&%&%& Hlb & Hlr & Hbrproph & Hone)])";
         wp_load; wp_pures; last first.
       + destruct r; wp_pures.
         * 
+          admit.
+          (* wp_apply ("Hpsuspspec" with "[$HA $Hpserp //]").
+          iIntros (?) "[#HA' [Hpserp' [% #Hpserr]]]". 
+          wp_pures.
+          
+          iMod ("Hclose_inv" with "[$Htok $Hmfrag Hlb Hlr Hbrproph Hone]") as "Htok".
+          { iNext. iRight. iFrame. }
+
+          destruct ps2; simplify_eq; v_bind (list_head _).
+          { iMod (gwp_list_head ⊤ _ [] () (λ v, ⌜v = NONEV⌝)%I
+                with "[] [] [$Hv //]") as (?) "[Hv ->] /="; [done| |v_pures].
+            { iIntros "!>" (? [[] | (?&?&?&?)]); simplify_eq. eauto. }
+
+            (* What should the postcondition be in lrel_auth_comp when the list is short? *)
+            admit. }
+
+          iMod (gwp_list_head ⊤ _ (s0 :: ps2) () (λ v, ⌜v = SOMEV #s0⌝)%I
+                with "[] [] [$Hv //]") as (?) "[Hv ->] /="; [done| |v_pures].
+          { iIntros "!>" (? [[] | (?&?&?&?)]); simplify_eq. eauto. }
+
+          destruct (decide (s0 = s')); last first.
+          { wp_bind (p_finish _ _).
+
+            iApply (p_finish_spec_bad' p_ser_susp v' s0 with "[//]").
+            iNext. iIntros (p_finish) "Hpfinish". wp_pures.
+            simplify_eq.
+
+            wp_apply (gwp_list_cons _); [done|].
+            iIntros (??). wp_pures.
+            
+            iApply ("HΨ"). iFrame "Htok Hi Hpr".
+            iModIntro. iRight.
+            iDestruct "HA'" as "(_ & $ & _)".
+            iExists (reverse (ps2)).
+            instantiate (1 := s0 :: ps1).
+            iSplit; first admit.
+            iExists prf1, v. iFrame "%".
+            iSplit; eauto.
+            iFrame "Hpfinish Hpserspec Hpserr".
+            iExists [], (combine bufl ps1), p_finish, s0.
+            iSplit; eauto. }
+
+          wp_bind (p_finish _ _).
+
+          iApply (p_finish_spec' p_ser_susp v' s'); try done.
+          iNext. iIntros (p_finish) "Hpfinish". wp_pures.
+
+          wp_apply (gwp_list_cons _); [done|].
+          iIntros (??). 
+          wp_pure credit:"Hlc".
+          wp_pure credit:"Hlctab".
+          wp_pures.
+
+          iPoseProof (big_sepL_cons (λ _ buf, p_buffer_elem buf) 
+              with "[$Hbuf $Hpfinish $Hpserspec $Hpserr //]")
+            as "Hbuf".
+
+          iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; try solve_ndisj.
+          iMod (lc_fupd_elim_later with "Hlctab Htabo") as "Htabo".
+          iDestruct "Htabo" as "(%&%&%&% & Hl & %Hm & Hbigsep & Hmauth & Hid' & %Hidinv)".
+
+          iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
+          iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
+
+          v_bind (v_deser _). subst s0.
+          iMod ("Hvdeserspec" with "Hv") as (?) "(Hv & Hvdeserparspec) /=".
+          v_bind (v_deser_par _).
+          iMod ("Hvdeserparspec" with "HA' Hpserr Hpserp' Hv Hmauth") as "Hv".
+          iDestruct "Hv" as "(%&%&%& Hmauth & Hv & Hc & %Hmautheq & #HA'' & #Hvserp) /=".
+
+          v_pures. v_bind (v_count _).
+          iDestruct "Hc" as "(Hcfrag & % & Hc & Hcagg)".
+          iMod ("Hvcountspec" with "Hc Hv") as "[Hc Hv] /=". v_pures.
+
+          v_bind (v_finish _ _ _ _).
+          iMod (v_finish_spec with "Htab Hv") as (v_finish) "[Hvfinish Hv] /=".
+          v_pures; try solve_vals_compare_safe.
+
+          case_bool_decide; simplify_eq; v_pures.
+          -- v_bind (v_finish _).
+            assert (c0 = 0) as -> by lia.
+
+            destruct! Hmautheq; simplify_eq.
+
+            iMod ("Hclose_tab" with "[$Htok $Hl $Hbigsep $Hmauth $Hid']") as "Htok";
+              try (iNext; iFrame "%"; iPureIntro; intros ??; apply Hidinv; lia).
+
+            iMod ("Hvfinish" $! ⊤ with "[//] Hlc Htok Hvserp Hvserspec Hc Hvauth Hv")
+              as "[Hv Htok] /=". v_pures.
+
+            v_bind (list_tail _).
+            iMod (gwp_list_tail ⊤ _ (s' :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
+                  with "[] [] [$Hv //]") as (u) "[Hv %Hvprf'] /="; [done| |v_pures].
+            { by iIntros "!>" (?). }
+
+            iApply ("HΨ"). iFrame "Htok Hpr Hi".
+            iModIntro. iLeft.
+            iExists ps2. iFrame "HA'' Hv Hid".
+            iSplit.
+            { iPureIntro.
+              instantiate (1 := (s' :: ps1)).
+              admit. }
+            iSplit.
+            { iPoseProof (big_sepL_cons (λ _, p_buffer_elem) with "Hbuf") as "Hbuf". 
+              assert 
+                (((p_finish, s') :: combine bufl ps1) = 
+                  combine (p_finish :: bufl) (s' :: ps1))
+                as -> by done.
+              iFrame "Hbuf". iExists prf1. eauto. }
+
+            iPureIntro.
+            eexists _. split; eauto.
+            repeat f_equal. lia.
+
+          -- destruct! Hmautheq; simplify_eq.
+          
+            v_load. v_pures. v_bind (map.map_insert _ _ _).
+            iMod (gwp_map_insert #ctr _ _ _ () ⊤ _
+              (λ d, ⌜is_map d (<[ #ctr := _ ]> m)⌝)%I
+              with "[//] [] [$Hv //]") as (?) "[Hv %Hmins] /=".
+            { by iIntros "!#" (? Hins). }
+            Unshelve. 2: done.
+            
+            v_store.
+
+            iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok Hvfinish $Hmauth $Hid' Hc Hcagg Hcfrag Hlc]") as "Htok".
+            { iNext. iFrame "%".
+
+              iPoseProof (big_sepM_mono 
+                  (v_susp_big_sep_lam m m')
+                  (v_susp_big_sep_lam (<[#ctr:=(#c0, v_finish)%V]> m) (mapg_insert_def m' #ctr a2')) 
+                with "Hbigsep") as "Hbigsep".
+              { iIntros (?? Hlook) "Hbigsep".
+                rewrite /v_susp_big_sep_lam.
+                iDestruct "Hbigsep" as (??????????[?[?[??]]]) "($ & $ & $ & $)".
+                iExists q. iPureIntro.
+                do 2 (split; eauto).
+                rewrite lookup_insert_ne; eauto.
+                intros ?. simplify_eq.
+                specialize (Hidinv id ltac:(lia)).
+                simplify_eq. }
+
+              iSplitL.
+              { iApply (big_sepM_insert_2 with "[Hvfinish Hc Hcagg Hcfrag Hlc]").
+                { iFrame "∗ #". iExists 1%Qp.
+                  iPureIntro. do 2 ( split; try lia).
+                  split; eauto.
+                  by rewrite lookup_insert. }
+                iFrame. }
+
+              iPureIntro. intros ??.
+              rewrite lookup_insert_None.
+              specialize (Hidinv ctr' ltac:(lia)).
+              split; eauto. intros ?. simplify_eq. lia. }
+
+            v_pures. v_bind (list_tail _).
+            iMod (gwp_list_tail ⊤ _ (s' :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
+                  with "[] [] [$Hv //]") as (u) "[Hv %Hprf'] /="; [done| |].
+            { by iIntros "!>" (?). }
+            v_pures.
+
+            iApply "HΨ". iModIntro. iFrame "Htok Hi Hpr".
+            iLeft. iFrame "Hv Hid HA''".
+            iExists ps2. iSplit; first admit.
+            iSplit; last first.
+            { iPureIntro. eexists _. 
+              split; eauto. repeat f_equal. lia. }
+
+            iExists _.
+            iPoseProof (big_sepL_cons (λ _, p_buffer_elem) with "Hbuf") as "Hbuf". 
+            assert 
+              (((p_finish, s') :: combine bufl ps1) = 
+                combine (p_finish :: bufl) (s' :: ps1))
+              as -> by done.
+            iFrame "Hbuf". iExists v, ps'. by iFrame "%". *)
+
+        * wp_apply (wp_resolve_proph_bool with "Hbrproph").
+          iIntros (?) "[-> Hbrproph]". wp_pures. wp_store. wp_pures.
+
+          admit.
+          (* wp_apply ("Hpsuspspec" with "[$HA $Hpserp //]").
+          iIntros (?) "[#HA' [Hpserp' [% #Hpserr]]]". 
+          wp_pures.
+          
+          iMod ("Hclose_inv" with "[$Htok $Hmfrag Hlb Hlr Hbrproph Hone]") as "Htok".
+          { iNext. iRight. iFrame. }
+
+          destruct ps2; simplify_eq; v_bind (list_head _).
+          { iMod (gwp_list_head ⊤ _ [] () (λ v, ⌜v = NONEV⌝)%I
+                with "[] [] [$Hv //]") as (?) "[Hv ->] /="; [done| |v_pures].
+            { iIntros "!>" (? [[] | (?&?&?&?)]); simplify_eq. eauto. }
+
+            (* What should the postcondition be in lrel_auth_comp when the list is short? *)
+            admit. }
+
+          iMod (gwp_list_head ⊤ _ (s0 :: ps2) () (λ v, ⌜v = SOMEV #s0⌝)%I
+                with "[] [] [$Hv //]") as (?) "[Hv ->] /="; [done| |v_pures].
+          { iIntros "!>" (? [[] | (?&?&?&?)]); simplify_eq. eauto. }
+
+          destruct (decide (s0 = s')); last first.
+          { wp_bind (p_finish _ _).
+
+            iApply (p_finish_spec_bad' p_ser_susp v' s0 with "[//]").
+            iNext. iIntros (p_finish) "Hpfinish". wp_pures.
+            simplify_eq.
+
+            wp_apply (gwp_list_cons _); [done|].
+            iIntros (??). wp_pures.
+            
+            iApply ("HΨ"). iFrame "Htok Hi Hpr".
+            iModIntro. iRight.
+            iDestruct "HA'" as "(_ & $ & _)".
+            iExists (reverse (ps2)).
+            instantiate (1 := s0 :: ps1).
+            iSplit; first admit.
+            iExists prf1, v. iFrame "%".
+            iSplit; eauto.
+            iFrame "Hpfinish Hpserspec Hpserr".
+            iExists [], (combine bufl ps1), p_finish, s0.
+            iSplit; eauto. }
+
+          wp_bind (p_finish _ _).
+
+          iApply (p_finish_spec' p_ser_susp v' s'); try done.
+          iNext. iIntros (p_finish) "Hpfinish". wp_pures.
+
+          wp_apply (gwp_list_cons _); [done|].
+          iIntros (??). 
+          wp_pure credit:"Hlc".
+          wp_pure credit:"Hlctab".
+          wp_pures.
+
+          iPoseProof (big_sepL_cons (λ _ buf, p_buffer_elem buf) 
+              with "[$Hbuf $Hpfinish $Hpserspec $Hpserr //]")
+            as "Hbuf".
+
+          iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; try solve_ndisj.
+          iMod (lc_fupd_elim_later with "Hlctab Htabo") as "Htabo".
+          iDestruct "Htabo" as "(%&%&%&% & Hl & %Hm & Hbigsep & Hmauth & Hid' & %Hidinv)".
+
+          iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
+          iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
+
+          v_bind (v_deser _). subst s0.
+          iMod ("Hvdeserspec" with "Hv") as (?) "(Hv & Hvdeserparspec) /=".
+          v_bind (v_deser_par _).
+          iMod ("Hvdeserparspec" with "HA' Hpserr Hpserp' Hv Hmauth") as "Hv".
+          iDestruct "Hv" as "(%&%&%& Hmauth & Hv & Hc & %Hmautheq & #HA'' & #Hvserp) /=".
+
+          v_pures. v_bind (v_count _).
+          iDestruct "Hc" as "(Hcfrag & % & Hc & Hcagg)".
+          iMod ("Hvcountspec" with "Hc Hv") as "[Hc Hv] /=". v_pures.
+
+          v_bind (v_finish _ _ _ _).
+          iMod (v_finish_spec with "Htab Hv") as (v_finish) "[Hvfinish Hv] /=".
+          v_pures; try solve_vals_compare_safe.
+
+          case_bool_decide; simplify_eq; v_pures.
+          -- v_bind (v_finish _).
+            assert (c0 = 0) as -> by lia.
+
+            destruct! Hmautheq; simplify_eq.
+
+            iMod ("Hclose_tab" with "[$Htok $Hl $Hbigsep $Hmauth $Hid']") as "Htok";
+              try (iNext; iFrame "%"; iPureIntro; intros ??; apply Hidinv; lia).
+
+            iMod ("Hvfinish" $! ⊤ with "[//] Hlc Htok Hvserp Hvserspec Hc Hvauth Hv")
+              as "[Hv Htok] /=". v_pures.
+
+            v_bind (list_tail _).
+            iMod (gwp_list_tail ⊤ _ (s' :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
+                  with "[] [] [$Hv //]") as (u) "[Hv %Hvprf'] /="; [done| |v_pures].
+            { by iIntros "!>" (?). }
+
+            iApply ("HΨ"). iFrame "Htok Hpr Hi".
+            iModIntro. iLeft.
+            iExists ps2. iFrame "HA'' Hv Hid".
+            iSplit.
+            { iPureIntro.
+              instantiate (1 := (s' :: ps1)).
+              admit. }
+            iSplit.
+            { iPoseProof (big_sepL_cons (λ _, p_buffer_elem) with "Hbuf") as "Hbuf". 
+              assert 
+                (((p_finish, s') :: combine bufl ps1) = 
+                  combine (p_finish :: bufl) (s' :: ps1))
+                as -> by done.
+              iFrame "Hbuf". iExists prf1. eauto. }
+
+            iPureIntro.
+            eexists _. split; eauto.
+            repeat f_equal. lia.
+
+          -- destruct! Hmautheq; simplify_eq.
+          
+            v_load. v_pures. v_bind (map.map_insert _ _ _).
+            iMod (gwp_map_insert #ctr _ _ _ () ⊤ _
+              (λ d, ⌜is_map d (<[ #ctr := _ ]> m)⌝)%I
+              with "[//] [] [$Hv //]") as (?) "[Hv %Hmins] /=".
+            { by iIntros "!#" (? Hins). }
+            Unshelve. 2: done.
+            
+            v_store.
+
+            iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok Hvfinish $Hmauth $Hid' Hc Hcagg Hcfrag Hlc]") as "Htok".
+            { iNext. iFrame "%".
+
+              iPoseProof (big_sepM_mono 
+                  (v_susp_big_sep_lam m m')
+                  (v_susp_big_sep_lam (<[#ctr:=(#c0, v_finish)%V]> m) (mapg_insert_def m' #ctr a2')) 
+                with "Hbigsep") as "Hbigsep".
+              { iIntros (?? Hlook) "Hbigsep".
+                rewrite /v_susp_big_sep_lam.
+                iDestruct "Hbigsep" as (??????????[?[?[??]]]) "($ & $ & $ & $)".
+                iExists q. iPureIntro.
+                do 2 (split; eauto).
+                rewrite lookup_insert_ne; eauto.
+                intros ?. simplify_eq.
+                specialize (Hidinv id ltac:(lia)).
+                simplify_eq. }
+
+              iSplitL.
+              { iApply (big_sepM_insert_2 with "[Hvfinish Hc Hcagg Hcfrag Hlc]").
+                { iFrame "∗ #". iExists 1%Qp.
+                  iPureIntro. do 2 ( split; try lia).
+                  split; eauto.
+                  by rewrite lookup_insert. }
+                iFrame. }
+
+              iPureIntro. intros ??.
+              rewrite lookup_insert_None.
+              specialize (Hidinv ctr' ltac:(lia)).
+              split; eauto. intros ?. simplify_eq. lia. }
+
+            v_pures. v_bind (list_tail _).
+            iMod (gwp_list_tail ⊤ _ (s' :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
+                  with "[] [] [$Hv //]") as (u) "[Hv %Hprf'] /="; [done| |].
+            { by iIntros "!>" (?). }
+            v_pures.
+
+            iApply "HΨ". iModIntro. iFrame "Htok Hi Hpr".
+            iLeft. iFrame "Hv Hid HA''".
+            iExists ps2. iSplit; first admit.
+            iSplit; last first.
+            { iPureIntro. eexists _. 
+              split; eauto. repeat f_equal. lia. }
+
+            iExists _.
+            iPoseProof (big_sepL_cons (λ _, p_buffer_elem) with "Hbuf") as "Hbuf". 
+            assert 
+              (((p_finish, s') :: combine bufl ps1) = 
+                combine (p_finish :: bufl) (s' :: ps1))
+              as -> by done.
+            iFrame "Hbuf". iExists v, ps'. by iFrame "%". *)
+
+      + iDestruct "Hbrproph" as "[Hbrproph %]".
+        wp_apply (wp_resolve_proph_bool with "Hbrproph").
+        iIntros (?) "[-> Hbrproph]". wp_pures. wp_store. wp_pures.
+
+        iMod (oneshot_transition with "Hone")
+
+        wp_apply ("Hpsuspspec" with "[$HA $Hpserp //]").
+        iIntros (?) "[#HA' [Hpserp' [% #Hpserr]]]". 
+        wp_pures.
+        
+        iMod ("Hclose_inv" with "[$Htok $Hmfrag Hlb Hlr Hbrproph Hone]") as "Htok".
+        { iNext. iRight. iFrame. }
+
+        destruct ps2; simplify_eq; v_bind (list_head _).
+        { iMod (gwp_list_head ⊤ _ [] () (λ v, ⌜v = NONEV⌝)%I
+              with "[] [] [$Hv //]") as (?) "[Hv ->] /="; [done| |v_pures].
+          { iIntros "!>" (? [[] | (?&?&?&?)]); simplify_eq. eauto. }
+
+          (* What should the postcondition be in lrel_auth_comp when the list is short? *)
+          admit. }
+
+        iMod (gwp_list_head ⊤ _ (s0 :: ps2) () (λ v, ⌜v = SOMEV #s0⌝)%I
+              with "[] [] [$Hv //]") as (?) "[Hv ->] /="; [done| |v_pures].
+        { iIntros "!>" (? [[] | (?&?&?&?)]); simplify_eq. eauto. }
+
+        destruct (decide (s0 = s')); last first.
+        { wp_bind (p_finish _ _).
+
+          iApply (p_finish_spec_bad' p_ser_susp v' s0 with "[//]").
+          iNext. iIntros (p_finish) "Hpfinish". wp_pures.
+          simplify_eq.
+
+          wp_apply (gwp_list_cons _); [done|].
+          iIntros (??). wp_pures.
+          
+          iApply ("HΨ"). iFrame "Htok Hi Hpr".
+          iModIntro. iRight.
+          iDestruct "HA'" as "(_ & $ & _)".
+          iExists (reverse (ps2)).
+          instantiate (1 := s0 :: ps1).
+          iSplit; first admit.
+          iExists prf1, v. iFrame "%".
+          iSplit; eauto.
+          iFrame "Hpfinish Hpserspec Hpserr".
+          iExists [], (combine bufl ps1), p_finish, s0.
+          iSplit; eauto. }
+
+        wp_bind (p_finish _ _).
+
+        iApply (p_finish_spec' p_ser_susp v' s'); try done.
+        iNext. iIntros (p_finish) "Hpfinish". wp_pures.
+
+        wp_apply (gwp_list_cons _); [done|].
+        iIntros (??). 
+        wp_pure credit:"Hlc".
+        wp_pure credit:"Hlctab".
+        wp_pures.
+
+        iPoseProof (big_sepL_cons (λ _ buf, p_buffer_elem buf) 
+            with "[$Hbuf $Hpfinish $Hpserspec $Hpserr //]")
+          as "Hbuf".
+
+        iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Hclose_tab)"; try solve_ndisj.
+        iMod (lc_fupd_elim_later with "Hlctab Htabo") as "Htabo".
+        iDestruct "Htabo" as "(%&%&%&% & Hl & %Hm & Hbigsep & Hmauth & Hid' & %Hidinv)".
+
+        iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
+        iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
+
+        v_bind (v_deser _). subst s0.
+        iMod ("Hvdeserspec" with "Hv") as (?) "(Hv & Hvdeserparspec) /=".
+        v_bind (v_deser_par _).
+        iMod ("Hvdeserparspec" with "HA' Hpserr Hpserp' Hv Hmauth") as "Hv".
+        iDestruct "Hv" as "(%&%&%& Hmauth & Hv & Hc & %Hmautheq & #HA'' & #Hvserp) /=".
+
+        v_pures. v_bind (v_count _).
+        iDestruct "Hc" as "(Hcfrag & % & Hc & Hcagg)".
+        iMod ("Hvcountspec" with "Hc Hv") as "[Hc Hv] /=". v_pures.
+
+        v_bind (v_finish _ _ _ _).
+        iMod (v_finish_spec with "Htab Hv") as (v_finish) "[Hvfinish Hv] /=".
+        v_pures; try solve_vals_compare_safe.
+
+        case_bool_decide; simplify_eq; v_pures.
+        -- v_bind (v_finish _).
+          assert (c0 = 0) as -> by lia.
+
+          destruct! Hmautheq; simplify_eq.
+
+          iMod ("Hclose_tab" with "[$Htok $Hl $Hbigsep $Hmauth $Hid']") as "Htok";
+            try (iNext; iFrame "%"; iPureIntro; intros ??; apply Hidinv; lia).
+
+          iMod ("Hvfinish" $! ⊤ with "[//] Hlc Htok Hvserp Hvserspec Hc Hvauth Hv")
+            as "[Hv Htok] /=". v_pures.
+
+          v_bind (list_tail _).
+          iMod (gwp_list_tail ⊤ _ (s' :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
+                with "[] [] [$Hv //]") as (u) "[Hv %Hvprf'] /="; [done| |v_pures].
+          { by iIntros "!>" (?). }
+
+          iApply ("HΨ"). iFrame "Htok Hpr Hi".
+          iModIntro. iLeft.
+          iExists ps2. iFrame "HA'' Hv Hid".
+          iSplit.
+          { iPureIntro.
+            instantiate (1 := (s' :: ps1)).
+            admit. }
+          iSplit.
+          { iPoseProof (big_sepL_cons (λ _, p_buffer_elem) with "Hbuf") as "Hbuf". 
+            assert 
+              (((p_finish, s') :: combine bufl ps1) = 
+                combine (p_finish :: bufl) (s' :: ps1))
+              as -> by done.
+            iFrame "Hbuf". iExists prf1. eauto. }
+
+          iPureIntro.
+          eexists _. split; eauto.
+          repeat f_equal. lia.
+
+        -- destruct! Hmautheq; simplify_eq.
+        
+          v_load. v_pures. v_bind (map.map_insert _ _ _).
+          iMod (gwp_map_insert #ctr _ _ _ () ⊤ _
+            (λ d, ⌜is_map d (<[ #ctr := _ ]> m)⌝)%I
+            with "[//] [] [$Hv //]") as (?) "[Hv %Hmins] /=".
+          { by iIntros "!#" (? Hins). }
+          Unshelve. 2: done.
+          
+          v_store.
+
+          iMod ("Hclose_tab" with "[$Hl Hbigsep $Htok Hvfinish $Hmauth $Hid' Hc Hcagg Hcfrag Hlc]") as "Htok".
+          { iNext. iFrame "%".
+
+            iPoseProof (big_sepM_mono 
+                (v_susp_big_sep_lam m m')
+                (v_susp_big_sep_lam (<[#ctr:=(#c0, v_finish)%V]> m) (mapg_insert_def m' #ctr a2')) 
+              with "Hbigsep") as "Hbigsep".
+            { iIntros (?? Hlook) "Hbigsep".
+              rewrite /v_susp_big_sep_lam.
+              iDestruct "Hbigsep" as (??????????[?[?[??]]]) "($ & $ & $ & $)".
+              iExists q. iPureIntro.
+              do 2 (split; eauto).
+              rewrite lookup_insert_ne; eauto.
+              intros ?. simplify_eq.
+              specialize (Hidinv id ltac:(lia)).
+              simplify_eq. }
+
+            iSplitL.
+            { iApply (big_sepM_insert_2 with "[Hvfinish Hc Hcagg Hcfrag Hlc]").
+              { iFrame "∗ #". iExists 1%Qp.
+                iPureIntro. do 2 ( split; try lia).
+                split; eauto.
+                by rewrite lookup_insert. }
+              iFrame. }
+
+            iPureIntro. intros ??.
+            rewrite lookup_insert_None.
+            specialize (Hidinv ctr' ltac:(lia)).
+            split; eauto. intros ?. simplify_eq. lia. }
+
+          v_pures. v_bind (list_tail _).
+          iMod (gwp_list_tail ⊤ _ (s' :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
+                with "[] [] [$Hv //]") as (u) "[Hv %Hprf'] /="; [done| |].
+          { by iIntros "!>" (?). }
+          v_pures.
+
+          iApply "HΨ". iModIntro. iFrame "Htok Hi Hpr".
+          iLeft. iFrame "Hv Hid HA''".
+          iExists ps2. iSplit; first admit.
+          iSplit; last first.
+          { iPureIntro. eexists _. 
+            split; eauto. repeat f_equal. lia. }
+
+          iExists _.
+          iPoseProof (big_sepL_cons (λ _, p_buffer_elem) with "Hbuf") as "Hbuf". 
+          assert 
+            (((p_finish, s') :: combine bufl ps1) = 
+              combine (p_finish :: bufl) (s' :: ps1))
+            as -> by done.
+          iFrame "Hbuf". iExists v, ps'. by iFrame "%".
           
 
           
