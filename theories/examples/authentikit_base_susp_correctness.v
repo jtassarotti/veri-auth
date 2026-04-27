@@ -108,24 +108,6 @@ Section proph.
 
 End proph.
 
-Definition proversuspUR := agreeR (leibnizO bool).
-Class proversuspG Σ := 
-    ProversuspG { proversusp_inG :> inG Σ proversuspUR;
-      proversuspG_name : gname }.
-
-Section proversusp_res.
-  Context `{!proversuspG Σ}.
-  
-  Definition susp_state γ : iProp Σ := own γ (to_agree true).
-
-  Definition unsusp_state γ : iProp Σ := own γ (to_agree false).
-
-  Lemma proversusp_agree γ :
-    susp_state γ -∗ unsusp_state γ -∗ False.
-  Proof. Admitted.
-
-End proversusp_res.
-
 
 (* Nat is going to be the id assigned by the verifier. We are going to show that
   for some value in the verifier's map, the ctr must be > 0. These values are either
@@ -486,10 +468,10 @@ Section authenticatable.
   Definition susp_p_unfill_inv (ps : proph_id) (lb lr : loc) : iProp Σ :=
     ∃ (γ : gname), (* 1-1 relation between lb, γ and pid *)
       lg_mapg_frag lb γ ∗
-      (∃ (bs : list bool),
+      ((∃ (bs : list bool),
         lb ↦ #false ∗ lr ↦ #false ∗ unfill_proph_bs ps bs ∗ oneshot_pending γ) ∨
       (∃ (r : bool) (bs : list bool) (n : nat),
-        lb ↦ #true ∗ lr ↦ #r ∗ proph_bs ps bs ∗ oneshot_done γ n).
+        lb ↦ #true ∗ lr ↦ #r ∗ proph_bs ps bs ∗ oneshot_done γ n)).
 
   Definition auth_susp_ser_p_emp (v : val) (s : string) : iProp Σ :=
     ∃ (p : proph_id) (lb lr : loc) (a : val) (h : string) (r : bool),
