@@ -207,9 +207,9 @@ Definition p_Auth_sum : val :=
           λ: "a",
             match: "a" with
               InjL "a" =>
-                InjL "unsuspend_A" "a"
+                InjL ("unsuspend_A" "a")
             | InjR "b" =>
-                InjR "unsuspend_B" "b"
+                InjR ("unsuspend_B" "b")
             end
         in
         ("ser_susp", "ser_unsusp", "suspend", "unsuspend").
