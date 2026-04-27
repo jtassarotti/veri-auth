@@ -121,64 +121,63 @@ Definition v_run : expr := Snd v_Authenticable_run.
 (* type 'a authenticated_computation = proof_state -> (proof_state * 'a) *)
 
 Definition p_return : val :=
-  Λ: λ: "a" "p" "buf", ("buf", "a").
+  Λ: λ: "a" "buf", ("buf", "a").
 
 Definition p_bind : val :=
-  Λ: Λ: λ: "c" "f" "p" "buf",
-    let, ("buf'", "a") := "c" "p" "buf" in
-    "f" "a" "p" "buf'".
+  Λ: Λ: λ: "c" "f" "buf",
+    let, ("buf'", "a") := ("c" "buf") in
+    "f" "a" "buf'".
 
 Definition p_auth : val :=
   Λ: λ: "evi" "a",
-    let, ("serialize", "suspend", "unsuspend") := "evi" in
+    let, ("s", "serialize", "suspend", "unsuspend") := "evi" in
     match: ("unsuspend" "a") with
       NONE => NONEV
     | SOME "unsusp_a" =>
-        SOME (InjL (
-            NewProph, ref #false, ref #false, 
-            "unsusp_a", Hash ("serialize" "unsusp_a")))
+        (ref #false, ref #false, "unsusp_a",
+           Hash ("serialize" "unsusp_a"), NewProph)
     end.
+
+Definition p_finish : val :=
+  λ: "serialize" "susp_un_a" "pprf",
+    let: "s" := "serialize" "susp_un_a" in
+    resolve_proph: "pprf" to: (SOME "s");;
+    "s".
 
 Definition p_unauth : val :=
   Λ: λ: "evi" "a" "prf_state",
-    match: "a" with
-      NONE => NONEV
-    | SOME "a" => 
-      let, ("pf_stream", "buffer") := "prf_state" in
-      let, ("serialize", "suspend", "unsuspend") := "evi" in
-      let: "un_a" :=
-        match: "a" with
-          InjL "susp_data" =>
-            let, ("p", "b", "r", "a", <>) := "susp_data" in
-            (if: !"r" then #() 
-            else
-              resolve_proph: "p" to: #true;;
-              "b" <- #true);;
-            "a"
-        | InjR "data" =>
-            let, ("a", "<>") := "data" in "a"
-        end
-      in
-      let: "susp_un_a" := "suspend" "un_a" in
-      let: "finish" := λ: <>, "serialize" "susp_un_a" in
-      let: "prf_state'" := ("pf_stream", "finish" :: "buffer") in
-      SOME ("prf_state'", "susp_un_a")
-    end.
+    let, ("pf_stream", "buffer") := "prf_state" in
+    let, ("serialize", <>, "suspend", "unsuspend") := "evi" in
+    let: "un_a" :=
+      let, ("b", "r", "un_a", <>, "pfl") := "a" in
+      (if: !"r" then #() 
+      else
+        resolve_proph: "pfl" to: (SOMEV #true);;
+        "b" <- #true);;
+      "un_a"
+    in
+    let: "susp_un_a" := "suspend" "un_a" in
+    let: "finish" := p_finish "serialize" "susp_un_a" in
+    let: "prf_state'" := ("pf_stream", "finish" :: "buffer") in
+    ("prf_state'", "susp_un_a").
                      
 Definition flush_buf_stream : val :=
-  rec: "aux" "buffer" "pf_stream" :=
+  rec: "aux" "buffer" "pf_stream" "pprf" :=
       match: list_head "buffer" with
         NONE => "pf_stream"
       | SOME "f" =>
-          "aux" (list_tail "buffer") ("f" #() :: "pf_stream")
+        let: "s" := ("f" "pprf") in
+        "aux" (list_tail "buffer") ("s" :: "pf_stream") "pprf"
       end.
 
 Definition p_run : val :=
-  Λ: λ: "p" "m",
+  Λ: λ: "m",
       let: "init_state" := ([], []) in
+      let: "pprf" := NewProph in
       let, ("fin_state", "res") := "m" "init_state" in
       let, ("pf_stream", "buffer") := "fin_state" in
-      let: "pf_stream'" := flush_buf_stream "buffer" in
+      let: "pf_stream'" := flush_buf_stream "buffer" [] "pprf" in
+      resolve_proph: "pprf" to: NONEV;;
       let: "pf_stream" := (list_rev "pf_stream") @@ "pf_stream'" in
       ("pf_stream", "res").
 

@@ -115,60 +115,56 @@ Definition read_br : val :=
   λ: "val",
     let, ("val", "p") := "val" in "val". *)
 
-
-Definition auth_ser_p : val :=
+(* Definition auth_ser_p : val :=
   λ: "a",
     match: "a" with
-      NONE => NONEV
-    | SOME "a" =>
-      let: "a_ser" := auth_scheme.(s_serializer') in
-      match: "a" with
-        InjL "d" =>
-          let, ("a", "h") := "d" in
-          "a_ser" (InjR "h")
-      | InjR "d" =>
-          let, ("p", "b", <>, "a", "h") := "d" in
-          if: !"b" then "a_ser" (InjL #"")
-          else "a_ser" (InjR "h")
-      end
-    end.
+      InjL "a_susp" =>
+      let: "a_ser" := auth_scheme.(s_serializer) in
+      let, ("pfl", "b", <>, "a", "h") := "a_susp" in
+      resolve_proph: "pfl" to: NONEV;;
+      if: !"b" then "a_ser" (InjL #"")
+      else "a_ser" (InjR "h")
+    | InjR "a_unsusp" =>
+      let, ("a", "h") := "a_unsusp" in
+      string_ser "h"
+    end. *)
+
+Definition auth_susp_ser_p : val :=
+  λ: "a",
+    let: "a_ser" := auth_scheme.(s_serializer) in
+    let, ("b", <>, "a", "h", "pfl") := "a" in
+    resolve_proph: "pfl" to: NONEV;;
+    if: !"b" then "a_ser" (InjL #"")
+    else "a_ser" (InjR "h").
+
+Definition auth_unsusp_ser_p : val :=
+  λ: "a",
+    let, ("a", "h") := "a" in
+    string_ser "h".
 
 Definition auth_suspend_p : val :=
-  λ: "a",
-    match: "a" with
-      NONE => NONEV
-    | SOME "a" =>
-      match: "a" with
-        InjL "d" =>
-          let, ("a", "h") := "d" in
-          InjR (NewProph, ref #false, ref #false, "a", "h")
-      | InjR <> => NONEV
-      end
-    end.
+  λ: "unsusp_a",
+    let, ("a", "h") := "unsusp_a" in
+    (ref #false, ref #false, "a", "h", NewProph).
 
 Definition auth_unsuspend_p : val :=
-  λ: "a",
-    match: "a" with
-      NONE => NONEV
-    | SOME "a" =>
-      match: "a" with
-        InjL "d" => NONEV
-      | InjR "d" =>
-          let, ("p", "b", "r", "a", "h") := "d" in
-          resolve_proph: "p" to: #false;;
-          "r" <- #true;;
-          SOME (InjL ("a", "h"))
-      end
-    end.
+  λ: "susp_a",
+    let, ("b", "r", "a", "h", "pfl") := "susp_a" in
+    resolve_proph: "pfl" to: (SOMEV #false);;
+    "r" <- #true;;
+    ("a", "h").
 
 (** type 'a evidence = 'a -> string; suspend : 'a -> 'a; unsuspend : 'a -> 'a *)
 Definition p_Auth_auth : val :=
-  Λ: (auth_ser_p, auth_suspend_p, auth_unsuspend_p).
+  Λ: (auth_susp_ser_p, auth_unsusp_ser_p, auth_suspend_p, auth_unsuspend_p).
 Definition p_Auth_mu : val :=
   Λ: λ: "s",
-      let, ("ser", "suspend", "unsuspend") := "s" in
-      let: "ser" := 
-        λ: "a", rec_fold "ser" "a"
+      let, ("ser_susp", "ser_unsusp", "suspend", "unsuspend") := "s" in
+      let: "ser_susp" :=
+        λ: "a", rec_fold "ser_susp" "a"
+      in
+      let: "ser_unsusp" :=
+        λ: "a", rec_fold "ser_unsusp" "a"
       in
       let: "suspend" :=
         λ: "a", rec_fold "suspend" "a"
@@ -176,12 +172,13 @@ Definition p_Auth_mu : val :=
       let: "unsuspend" :=
         λ: "a", rec_fold "unsuspend" "a"
       in
-      ("ser", "suspend", "unsuspend").
+      ("ser_susp", "ser_unsusp", "suspend", "unsuspend").
 Definition p_Auth_pair : val :=
   Λ: Λ: λ: "A" "B",
-        let, ("ser_A", "suspend_A", "unsuspend_A") := "A" in
-        let, ("ser_B", "suspend_B", "unsuspend_B") := "B" in
-        let: "ser" := prod_ser'' "ser_A" "ser_B" in
+        let, ("ser_susp_A", "ser_unsusp_A", "suspend_A", "unsuspend_A") := "A" in
+        let, ("ser_susp_B", "ser_unsusp_B", "suspend_B", "unsuspend_B") := "B" in
+        let: "ser_susp" := prod_ser "ser_susp_A" "ser_susp_B" in
+        let: "ser_unsusp" := prod_ser "ser_unsusp_A" "ser_unsusp_B" in
         let: "suspend" :=
           λ: "a",
             let, ("a", "b") := "a" in
@@ -192,12 +189,13 @@ Definition p_Auth_pair : val :=
             let, ("a", "b") := "a" in
             ("unsuspend_A" "a", "unsuspend_B" "b")
         in
-        ("ser", "suspend", "unsuspend").
+        ("ser_susp", "ser_unsusp", "suspend", "unsuspend").
 Definition p_Auth_sum : val :=
   Λ: Λ: λ: "A" "B",
-        let, ("ser_A", "suspend_A", "unsuspend_A") := "A" in
-        let, ("ser_B", "suspend_B", "unsuspend_B") := "B" in
-        let: "ser" := sum_ser'' "ser_A" "ser_B" in
+        let, ("ser_susp_A", "ser_unsusp_A", "suspend_A", "unsuspend_A") := "A" in
+        let, ("ser_susp_B", "ser_unsusp_B", "suspend_B", "unsuspend_B") := "B" in
+        let: "ser_susp" := sum_ser "ser_susp_A" "ser_susp_B" in
+        let: "ser_unsusp" := sum_ser "ser_unsusp_A" "ser_unsusp_B" in
         let: "suspend" :=
           λ: "a",
             match: "a" with
@@ -208,12 +206,15 @@ Definition p_Auth_sum : val :=
         let: "unsuspend" :=
           λ: "a",
             match: "a" with
-              InjL "a" => InjL ("unsuspend_A" "a")
-            | InjR "b" => InjR ("unsuspend_B" "b")
+              InjL "a" =>
+                InjL "unsuspend_A" "a"
+            | InjR "b" =>
+                InjR "unsuspend_B" "b"
             end
         in
-        ("ser", "suspend", "unsuspend").
+        ("ser_susp", "ser_unsusp", "suspend", "unsuspend").
 Definition id : val := λ: "x", "x".
-Definition p_Auth_string : val := (string_ser', id, id).
-Definition p_Auth_int : val := (int_ser', id, id).
+(* Definition id_some : val := λ: "x", SOME "x". *)
+Definition p_Auth_string : val := (string_ser, string_ser, id, id).
+Definition p_Auth_int : val := (int_ser, int_ser, id, id).
 
