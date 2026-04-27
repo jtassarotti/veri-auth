@@ -494,10 +494,10 @@ Section authenticatable.
     ∃ (h : string) (susp : loc), 
       ⌜s = filled_string h ∧ v = InjRV #susp⌝ ∗ susp ↦ᵥ{#(3/4)} InjRV #h.
 
-  Definition auth_susp_emp_v (v : val) (s : string) : iProp Σ :=
+  (* Definition auth_susp_emp_v (v : val) (s : string) : iProp Σ :=
     ∃ (h : string) (susp : loc) (pid: nat) (p : proph_id),
       ⌜s = suspended_string ∧ v = InjRV #susp⌝ ∗ 
-      susp ↦ᵥ{#(3/4)} InjLV (#pid, #p) ∗ proph_v_susp p h.
+      susp ↦ᵥ{#(3/4)} InjLV (#pid, #p) ∗ proph_v_susp p h. *)
 
   Definition auth_susp_emp_v_proph (v : val) : iProp Σ :=
     ∃ (h : string) (susp : loc) (pid: nat) (p : proph_id) pv pt (q : Qp),
@@ -575,9 +575,11 @@ Section authenticatable.
     | tsum t1 t2 => sum_is_ser' v s (ser_v t1) (ser_v t2)
     | tstring => string_is_ser v s
     | tint => int_is_ser v s
-    | tauth => ∃ v1, ⌜v = SOMEV v1⌝ ∗ 
-                  (auth_fill_ser_v v1 s ∨ auth_susp_emp_v v1 s)
+    | tauth => ∃ v1, ⌜v = SOMEV v1⌝ ∗ auth_fill_ser_v v1 s
     end.
+ 
+  #[global] Instance ser_v_persistent t v s : Persistent (ser_v t v s).
+  Proof. revert v s. induction t => v s; simpl; apply _. Qed.
 
   Fixpoint ser_v_proph (t : evi_type) (v : val) (s : string) : iProp Σ :=
     match t with
@@ -2067,7 +2069,6 @@ Proof. Admitted.
       seq_inv (authN N susp)
         (auth_inv s' susp)). *)
 
-  (* Create correspondence between lb susp here *)
   Definition auth_p (un_a v : val) (s : string) : iProp Σ :=
     ∃ (lb lr : loc) (ps : proph_id),
       ⌜v = (#lb, #lr, un_a, #(hash s), #ps)%V⌝ ∗
@@ -2088,11 +2089,23 @@ Proof. Admitted.
         ⌜v1 = (#lb, v1')%V ∧ v2 = InjRV #susp⌝ ∗ 
           lg_mapg_frag lb γ ∗ lg_mapg_frag susp γ).
 
+  Definition auth_pv (un_vₚ vₚ vᵥ : val) (s : string) : iProp Σ :=
+    ∃ (lb lr : loc) (ps : proph_id),
+      ⌜vₚ = (#lb, #lr, un_vₚ, #(hash s), #ps)%V⌝ ∗
+      ((⌜vᵥ = InjLV #(hash s)⌝ ∗ 
+        seq_inv (prover_susp_n N vₚ) (susp_p_fill_inv ps lb lr)) ∨
+      (∃ (s' : string) (susp : loc),
+        ⌜vᵥ = InjRV #susp⌝ ∗ susplb_gname vₚ vᵥ ∗
+        seq_inv (prover_susp_n N vₚ) (susp_p_unfill_inv ps lb lr) ∗
+        ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
+        seq_inv (ver_susp_n N vᵥ) 
+          (auth_susp_v_ser_proph_inv vᵥ s'))).
+
   Definition lrel_auth_tern (A : lrel_tern Σ) : lrel Σ := LRel (λ v1 v2 v3,
     ∃ (t : evi_type) (v2' a1 a2 un_a1 : val) (s : string),
       ⌜v2 = SOMEV v2' ∧ unsusp t a1 un_a1⌝ ∗
       susp_ser_p t a1 s ∗ A a1 a2 v3 ∗
-      auth_p un_a1 v1 s ∗ auth_v v2' s ∗ susplb_gname v1 v2')%I.
+      auth_pv un_a1 v1 v2' s)%I.
 
   Definition lrel_auth_bin (A : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ v1 v3,
     ∃ (t : evi_type) (a1 un_a1 : val) (s : string),
@@ -2136,10 +2149,10 @@ Proof. Admitted.
     iSplit; [done|]. iSplit; [done|].
     iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]]]].
     - (* 0. invalid_val *)
-      iIntros "!#" (p w2 w3) "HA".
-      iSimpl in "HA". rewrite interp_var3_ext4.
+      iIntros "!#" (p w2 w3) "HA". admit.
+      (* iSimpl in "HA". rewrite interp_var3_ext4.
       iDestruct "HA" as (t w2' a1 a2 un_a1 s) "(_ & _ & _ & Hauth_p & _)".
-      iDestruct "Hauth_p" as (lb lr ps) "[%Heq _]". discriminate.
+      iDestruct "Hauth_p" as (lb lr ps) "[%Heq _]". discriminate. *)
     - (* 1. unsusp_p_ser_spec *)
       iIntros (vau sau Ψ) "!# Hser HΨ".
       iSimpl in "Hser". iDestruct "Hser" as %(a & h & -> & ->).
