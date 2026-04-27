@@ -1863,7 +1863,42 @@ Proof. Admitted.
       iDestruct "HA" as ">%H". destruct H as (s' & -> & -> & ->).
       rewrite /string_ser' /string_ser. v_pures. iModIntro.
       iExists (string_ser_str s'). iFrame. iExists s'. done.
-    - (* 7. v_deser_spec      *) admit.
+    - (* 7. v_deser_spec *)
+      iIntros (K tᵥ id a1 a2 a3 s s' t' m) "!# Hspec".
+      v_pures.
+      iModIntro. iExists string_deser. iFrame "Hspec". iModIntro.
+      iIntros (K0 tᵥ0) "#HA Hreal Hsusp Hspec' Hm".
+      iDestruct "HA" as "[#HA1 [#HA2 #HA3]]".
+      iSimpl in "HA1".
+      iDestruct "HA1" as %(z_val & Heq1 & Heq2 & Heq3); subst.
+      destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in *.
+      + (* tprod: a1 = #z_val cannot be a pair *)
+        iDestruct "Hreal" as (?? ??) "[%Heq _]".
+        destruct Heq as [Heq _]. discriminate.
+      + (* tsum: cannot be InjL/R *)
+        iDestruct "Hreal" as (??) "[(_ & %Heq) | (_ & %Heq)]";
+          (destruct Heq as [Heq _]; discriminate).
+      + (* tstring: deserialize *)
+        iDestruct "Hreal" as %(z' & Heq & ->). injection Heq as <-.
+        iDestruct "Hsusp" as %(z'' & Heq' & ->). injection Heq' as <-.
+        iMod (s_deser_complete (g := gwp_spec_verifier) string_deserialization
+                ⊤ (string_ser_str z_val) () (λ w, ⌜w = SOMEV #z_val⌝)%I
+                with "[%] [] [$Hspec' //]") as (v) "[Hspec' Hres]".
+        { by exists z_val. }
+        { iIntros "!#" (v') "Hser".
+          iDestruct "Hser" as %(s'' & -> & Heq).
+          unfold string_ser_str in Heq. injection Heq as ->. done. }
+        iDestruct "Hres" as %->.
+        iModIntro. iExists 0%nat, #z_val, m. iFrame "Hm Hspec'".
+        iSplitR; [admit (* TODO: cap_frag id 0 *) |].
+        iSplitR; [iPureIntro; left; done|].
+        iSplitR.
+        { iSplit; [|iSplit]; iExists z_val; done. }
+        iExists z_val. done.
+      + (* tint: a1 = #z_val (string) cannot be int *)
+        iDestruct "Hreal" as %(? & Heq & _). discriminate.
+      + (* tauth: a1 cannot be SOMEV *)
+        iDestruct "Hsusp" as %(p & lb & lr & a & h & [Heq _]). discriminate.
     - (* 8. v_count_spec *)
       iIntros (K tᵥ a c id Nc v_outer) "!# Hcnt Hspec".
       iDestruct "Hcnt" as "[Hvv %Hc]". subst c.
@@ -1960,7 +1995,41 @@ Proof. Admitted.
       iDestruct "HA" as ">%H". destruct H as (z' & -> & -> & ->).
       rewrite /int_ser' /int_ser. v_pures. iModIntro.
       iExists (int_ser_str z'). iFrame. iExists z'. done.
-    - (* 7. v_deser_spec      *) admit.
+    - (* 7. v_deser_spec *)
+      iIntros (K tᵥ id a1 a2 a3 s s' t' m) "!# Hspec".
+      v_pures.
+      iModIntro. iExists int_deser. iFrame "Hspec". iModIntro.
+      iIntros (K0 tᵥ0) "#HA Hreal Hsusp Hspec' Hm".
+      iDestruct "HA" as "[#HA1 [#HA2 #HA3]]".
+      iSimpl in "HA1".
+      iDestruct "HA1" as %(z_val & Heq1 & Heq2 & Heq3); subst.
+      destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in *.
+      + (* tprod *) iDestruct "Hreal" as (?? ??) "[%Heq _]".
+        destruct Heq as [Heq _]. discriminate.
+      + (* tsum *) iDestruct "Hreal" as (??) "[(_ & %Heq) | (_ & %Heq)]";
+          (destruct Heq as [Heq _]; discriminate).
+      + (* tstring: a1 = #z_val (int) cannot be string *)
+        iDestruct "Hreal" as %(? & Heq & _). discriminate.
+      + (* tint: deserialize *)
+        iDestruct "Hreal" as %(z' & Heq & ->). injection Heq as <-.
+        iDestruct "Hsusp" as %(z'' & Heq' & ->). injection Heq' as <-.
+        iMod (s_deser_complete (g := gwp_spec_verifier) int_deserialization
+                ⊤ (int_ser_str z_val) () (λ w, ⌜w = SOMEV #z_val⌝)%I
+                with "[%] [] [$Hspec' //]") as (v) "[Hspec' Hres]".
+        { by exists z_val. }
+        { iIntros "!#" (v') "Hser".
+          iDestruct "Hser" as %(z'' & -> & Heq).
+          unfold int_ser_str in Heq. injection Heq as Heq.
+          apply StringOfZ_inj in Heq. by subst. }
+        iDestruct "Hres" as %->.
+        iModIntro. iExists 0%nat, #z_val, m. iFrame "Hm Hspec'".
+        iSplitR; [admit (* TODO: cap_frag id 0 *) |].
+        iSplitR; [iPureIntro; left; done|].
+        iSplitR.
+        { iSplit; [|iSplit]; iExists z_val; done. }
+        iExists z_val. done.
+      + (* tauth: a1 cannot be SOMEV *)
+        iDestruct "Hsusp" as %(p & lb & lr & a & h & [Heq _]). discriminate.
     - (* 8. v_count_spec *)
       iIntros (K tᵥ a c id Nc v_outer) "!# Hcnt Hspec".
       iDestruct "Hcnt" as "[Hvv %Hc]". subst c.
