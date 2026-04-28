@@ -491,8 +491,9 @@ Section authenticatable.
     ∃ (h : string), ⌜s = filled_string h ∧ v = InjLV #h⌝.
 
   Definition auth_susp_fill_v (v : val) (s : string) : iProp Σ :=
-    ∃ (h : string) (susp : loc), 
-      ⌜s = filled_string h ∧ v = InjRV #susp⌝ ∗ susp ↦ᵥ{#(3/4)} InjRV #h.
+    ∃ (h : string) (susp : loc) γ n, 
+      ⌜s = filled_string h ∧ v = InjRV #susp⌝ ∗ susp ↦ᵥ{#(3/4)} InjRV #h ∗
+      lg_mapg_frag susp γ ∗ oneshot_done γ n.
 
   (* Definition auth_susp_emp_v (v : val) (s : string) : iProp Σ :=
     ∃ (h : string) (susp : loc) (pid: nat) (p : proph_id),
@@ -655,6 +656,15 @@ Section authenticatable.
     cap_frag id N ∗ ⌜c ≤ N⌝ ∗
     sub_susp_count t v c id N v ∗
     count_aggregator c id N v.
+
+  Lemma sub_susp_count_update_map :
+    ∀ t v c id N m,
+      ⌜c > 0⌝ -∗
+      mapg_auth m -∗
+      sub_susp_count t v c id N v ==∗
+        mapg_auth (mapg_insert_def m #id v) ∗
+        sub_susp_count_frags t v c id N.
+  Proof. Admitted.
 
   Lemma mapg_remove_count_0 :
     ∀ t v id N m,
@@ -1135,21 +1145,17 @@ Proof. Admitted.
       {{{ un_v, RET un_v; seq_tok E ∗ ⌜unsusp t a1 un_v⌝ }}}.
 
   Definition v_deser_spec (v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
-    □(∀ K tᵥ (id : nat) a1 a2 a3 (s s' : string) t' m,
+    □(∀ K tᵥ (id : nat) a1 a2 a3 (s s' : string) t',
       spec_verifier tᵥ (fill K (v_deser #id))
       ={⊤}=∗ ∃ (v_deser_par: val),
         spec_verifier tᵥ (fill K v_deser_par) ∗
         □(∀ K tᵥ,
           A a1 a2 a3 -∗ susp_ser_p_real t' a1 s -∗
           susp_ser_p t' a1 s' -∗
-          spec_verifier tᵥ (fill K (v_deser_par #s)) -∗
-          mapg_auth m
-          ={⊤}=∗ ∃ (c : nat) (a2' : val) m',
-            mapg_auth m' ∗
+          spec_verifier tᵥ (fill K (v_deser_par #s))
+          ={⊤}=∗ ∃ (c : nat) (a2' : val),
             spec_verifier tᵥ (fill K (SOMEV a2')) ∗
-            sub_susp_count_frags t a2' c id c ∗
-              (⌜(c = 0 ∧ m = m') ∨
-                (c ≠ 0 ∧ m' = mapg_insert_def m #id a2')⌝) ∗
+            sub_susp_count t a2' c id c a2' ∗
             A a1 a2' a3 ∗ ser_v_proph t a2' s')).
 
   Definition v_deser_spec_un (v_deser : val) (A : lrel_un Σ) (t : evi_type) : iProp Σ :=
@@ -1864,19 +1870,17 @@ Proof. Admitted.
       rewrite /string_ser' /string_ser. v_pures. iModIntro.
       iExists (string_ser_str s'). iFrame. iExists s'. done.
     - (* 7. v_deser_spec *)
-      iIntros (K tᵥ id a1 a2 a3 s s' t' m) "!# Hspec".
+      iIntros (K tᵥ id a1 a2 a3 s s' t') "!# Hspec".
       v_pures.
       iModIntro. iExists string_deser. iFrame "Hspec". iModIntro.
-      iIntros (K0 tᵥ0) "#HA Hreal Hsusp Hspec' Hm".
+      iIntros (K0 tᵥ0) "#HA Hreal Hsusp Hspec'".
       iDestruct "HA" as "[#HA1 [#HA2 #HA3]]".
       iSimpl in "HA1".
       iDestruct "HA1" as %(z_val & Heq1 & Heq2 & Heq3); subst.
       destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in *.
-      + (* tprod: a1 = #z_val cannot be a pair *)
-        iDestruct "Hreal" as (?? ??) "[%Heq _]".
+      + (* tprod *) iDestruct "Hreal" as (?? ??) "[%Heq _]".
         destruct Heq as [Heq _]. discriminate.
-      + (* tsum: cannot be InjL/R *)
-        iDestruct "Hreal" as (??) "[(_ & %Heq) | (_ & %Heq)]";
+      + (* tsum *) iDestruct "Hreal" as (??) "[(_ & %Heq) | (_ & %Heq)]";
           (destruct Heq as [Heq _]; discriminate).
       + (* tstring: deserialize *)
         iDestruct "Hreal" as %(z' & Heq & ->). injection Heq as <-.
@@ -1889,9 +1893,9 @@ Proof. Admitted.
           iDestruct "Hser" as %(s'' & -> & Heq).
           unfold string_ser_str in Heq. injection Heq as ->. done. }
         iDestruct "Hres" as %->.
-        iModIntro. iExists 0%nat, #z_val, m. iFrame "Hm Hspec'".
-        iSplitR; [admit (* TODO: cap_frag id 0 *) |].
-        iSplitR; [iPureIntro; left; done|].
+        iModIntro. iExists 0%nat, #z_val. iFrame "Hspec'".
+        iSplitR.
+        { iSplit; [iExists z_val; done|done]. }
         iSplitR.
         { iSplit; [|iSplit]; iExists z_val; done. }
         iExists z_val. done.
@@ -1996,10 +2000,10 @@ Proof. Admitted.
       rewrite /int_ser' /int_ser. v_pures. iModIntro.
       iExists (int_ser_str z'). iFrame. iExists z'. done.
     - (* 7. v_deser_spec *)
-      iIntros (K tᵥ id a1 a2 a3 s s' t' m) "!# Hspec".
+      iIntros (K tᵥ id a1 a2 a3 s s' t') "!# Hspec".
       v_pures.
       iModIntro. iExists int_deser. iFrame "Hspec". iModIntro.
-      iIntros (K0 tᵥ0) "#HA Hreal Hsusp Hspec' Hm".
+      iIntros (K0 tᵥ0) "#HA Hreal Hsusp Hspec'".
       iDestruct "HA" as "[#HA1 [#HA2 #HA3]]".
       iSimpl in "HA1".
       iDestruct "HA1" as %(z_val & Heq1 & Heq2 & Heq3); subst.
@@ -2022,9 +2026,9 @@ Proof. Admitted.
           unfold int_ser_str in Heq. injection Heq as Heq.
           apply StringOfZ_inj in Heq. by subst. }
         iDestruct "Hres" as %->.
-        iModIntro. iExists 0%nat, #z_val, m. iFrame "Hm Hspec'".
-        iSplitR; [admit (* TODO: cap_frag id 0 *) |].
-        iSplitR; [iPureIntro; left; done|].
+        iModIntro. iExists 0%nat, #z_val. iFrame "Hspec'".
+        iSplitR.
+        { iSplit; [iExists z_val; done|done]. }
         iSplitR.
         { iSplit; [|iSplit]; iExists z_val; done. }
         iExists z_val. done.
@@ -2154,8 +2158,8 @@ Proof. Admitted.
 
   Definition susplb_gname (v1 v2 : val) : iProp Σ :=
     (∃ v, ⌜v2 = InjLV v⌝) ∨
-      (∃ (γ : gname) (susp lb : loc) v1',
-        ⌜v1 = (#lb, v1')%V ∧ v2 = InjRV #susp⌝ ∗ 
+      (∃ (γ : gname) (susp lb lr : loc) un_a v1' h,
+        ⌜v1 = (#lb, #lr, un_a, #h, v1')%V ∧ v2 = InjRV #susp⌝ ∗ 
           lg_mapg_frag lb γ ∗ lg_mapg_frag susp γ).
 
   Definition auth_pv (un_vₚ vₚ vᵥ : val) (s : string) : iProp Σ :=
