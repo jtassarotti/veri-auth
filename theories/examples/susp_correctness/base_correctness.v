@@ -1,151 +1,11 @@
 From auth.prelude Require Import stdpp.
 From auth.rel_logic_tern_susp Require Import model interp spec_tactics.
-From auth.prelude Require Import stdpp.
 From auth.examples Require Import authentikit authenticatable_base_susp.
-From auth.examples.susp_correctness Require Export resource_algebras definitions.
+From auth.examples.susp_correctness Require Export definitions.
 
 
 Section authenticatable.
   Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, !mapG Σ, !capG Σ} (N : namespace).
-
-  Definition susp_p_ser_spec (ser : val) (t : evi_type) : iProp Σ :=
-    ∀ (E : coPset) (a1 : val) (s : string),
-      ⌜↑prover_susp_set N ⊆ E⌝ -∗
-      {{{ susp_ser_p_real N t a1 s }}}
-        ser a1
-      {{{ RET #s; True }}}.
-
-  Definition unsusp_p_ser_spec (ser : val) (t : evi_type) : iProp Σ :=
-    ∀ (v : val) (s : string),
-      {{{ unsusp_ser_p t v s }}}
-        ser v
-      {{{ RET #s; True }}}.
-
-  Definition suspend_spec (suspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
-    ∀ t' (v un_v a2 a3 : val) s,
-      {{{ ⌜unsusp t' v un_v⌝ ∗ ▷ A v a2 a3 ∗ susp_ser_p t' v s }}}
-        suspend un_v
-      {{{ v', RET v'; A v' a2 a3 ∗ susp_ser_p t v' s ∗
-          ∃ s', susp_ser_p_real N t v' s' }}}.
-
-  Definition unsuspend_spec (unsuspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
-    ∀ E (a1 a2 a3 : val),
-      ⌜↑prover_susp_set N ⊆ E⌝ -∗
-      {{{ ▷ A a1 a2 a3 ∗ seq_tok E }}}
-        unsuspend a1
-      {{{ un_v s, RET un_v; seq_tok E ∗
-          ⌜unsusp t a1 un_v⌝ ∗ unsusp_ser_p t un_v s }}}.
-            (* if o is Some v then ∃ s, unsusp_ser_p t v s (* ∗ s_is_ser_p_proph t a1 s'*)
-            else ⌜invalid_value t a1⌝ ∨ (∃ s, unsusp_ser_p t a1 s) }}}. *)
-
-  Definition suspend_spec_bin (suspend : val) (A : lrel_bin Σ) (t : evi_type) : iProp Σ :=
-    ∀ t' (v un_v a3 : val),
-      {{{ ⌜unsusp t' v un_v⌝ ∗ ▷ A v a3 }}}
-        suspend un_v
-      {{{ v', RET v'; A v' a3 ∗ ∃ s', susp_ser_p_real N t v' s' }}}.
-
-  Definition unsuspend_spec_bin (unsuspend : val) (A : lrel_bin Σ) (t : evi_type) : iProp Σ :=
-    ∀ E (a1 a3 : val),
-      ⌜↑prover_susp_set N ⊆ E⌝ -∗
-      {{{ ▷ A a1 a3 ∗ seq_tok E }}}
-        unsuspend a1
-      {{{ un_v, RET un_v; seq_tok E ∗ ⌜unsusp t a1 un_v⌝ }}}.
-
-  Definition v_deser_spec (v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
-    □(∀ K tᵥ (id : nat) a1 a2 a3 (s s' : string) t',
-      spec_verifier tᵥ (fill K (v_deser #id))
-      ={⊤}=∗ ∃ (v_deser_par: val),
-        spec_verifier tᵥ (fill K v_deser_par) ∗
-        □(∀ K tᵥ,
-          A a1 a2 a3 -∗ susp_ser_p_real N t' a1 s -∗
-          susp_ser_p t' a1 s' -∗
-          spec_verifier tᵥ (fill K (v_deser_par #s))
-          ={⊤}=∗ ∃ (c : nat) (a2' : val),
-            spec_verifier tᵥ (fill K (SOMEV a2')) ∗
-            sub_susp_count t a2' c id c a2' ∗
-            A a1 a2' a3 ∗ ser_v_proph N t a2' s')).
-
-  Definition v_deser_spec_un (v_deser : val) (A : lrel_un Σ) (t : evi_type) : iProp Σ :=
-    □(∀ K tᵥ (id : nat) (s' : string),
-      spec_verifier tᵥ (fill K (v_deser #id))
-      ={⊤}=∗ ∃ (v_deser_par: val),
-        spec_verifier tᵥ (fill K v_deser_par) ∗
-        □(∀ K tᵥ,
-          spec_verifier tᵥ (fill K (v_deser_par #s'))
-          ={⊤}=∗
-            (∃ (c : nat) (a2' : val) s'',
-              spec_verifier tᵥ (fill K (SOMEV a2')) ∗
-              ser_v_proph N t a2' s'' ∗ sub_susp_count_frags t a2' c id c ∗
-              A a2') ∨
-            spec_verifier tᵥ (fill K NONEV))).
-
-  Definition v_count_spec (v_count : val) (t : evi_type) : iProp Σ :=
-    □(∀ K tᵥ a c id Nc v_outer,
-      sub_susp_count t a c id Nc v_outer -∗
-      spec_verifier tᵥ (fill K (v_count a))
-      ={⊤}=∗
-        sub_susp_count t a c id Nc v_outer ∗
-        spec_verifier tᵥ (fill K #c)).
-
-  Definition v_ser_spec (v_ser : val) (t : evi_type) : iProp Σ :=
-    □(∀ K tᵥ a s id Nc v_outer,
-      sub_susp_count t a 0 id Nc v_outer -∗ ser_v_proph N t a s -∗
-      spec_verifier tᵥ (fill K (v_ser a))
-      ={⊤}=∗
-        sub_susp_count t a 0 id Nc v_outer ∗ ser_v_proph N t a s ∗
-        spec_verifier tᵥ (fill K (SOMEV #s))).
-      
-  Definition v_auth_ser_spec (v_ser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
-    □(∀ K tᵥ a1 a2 a3,
-      ▷ (lrel_tern_tern A) a1 a2 a3 -∗
-      spec_verifier tᵥ (fill K (v_ser a2))
-      ={⊤}=∗ ∃ s,
-        ser_v t a2 s ∗ spec_verifier tᵥ (fill K (SOMEV #s))).
-      
-  Definition v_auth_ser_spec_un (v_ser : val) (A : lrel_un Σ) (t : evi_type) : iProp Σ :=
-    □(∀ K tᵥ a2 s,
-      A a2 -∗
-      spec_verifier tᵥ (fill K (v_ser a2))
-      ={⊤}=∗ 
-        ser_v t a2 s ∗ spec_verifier tᵥ (fill K (SOMEV #s))).
-
-  Definition invalid_val (A : lrel_tern Σ) : iProp Σ :=
-    □ ∀ (p : proph_id) v2 v3,
-      (lrel_tern_tern A) #p v2 v3 -∗ False.
-
-  #[global] Instance invalid_val_persistent A : Persistent (invalid_val A).
-  Proof. apply _. Qed.
-
-  Definition lrel_tern_evidence (A : lrel_tern Σ) : lrel Σ := LRel (λ v1 v2 _,
-    ∃ (t : evi_type) (p_ser_susp p_ser_unsusp p_susp p_unsusp v_ser v_deser v_count : val),
-      ⌜v1 = (p_ser_susp, p_ser_unsusp, p_susp, p_unsusp)%V⌝ ∗ ⌜v2 = (v_ser, v_deser, v_count)%V⌝ ∗
-      invalid_val A ∗
-      unsusp_p_ser_spec p_ser_unsusp t ∗ susp_p_ser_spec p_ser_susp t ∗
-      suspend_spec p_susp A t ∗ unsuspend_spec p_unsusp A t ∗
-      v_ser_spec v_ser t ∗ v_auth_ser_spec v_ser A t ∗
-      v_deser_spec v_deser A t ∗ v_count_spec v_count t)%I.
-
-  Definition lrel_bi_evidence (A : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ v1 _,
-    ∃ (t : evi_type) (p_ser_susp p_ser_unsusp p_susp p_unsusp v_ser v_deser v_count : val),
-      ⌜v1 = (p_ser_susp, p_ser_unsusp, p_susp, p_unsusp)%V⌝ ∗
-      unsusp_p_ser_spec p_ser_unsusp t ∗ susp_p_ser_spec p_ser_susp t ∗
-      suspend_spec_bin p_susp A t ∗ unsuspend_spec_bin p_unsusp A t)%I.
-
-  Definition lrel_un_evidence (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v2,
-    ∃ (t : evi_type) (v_ser v_deser v_count : val),
-      ⌜v2 = (v_ser, v_deser, v_count)%V⌝ ∗
-      v_ser_spec v_ser t ∗ v_auth_ser_spec_un v_ser A t ∗
-      v_deser_spec_un v_deser A t ∗ v_count_spec v_count t)%I.
-
-  Definition lrel_evidence' (A : lrel_tern Σ) : lrel_ternC Σ :=
-    LRelTern (lrel_tern_evidence A)
-             (lrel_bi_evidence (lrel_tern_bin A))
-             (lrel_un_evidence (lrel_tern_un A)).
-
-  Program Definition lrel_evidence : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_evidence' A.
-  Next Obligation.
-    intros ????.
-  Admitted.
   
 
   (* refines_Auth_pair proof outline.
@@ -197,7 +57,7 @@ Section authenticatable.
      stays [Admitted] for now. *)
   Lemma refines_Auth_pair Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 * var0) ⟧
-      (ext Δ lrel_evidence) p_Auth_pair v_Auth_pair i_Auth_pair.
+      (ext Δ (lrel_evidence N)) p_Auth_pair v_Auth_pair i_Auth_pair.
   Proof.
     iSplit; [|iSplit]; interp_unfold!; last first.
     { (* unary  *) admit. }
@@ -443,7 +303,7 @@ Section authenticatable.
 
   Lemma refines_Auth_sum Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 + var0) ⟧
-      (ext Δ lrel_evidence) p_Auth_sum v_Auth_sum i_Auth_sum.
+      (ext Δ (lrel_evidence N)) p_Auth_sum v_Auth_sum i_Auth_sum.
   Proof.
     iSplit; [|iSplit]; interp_unfold!; last first.
     { (* unary  *) admit. }
@@ -721,7 +581,7 @@ Section authenticatable.
   Admitted.
 
   Lemma refines_Auth_string :
-    ⊢ lrel_evidence (LRelTern lrel_string lrel_bin_string lrel_un_string)
+    ⊢ (lrel_evidence N) (LRelTern lrel_string lrel_bin_string lrel_un_string)
         p_Auth_string v_Auth_string i_Auth_string.
   Proof.
     iSplit; [|iSplit]; last first.
@@ -851,7 +711,7 @@ Section authenticatable.
   Admitted.
 
   Lemma refines_Auth_int :
-    ⊢ lrel_evidence (LRelTern lrel_int lrel_bin_int lrel_un_int)
+    ⊢ (lrel_evidence N) (LRelTern lrel_int lrel_bin_int lrel_un_int)
         p_Auth_int v_Auth_int i_Auth_int.
   Proof.
     iSplit; [|iSplit]; last first.
@@ -983,7 +843,7 @@ Section authenticatable.
 
   Lemma refines_Auth_mu Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆ ⇒ ⋆, var1 (var0 (μ: ⋆; var1 var0)) → var1 (μ: ⋆; var1 var0) ⟧
-      (ext Δ lrel_evidence) p_Auth_mu v_Auth_mu i_Auth_mu.
+      (ext Δ (lrel_evidence N)) p_Auth_mu v_Auth_mu i_Auth_mu.
   Proof.
     iSplit; [|iSplit]; interp_unfold!; last first.
     { (* unary  *) admit. }
@@ -1082,65 +942,8 @@ Section authenticatable.
       seq_inv (authN N susp)
         (auth_inv s' susp)). *)
 
-  Definition auth_p (un_a v : val) (s : string) : iProp Σ :=
-    ∃ (lb lr : loc) (ps : proph_id),
-      ⌜v = (#lb, #lr, un_a, #(hash s), #ps)%V⌝ ∗
-        (seq_inv (prover_susp_n N v) (susp_p_fill_inv ps lb lr) ∨
-        seq_inv (prover_susp_n N v) (susp_p_unfill_inv ps lb lr)).
-
-  Definition auth_v (v : val) (s : string) : iProp Σ :=
-    (⌜v = InjLV #(hash s)⌝) ∨
-      (∃ (s' : string) (susp : loc) γ n,
-        ⌜v = InjRV #susp⌝ ∗ lg_mapg_frag susp γ ∗
-        visit_reached_done γ n ∗
-        ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
-        seq_inv (ver_susp_n N v) 
-          (auth_susp_v_ser_proph_inv v s')).
-
-  Definition susplb_gname (v1 v2 : val) : iProp Σ :=
-    (∃ v, ⌜v2 = InjLV v⌝) ∨
-      (∃ γ (susp lb lr : loc) un_a v1' h,
-        ⌜v1 = (#lb, #lr, un_a, #h, v1')%V ∧ v2 = InjRV #susp⌝ ∗ 
-          lg_mapg_frag lb γ ∗ lg_mapg_frag susp γ).
-
-  Definition auth_pv (un_vₚ vₚ vᵥ : val) (s : string) : iProp Σ :=
-    ∃ (lb lr : loc) (ps : proph_id),
-      ⌜vₚ = (#lb, #lr, un_vₚ, #(hash s), #ps)%V⌝ ∗
-      ((⌜vᵥ = InjLV #(hash s)⌝ ∗ 
-        seq_inv (prover_susp_n N vₚ) (susp_p_fill_inv ps lb lr)) ∨
-      (∃ (s' : string) (susp : loc),
-        ⌜vᵥ = InjRV #susp⌝ ∗ susplb_gname vₚ vᵥ ∗
-        seq_inv (prover_susp_n N vₚ) (susp_p_unfill_inv ps lb lr) ∗
-        ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
-        seq_inv (ver_susp_n N vᵥ) 
-          (auth_susp_v_ser_proph_inv vᵥ s'))).
-
-  Definition lrel_auth_tern (A : lrel_tern Σ) : lrel Σ := LRel (λ v1 v2 v3,
-    ∃ (t : evi_type) (v2' a1 a2 un_a1 : val) (s : string),
-      ⌜v2 = SOMEV v2' ∧ unsusp t a1 un_a1⌝ ∗
-      susp_ser_p t a1 s ∗ A a1 a2 v3 ∗
-      auth_pv un_a1 v1 v2' s)%I.
-
-  Definition lrel_auth_bin (A : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ v1 v3,
-    ∃ (t : evi_type) (a1 un_a1 : val) (s : string),
-      ⌜unsusp t a1 un_a1⌝ ∗
-      susp_ser_p t a1 s ∗ A a1 v3 ∗
-      auth_p un_a1 v1 s)%I.
-
-  Definition lrel_auth_un (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v2,
-    ∃ (t : evi_type) (v2' a2 : val) (s : string),
-      ⌜v2 = SOMEV v2'⌝ ∗ A a2 ∗ auth_v v2' s)%I.
-
-  Definition lrel_auth' (A : lrel_tern Σ) : lrel_tern Σ :=
-    LRelTern (lrel_auth_tern A)
-             (lrel_auth_bin (lrel_tern_bin A))
-             (lrel_auth_un (lrel_tern_un A)).
-
-  Program Definition lrel_auth : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_auth' A.
-  Next Obligation. Admitted.
-
   Definition auth_ctx {Θ} (Δ : ctxO Σ Θ) (R : kindO Σ (⋆ ⇒ ⋆)) :=
-    ext (ext (ext Δ lrel_auth) R) lrel_evidence.
+    ext (ext (ext Δ (lrel_auth N)) R) (lrel_evidence N).
 
   Lemma refines_Auth_auth Θ (Δ : ctxO Σ Θ) (R : kindO Σ (⋆ ⇒ ⋆)) :
     ⊢ ⟦ ∀: ⋆, var1 (var3 var0) ⟧
