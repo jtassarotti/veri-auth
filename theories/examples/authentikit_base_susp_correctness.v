@@ -2385,7 +2385,7 @@ Proof. Admitted.
     (⌜v = InjLV #(hash s)⌝) ∨
       (∃ (s' : string) (susp : loc) γ n,
         ⌜v = InjRV #susp⌝ ∗ lg_mapg_frag susp γ ∗
-        visit_reached_done γ n
+        visit_reached_done γ n ∗
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
         seq_inv (ver_susp_n N v) 
           (auth_susp_v_ser_proph_inv v s')).
