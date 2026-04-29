@@ -5,7 +5,7 @@ From auth.examples.susp_correctness Require Export definitions.
 
 
 Section authenticatable.
-  Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, !mapG Σ, !capG Σ} (N : namespace).
+  Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, !mapG Σ, !capG Σ, !intransitG Σ} (N : namespace).
   
 
   (* refines_Auth_pair proof outline.

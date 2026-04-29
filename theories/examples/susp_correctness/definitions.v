@@ -112,7 +112,7 @@ Definition ver_susp_set (N : namespace) : namespace := N .@ "vsusp".
 Definition ver_susp_n (N : namespace) (v : val) : namespace := (ver_susp_set N) .@ v.
 
 Section authenticatable_definitions.
-  Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, !mapG Σ, !capG Σ} (N : namespace).
+  Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, !mapG Σ, !capG Σ, !intransitG Σ} (N : namespace).
 
   Inductive evi_type : Type :=
   | tprod (t1 t2 : evi_type)
@@ -342,7 +342,9 @@ Section authenticatable_definitions.
                 susp ↦ᵥ{#1/4} InjLV (#pid, #p) ∗ ⌜c = 1⌝ ∗
                 mapg_frag #pid (1 / pos_to_Qp (Pos.of_nat N))%Qp v_outer ∗
                 cap_frag pid N ∗
-                (visit_pending γ ∨ ∃ id, ⌜id > pid⌝ ∗ visit_done γ id))))).
+                (visit_pending γ ∨ 
+                  (∃ id, ⌜id > pid⌝ ∗ 
+                    (visit_done γ id ∨ (visit_finished γ id ∗ intransit)))))))).
 
   Fixpoint sub_susp_count
       (t : evi_type) (v : val) (c id N : nat) (v_outer : val) : iProp Σ :=
@@ -521,11 +523,10 @@ Section authenticatable_definitions.
         (seq_inv (prover_susp_n N v) (susp_p_fill_inv ps lb lr) ∨
         seq_inv (prover_susp_n N v) (susp_p_unfill_inv ps lb lr)).
 
-  Definition auth_v (v : val) (s : string) : iProp Σ :=
+  Definition auth_v (v : val) (s : string) (id : nat) (γ : gname) : iProp Σ :=
     (⌜v = InjLV #(hash s)⌝) ∨
-      (∃ (s' : string) (susp : loc) γ n,
+      (∃ (s' : string) (susp : loc),
         ⌜v = InjRV #susp⌝ ∗ lg_mapg_frag susp γ ∗
-        visit_reached_done γ n ∗
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
         seq_inv (ver_susp_n N v) 
           (auth_susp_v_ser_proph_inv v s')).
@@ -562,7 +563,7 @@ Section authenticatable_definitions.
 
   Definition lrel_auth_un (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v2,
     ∃ (t : evi_type) (v2' a2 : val) (s : string),
-      ⌜v2 = SOMEV v2'⌝ ∗ A a2 ∗ auth_v v2' s)%I.
+      ⌜v2 = SOMEV v2'⌝ ∗ A a2)%I.
 
   Definition lrel_auth' (A : lrel_tern Σ) : lrel_tern Σ :=
     LRelTern (lrel_auth_tern A)

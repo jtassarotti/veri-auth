@@ -1,6 +1,6 @@
 From auth.prelude Require Import stdpp.
 From auth.rel_logic_tern_susp Require Export model.
-From iris.algebra Require Import gmap auth.
+From iris.algebra Require Import gmap auth excl.
 From iris.algebra.lib Require Import dfrac_agree.
 
 (* Nat is going to be the id assigned by the verifier. We are going to show that
@@ -116,11 +116,11 @@ Section visited_map_res.
     visited_mapg_auth m d -∗ visit_pending γ -∗ visit_pending γ
     ==∗ visited_map_update_done m d γ n ∗ visit_done γ n.
   Proof.
-    iIntros (Hfresh) "(Hms & Hd & %Hcoh) H1 H2".
-    rewrite /visited_map_update_done /visit_pending /visit_done /visit_reached_done.
+    iIntros (Hdγ) "(Hms & Hd & %Hcoh) H1 H2".
+    rewrite /visited_map_update_done /visit_done /visit_reached_done.
     iMod (own_update_3 _ _ _ _
       (● <[γ := done_val n]>m ⋅ ◯ {[γ := done_val n]})
-      with "Hms H1 H2") as "[$ Hsfrag]".
+      with "Hms H1 H2") as "[$ Hf]".
     { rewrite -assoc -auth_frag_op singleton_op pending_val_split.
       apply auth_update, singleton_local_update_any.
       intros x Hx. apply exclusive_local_update.
@@ -129,11 +129,11 @@ Section visited_map_res.
       (● <[γ := to_agree n]>d ⋅ ◯ {[γ := to_agree n]})
       with "Hd") as "[$ #$]".
     { apply auth_update_alloc, alloc_singleton_local_update; done. }
-    iFrame "Hsfrag". iPureIntro.
+    iFrame "Hf". iPureIntro.
     intros γ' Hdγ'. destruct (decide (γ' = γ)) as [-> | Hne].
     - exists n. left. by rewrite lookup_insert.
-    - rewrite lookup_insert_ne in Hdγ'; [|done].
-      rewrite lookup_insert_ne; [|done]. by apply Hcoh.
+    - rewrite lookup_insert_ne; [|done]. apply Hcoh.
+      rewrite lookup_insert_ne in Hdγ'; done.
   Qed.
 
   Lemma visited_transition_finished m d γ n :
@@ -142,11 +142,11 @@ Section visited_map_res.
   Proof.
     iIntros "(Hms & Hd & %Hcoh) [Hsfrag #Hreached]".
     rewrite /visited_map_update_finished /visit_finished /visit_reached_done.
-    iAssert (⌜d !! γ ≠ None⌝)%I as %Hdγ.
-    { iDestruct (own_valid_2 with "Hd Hreached") as %Hv.
-      apply auth_both_valid_discrete in Hv as [Hincl _].
-      apply singleton_included_l in Hincl as (xd & Hxd & _).
-      iPureIntro. intros Heq. rewrite Heq in Hxd. inversion Hxd. }
+    iDestruct (own_valid_2 with "Hd Hreached") as %Hv.
+    apply auth_both_valid_discrete in Hv as [Hincl _].
+    apply singleton_included_l in Hincl as (xd & Hxd & _).
+    assert (d !! γ ≠ None) as Hdγ.
+    { intros Heq. rewrite Heq in Hxd. inversion Hxd. }
     iMod (own_update_2 _ _ _
       (● <[γ := finished_val n]>m ⋅ ◯ {[γ := finished_val n]})
       with "Hms Hsfrag") as "[$ $]".
@@ -458,3 +458,21 @@ Section idcntr.
   Qed.
 
 End idcntr.
+
+Definition intransitUR := exclR unitO.
+Class intransitG Σ := IntransitG { intransit_inG :> inG Σ intransitUR; intransitG_name : gname }.
+
+Section intransit_res.
+  Context `{!intransitG Σ}.
+
+  Definition intransit : iProp Σ := own intransitG_name (Excl ()).
+
+  Lemma intransit_excl :
+    intransit -∗ intransit -∗ False.
+  Proof.
+    rewrite /intransit. iIntros "H1 H2".
+    iCombine "H1 H2" as "H".
+    by iDestruct (own_valid with "H") as %?.
+  Qed.
+
+End intransit_res.
