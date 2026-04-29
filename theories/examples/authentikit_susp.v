@@ -171,13 +171,12 @@ Definition flush_buf_stream : val :=
       end.
 
 Definition p_run : val :=
-  Λ: λ: "m",
+  Λ: λ: "p" "m",
       let: "init_state" := ([], []) in
-      let: "pprf" := NewProph in
       let, ("fin_state", "res") := "m" "init_state" in
       let, ("pf_stream", "buffer") := "fin_state" in
-      let: "pf_stream'" := flush_buf_stream "buffer" [] "pprf" in
-      resolve_proph: "pprf" to: NONEV;;
+      let: "pf_stream'" := flush_buf_stream "buffer" [] "p" in
+      resolve_proph: "p" to: NONEV;;
       let: "pf_stream" := (list_rev "pf_stream") @@ "pf_stream'" in
       ("pf_stream", "res").
 
