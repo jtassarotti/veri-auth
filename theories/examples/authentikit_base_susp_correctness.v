@@ -133,35 +133,43 @@ Section visited_map_res.
   Definition state_mapg_type := gmap gname state_val_type.
   Definition done_mapg_type := gmap gname (agreeR natO).
 
-  Definition visited_mapg_auth (m : state_mapg_type) (d : done_mapg_type) : iProp Σ :=
-    own visited_state_name (● m) ∗ own visited_done_name (● d).
-
   Definition pending_val : state_val_type :=
     to_dfrac_agree (DfracOwn (1/2)%Qp) None.
 
   Definition pending_val_full : state_val_type :=
     to_dfrac_agree (DfracOwn 1) None.
 
-  Definition done_val_full n : state_val_type :=
+  Definition done_val n : state_val_type :=
     to_dfrac_agree (DfracOwn 1) (Some (n, None)).
 
   Definition finished_val n : state_val_type :=
     to_dfrac_agree DfracDiscarded (Some (n, Some ())).
 
+  Definition visited_coherent (m : state_mapg_type) (d : done_mapg_type) : Prop :=
+    ∀ γ, d !! γ ≠ None →
+      ∃ n, m !! γ = Some (done_val n) ∨ m !! γ = Some (finished_val n).
+
+  Definition visited_mapg_auth (m : state_mapg_type) (d : done_mapg_type) : iProp Σ :=
+    own visited_state_name (● m) ∗ own visited_done_name (● d) ∗
+    ⌜visited_coherent m d⌝.
+
   Definition visited_map_update_pending
       (m : state_mapg_type) (d : done_mapg_type) γ : iProp Σ :=
     own visited_state_name (● <[ γ := pending_val_full ]>m) ∗
-    own visited_done_name (● d).
+    own visited_done_name (● d) ∗
+    ⌜visited_coherent (<[ γ := pending_val_full ]>m) d⌝.
 
   Definition visited_map_update_done
       (m : state_mapg_type) (d : done_mapg_type) γ n : iProp Σ :=
-    own visited_state_name (● <[ γ := done_val_full n ]>m) ∗
-    own visited_done_name (● <[ γ := to_agree n ]>d).
+    own visited_state_name (● <[ γ := done_val n ]>m) ∗
+    own visited_done_name (● <[ γ := to_agree n ]>d) ∗
+    ⌜visited_coherent (<[ γ := done_val n ]>m) (<[ γ := to_agree n ]>d)⌝.
 
   Definition visited_map_update_finished
       (m : state_mapg_type) (d : done_mapg_type) γ n : iProp Σ :=
     own visited_state_name (● <[ γ := finished_val n ]>m) ∗
-    own visited_done_name (● d).
+    own visited_done_name (● d) ∗
+    ⌜visited_coherent (<[ γ := finished_val n ]>m) d⌝.
 
   Definition visit_pending γ : iProp Σ :=
     own visited_state_name (◯ {[ γ := pending_val ]}).
@@ -170,7 +178,7 @@ Section visited_map_res.
     own visited_done_name (◯ {[ γ := to_agree n ]}).
 
   Definition visit_done γ n : iProp Σ :=
-    own visited_state_name (◯ {[ γ := done_val_full n ]}) ∗ visit_reached_done γ n.
+    own visited_state_name (◯ {[ γ := done_val n ]}) ∗ visit_reached_done γ n.
 
   Definition visit_finished γ n : iProp Σ :=
     own visited_state_name (◯ {[ γ := finished_val n ]}) ∗ visit_reached_done γ n.
@@ -194,7 +202,7 @@ Section visited_map_res.
     visited_mapg_auth m d ==∗
       visited_map_update_pending m d γ ∗ visit_pending γ ∗ visit_pending γ.
   Proof.
-    iIntros (Hfresh) "[Hms Hd]".
+    iIntros (Hfresh) "(Hms & Hd & %Hcoh)".
     rewrite /visited_map_update_pending /visit_pending.
     iMod (own_update _ _
       (● <[γ := pending_val_full]>m
@@ -203,7 +211,10 @@ Section visited_map_res.
     { rewrite -auth_frag_op singleton_op pending_val_split.
       apply auth_update_alloc, alloc_singleton_local_update; [done|].
       rewrite /pending_val_full pair_valid; done. }
-    by iFrame.
+    iFrame "Hd". iPureIntro.
+    intros γ' Hdγ'. destruct (decide (γ' = γ)) as [-> | Hne].
+    - destruct (Hcoh γ Hdγ') as (n & [Heq | Heq]); rewrite Hfresh in Heq; discriminate.
+    - rewrite lookup_insert_ne; [|done]. by apply Hcoh.
   Qed.
 
   Lemma visited_transition_done m d γ n :
@@ -211,35 +222,47 @@ Section visited_map_res.
     visited_mapg_auth m d -∗ visit_pending γ -∗ visit_pending γ
     ==∗ visited_map_update_done m d γ n ∗ visit_done γ n.
   Proof.
-    iIntros (Hfresh) "[Hms Hd] H1 H2".
+    iIntros (Hfresh) "(Hms & Hd & %Hcoh) H1 H2".
     rewrite /visited_map_update_done /visit_pending /visit_done /visit_reached_done.
     iMod (own_update_3 _ _ _ _
-      (● <[γ := done_val_full n]>m ⋅ ◯ {[γ := done_val_full n]})
+      (● <[γ := done_val n]>m ⋅ ◯ {[γ := done_val n]})
       with "Hms H1 H2") as "[$ Hsfrag]".
     { rewrite -assoc -auth_frag_op singleton_op pending_val_split.
       apply auth_update, singleton_local_update_any.
       intros x Hx. apply exclusive_local_update.
-      rewrite /done_val_full pair_valid; done. }
+      rewrite /done_val pair_valid; done. }
     iMod (own_update _ _
       (● <[γ := to_agree n]>d ⋅ ◯ {[γ := to_agree n]})
       with "Hd") as "[$ #$]".
     { apply auth_update_alloc, alloc_singleton_local_update; done. }
-    by iFrame.
+    iFrame "Hsfrag". iPureIntro.
+    intros γ' Hdγ'. destruct (decide (γ' = γ)) as [-> | Hne].
+    - exists n. left. by rewrite lookup_insert.
+    - rewrite lookup_insert_ne in Hdγ'; [|done].
+      rewrite lookup_insert_ne; [|done]. by apply Hcoh.
   Qed.
 
   Lemma visited_transition_finished m d γ n :
     visited_mapg_auth m d -∗ visit_done γ n
     ==∗ visited_map_update_finished m d γ n ∗ visit_finished γ n.
   Proof.
-    iIntros "[Hms Hd] [Hsfrag #Hreached]".
-    rewrite /visited_map_update_finished /visit_finished.
+    iIntros "(Hms & Hd & %Hcoh) [Hsfrag #Hreached]".
+    rewrite /visited_map_update_finished /visit_finished /visit_reached_done.
+    iAssert (⌜d !! γ ≠ None⌝)%I as %Hdγ.
+    { iDestruct (own_valid_2 with "Hd Hreached") as %Hv.
+      apply auth_both_valid_discrete in Hv as [Hincl _].
+      apply singleton_included_l in Hincl as (xd & Hxd & _).
+      iPureIntro. intros Heq. rewrite Heq in Hxd. inversion Hxd. }
     iMod (own_update_2 _ _ _
       (● <[γ := finished_val n]>m ⋅ ◯ {[γ := finished_val n]})
       with "Hms Hsfrag") as "[$ $]".
     { apply auth_update, singleton_local_update_any.
       intros x Hx. apply exclusive_local_update.
       rewrite /finished_val pair_valid; done. }
-    by iFrame "Hd Hreached".
+    iFrame "Hd Hreached". iPureIntro.
+    intros γ' Hdγ'. destruct (decide (γ' = γ)) as [-> | Hne].
+    - exists n. right. by rewrite lookup_insert.
+    - rewrite lookup_insert_ne; [|done]. by apply Hcoh.
   Qed.
 
   Lemma visit_done_keep γ n :
@@ -261,7 +284,7 @@ Section visited_map_res.
     iIntros "[H1 [H2 _]]". iCombine "H1 H2" as "H".
     iDestruct (own_valid with "H") as %Hv. iPureIntro.
     rewrite auth_frag_valid singleton_valid in Hv.
-    rewrite /pending_val /done_val_full in Hv.
+    rewrite /pending_val /done_val in Hv.
     by apply dfrac_agree_op_valid_L in Hv as [_ ?].
   Qed.
 
@@ -283,7 +306,7 @@ Section visited_map_res.
     iIntros "[[H1 _] [H2 _]]". iCombine "H1 H2" as "H".
     iDestruct (own_valid with "H") as %Hv. iPureIntro.
     rewrite auth_frag_valid singleton_valid in Hv.
-    rewrite /done_val_full /finished_val in Hv.
+    rewrite /done_val /finished_val in Hv.
     apply dfrac_agree_op_valid_L in Hv as [_ Heq]. by simplify_eq.
   Qed.
 
@@ -297,17 +320,56 @@ Section visited_map_res.
     by apply to_agree_op_inv_L in Hv.
   Qed.
 
+  Lemma get_visit_reached_done γ n m d :
+    d !! γ = Some (to_agree n) →
+    visited_mapg_auth m d ==∗ visited_mapg_auth m d ∗ visit_reached_done γ n.
+  Proof.
+    iIntros (Hd) "(Hms & Hd & %Hcoh)".
+    rewrite /visit_reached_done.
+    iMod (own_update _ _ (● d ⋅ ◯ {[γ := to_agree n]}) with "Hd") as "[Hd #Hr]".
+    { apply auth_update_dfrac_alloc; [apply _|].
+      apply singleton_included_l. exists (to_agree n). split; [by rewrite Hd|].
+      apply Some_included_2. by left. }
+    iModIntro. by iFrame "∗ # %".
+  Qed.
+
+  Lemma visited_reached_done_invalid γ n m d :
+    visited_mapg_auth m d -∗ visit_reached_done γ n -∗ visit_pending γ -∗ False.
+  Proof.
+    iIntros "(Hms & Hd & %Hcoh) Hreached Hpending".
+    rewrite /visit_reached_done /visit_pending.
+    iDestruct (own_valid_2 with "Hd Hreached") as %Hvd.
+    apply auth_both_valid_discrete in Hvd as [Hincl_d _].
+    apply singleton_included_l in Hincl_d as (xd & Hxd & _).
+    assert (d !! γ ≠ None) as Hdγ.
+    { intros Heq. rewrite Heq in Hxd. inversion Hxd. }
+    destruct (Hcoh γ Hdγ) as (n' & Hmγ).
+    iDestruct (own_valid_2 with "Hms Hpending") as %Hvm.
+    apply auth_both_valid_discrete in Hvm as [Hincl_m _].
+    apply singleton_included_l in Hincl_m as (ym & Hym & Hle).
+    iPureIntro. destruct Hmγ as [Hmγ | Hmγ]; rewrite Hmγ in Hym;
+      apply Some_equiv_inj in Hym; rewrite -Hym in Hle;
+      apply Some_included in Hle as [Heq | Hle].
+    - destruct Heq as [_ Hv]. apply (inj to_agree) in Hv. by inversion Hv.
+    - apply dfrac_agree_included in Hle as [_ Heqv]. by inversion Heqv.
+    - destruct Heq as [_ Hv]. apply (inj to_agree) in Hv. by inversion Hv.
+    - apply dfrac_agree_included in Hle as [_ Heqv]. by inversion Heqv.
+  Qed.
+
   Lemma visited_agree_n γ n1 n2 :
     (visit_done γ n1 ∨ visit_finished γ n1) -∗
     (visit_done γ n2 ∨ visit_finished γ n2) -∗
-    ⌜n1 = n2⌝.
+    ⌜n1 = n2⌝ ∗
+    (visit_done γ n1 ∨ visit_finished γ n1) ∗
+    (visit_done γ n2 ∨ visit_finished γ n2).
   Proof.
     iIntros "H1 H2".
     iAssert (visit_reached_done γ n1) as "#R1".
     { iDestruct "H1" as "[[_ $]|[_ $]]". }
     iAssert (visit_reached_done γ n2) as "#R2".
     { iDestruct "H2" as "[[_ $]|[_ $]]". }
-    by iApply (visited_reached_done_agree with "R1 R2").
+    iSplit. iApply (visited_reached_done_agree with "R1 R2").
+    iFrame.
   Qed.
 
 End visited_map_res.
@@ -595,8 +657,8 @@ Section authenticatable.
       susp ↦ᵥ{#(3/4)} InjLV (#pid, #p) ∗ proph_v_susp p h. *)
 
   Definition auth_susp_emp_v_proph (v : val) : iProp Σ :=
-    ∃ (h : string) (susp : loc) (pid: nat) (p : proph_id) pv pt (q : Qp),
-      ⌜v = InjRV #susp⌝ ∗ mapg_frag #pid q pv ∗
+    ∃ (h : string) (susp : loc) (pid: nat) (p : proph_id) pv pt (q : Qp) γ,
+      ⌜v = InjRV #susp⌝ ∗ mapg_frag #pid q pv ∗ lg_mapg_frag susp γ ∗
       ⌜sub_obj pt pv v⌝ ∗ susp ↦ᵥ{#(3/4)} InjLV (#pid, #p) ∗ proph_v_susp p h.
 
   Definition auth_susp_v_ser_proph_inv (v : val) (s : string) : iProp Σ :=
@@ -1027,18 +1089,23 @@ Proof. Admitted.
   (* Substantive tauth B2 update: reached via tsum's right branch when the
      external [susp] matches a B2 leaf. Consumes [c = 1] for the leaf,
      releases the [1/Nc] fragment, steps the verifier store. *)
-  Lemma count_update_eats_susp K tᵥ v' t (susp : loc) (c pid Nc : nat) (h : string) (v_outer : val) :
+  Lemma count_update_eats_susp K tᵥ v' t (susp : loc) (c pid Nc : nat) (h : string) (v_outer : val) γ (n : nat) m d :
+    lg_mapg_frag susp γ -∗
+    visit_reached_done γ n -∗
+    visited_mapg_auth m d -∗
     sub_susp_count t (InjRV (InjRV #susp)) c pid Nc v_outer -∗
     susp ↦ᵥ{#(3/4)} InjLV (#pid, v') -∗
     spec_verifier tᵥ (fill K (#susp <- InjRV #h))
     ={⊤}=∗
       ⌜c = 1⌝ ∗
+      visited_map_update_finished m d γ n ∗
+      visit_finished γ n ∗
       sub_susp_count t (InjRV (InjRV #susp)) (c-1) pid Nc v_outer ∗
       susp ↦ᵥ{#(3/4)} InjRV #h ∗
       spec_verifier tᵥ (fill K (#())) ∗
       mapg_frag #pid (1 / pos_to_Qp (Pos.of_nat Nc))%Qp v_outer.
   Proof.
-    iIntros "Hinner Hsusp Hspec".
+    iIntros "#Hlg #Hreached Hauth Hinner Hsusp Hspec".
     destruct t; simpl.
     - iDestruct "Hinner" as (? ? ? ? [Heq _]) "_". discriminate.
     - iDestruct "Hinner" as "[H|H]".
@@ -1059,6 +1126,7 @@ Proof. Admitted.
           iDestruct (pointstoS_agree with "Hsusp Hsusp_f") as %[_ Heq''].
           discriminate.
         * iDestruct "Hsusp_inner" as (p' γ') "(#Hlg' & Hsusp_s & %Hc & Hfrag & #Hcap' & Hdisj)".
+          iDestruct (lg_mapg_agree with "Hlg Hlg'") as "(<- & _ & _)".
           iDestruct (pointstoS_agree with "Hsusp Hsusp_s") as %[_ Heqvals].
           injection Heqvals as Heqv'. subst v'.
           iCombine "Hsusp Hsusp_s" as "Hsusp_full".
@@ -1066,9 +1134,15 @@ Proof. Admitted.
           iMod (step_verifier_store with "[$Hsusp_full $Hspec]") as "(Hspec & Hsusp_full)"; [done|].
           iEval (rewrite -Qp.three_quarter_quarter) in "Hsusp_full".
           iDestruct "Hsusp_full" as "[Hsusp Hsusp_s]".
-          iClear "Hdisj".
+          iDestruct "Hdisj" as "[Hpending|Hdone]".
+          { by iDestruct (visited_reached_done_invalid with "Hauth Hreached Hpending") as %[]. }
+          iDestruct "Hdone" as (id Hidpid) "Hdone".
+          iDestruct (visit_done_keep with "Hdone") as "[Hdone #Hreached_id]".
+          iDestruct (visited_reached_done_agree with "Hreached Hreached_id") as %->.
+          iMod (visited_transition_finished with "Hauth Hdone") as "[Hauth_upd #Hfin]".
           iModIntro.
           iSplitR; [done|].
+          iFrame "Hauth_upd Hfin".
           iSplitR "Hsusp Hspec Hfrag".
           { iExists (InjRV #susp). iSplit; [done|].
             iRight. iExists susp. iSplit; [done|].
@@ -1077,24 +1151,34 @@ Proof. Admitted.
   Qed.
 
   Lemma count_update :
-    ∀ K tᵥ v v' (t t' : evi_type) (susp : loc) (c pid Nc : nat) (h : string),
+    ∀ K tᵥ v v' (t t' : evi_type) (susp : loc) (c pid Nc : nat) (h : string) γ (n : nat) m d,
       ⌜sub_obj t' v (InjRV #susp)⌝ -∗
+      lg_mapg_frag susp γ -∗
+      visit_reached_done γ n -∗
+      visited_mapg_auth m d -∗
       sub_susp_count_frags t v c pid Nc -∗
       susp ↦ᵥ{#(3/4)} InjLV (#pid, v') -∗
       spec_verifier tᵥ (fill K (#susp <- InjRV #h))
-      ={⊤}=∗ sub_susp_count_frags t v (c-1) pid Nc ∗
+      ={⊤}=∗
+        visited_map_update_finished m d γ n ∗
+        visit_finished γ n ∗
+        sub_susp_count_frags t v (c-1) pid Nc ∗
         susp ↦ᵥ{#(3/4)} InjRV #h ∗
         spec_verifier tᵥ (fill K (#())).
   Proof.
-    iIntros (K tᵥ v v' t t' susp c pid Nc h) "%Hsub (#Hcap & %Hle & Hinner & Hagg) Hsusp Hspec".
+    iIntros (K tᵥ v v' t t' susp c pid Nc h γ n m d)
+      "%Hsub #Hlg #Hreached Hauth (#Hcap & %Hle & Hinner & Hagg) Hsusp Hspec".
     (* Run the inner structural induction to produce a fresh [1/Nc] fragment
        and a decremented inner predicate. v_outer is threaded unchanged. *)
     iAssert (∀ v_outer (t : evi_type) (v : val) (c : nat) (t' : evi_type),
                ⌜sub_obj t' v (InjRV #susp)⌝ -∗
+               visited_mapg_auth m d -∗
                sub_susp_count t v c pid Nc v_outer -∗
                susp ↦ᵥ{#3/4} InjLV (#pid, v') -∗
                spec_verifier tᵥ (fill K (#susp <- InjRV #h)) ={⊤}=∗
                ⌜1 ≤ c⌝ ∗
+               visited_map_update_finished m d γ n ∗
+               visit_finished γ n ∗
                sub_susp_count t v (c - 1) pid Nc v_outer ∗
                susp ↦ᵥ{#3/4} InjRV #h ∗
                spec_verifier tᵥ (fill K #()) ∗
@@ -1103,7 +1187,7 @@ Proof. Admitted.
     { iClear "Hcap".
       iIntros (v_outer tind).
       iInduction tind as [t1 t2 | t1 t2 | | | ] "IH".
-      all: iIntros (vind cind tind') "%Hsubind Hinner' Hsusp' Hspec'".
+      all: iIntros (vind cind tind') "%Hsubind Hauth Hinner' Hsusp' Hspec'".
       - (* tind = tprod *)
         simpl. iDestruct "Hinner'" as (c1 c2 v1 v2 [-> <-]) "[Hc1 Hc2]".
         destruct tind' as [t1' t2' | | | | ]; simpl in Hsubind; try done.
@@ -1111,16 +1195,16 @@ Proof. Admitted.
           destruct Hdisj as [<- | [<- | [Hsub1 | Hsub2]]].
           * by iDestruct (sub_susp_count_ne_injr_loc with "Hc1") as %[].
           * by iDestruct (sub_susp_count_ne_injr_loc with "Hc2") as %[].
-          * iMod ("IH" $! v1 c1 t1' Hsub1 with "Hc1 Hsusp' Hspec'")
-              as "(%Hc & Hc1' & Hsusp'' & Hspec'' & Hnew)".
+          * iMod ("IH" $! v1 c1 t1' Hsub1 with "Hauth Hc1 Hsusp' Hspec'")
+              as "(%Hc & Hauth' & #Hfin & Hc1' & Hsusp'' & Hspec'' & Hnew)".
             iModIntro. iSplit; [iPureIntro; lia|].
-            iFrame "Hsusp'' Hspec'' Hnew".
+            iFrame "Hauth' Hfin Hsusp'' Hspec'' Hnew".
             iExists (c1 - 1), c2, v1, v2.
             iSplit; [iPureIntro; split; [done|lia]|]. iFrame.
-          * iMod ("IH1" $! v2 c2 t2' Hsub2 with "Hc2 Hsusp' Hspec'")
-              as "(%Hc & Hc2' & Hsusp'' & Hspec'' & Hnew)".
+          * iMod ("IH1" $! v2 c2 t2' Hsub2 with "Hauth Hc2 Hsusp' Hspec'")
+              as "(%Hc & Hauth' & #Hfin & Hc2' & Hsusp'' & Hspec'' & Hnew)".
             iModIntro. iSplit; [iPureIntro; lia|].
-            iFrame "Hsusp'' Hspec'' Hnew".
+            iFrame "Hauth' Hfin Hsusp'' Hspec'' Hnew".
             iExists c1, (c2 - 1), v1, v2.
             iSplit; [iPureIntro; split; [done|lia]|]. iFrame.
         + destruct Hsubind as (v'' & [(Heq & _ & _) | (Heq & _ & _)]); discriminate.
@@ -1144,10 +1228,10 @@ Proof. Admitted.
             -- subst v''. injection Heq as ->.
                by iDestruct (sub_susp_count_ne_injL_injR_susp with "Hc") as %[].
             -- subst v''. injection Heq as ->.
-               iMod (count_update_eats_susp with "Hc Hsusp' Hspec'") as
-                 "(%Hc & Hc' & Hsusp'' & Hspec'' & Hnew)".
+               iMod (count_update_eats_susp with "Hlg Hreached Hauth Hc Hsusp' Hspec'") as
+                 "(%Hc & Hauth' & #Hfin & Hc' & Hsusp'' & Hspec'' & Hnew)".
                iModIntro. iSplit; [iPureIntro; lia|].
-               iFrame "Hsusp'' Hspec'' Hnew".
+               iFrame "Hauth' Hfin Hsusp'' Hspec'' Hnew".
                iRight. iExists (InjRV (InjRV #susp)). by iFrame.
       - (* tind = tstring *)
         simpl. iDestruct "Hinner'" as "[Hv %Hc]". iDestruct "Hv" as (s) "->".
@@ -1179,10 +1263,10 @@ Proof. Admitted.
             iDestruct "Hcases" as "[H|H]".
             -- iDestruct "H" as (h') "%Heq'". destruct Heq' as [Heq' _]. discriminate.
             -- iDestruct "H" as (susp') "[%Heq' _]". by simplify_eq. }
-    iMod ("Hlem" $! v t v c t' Hsub with "Hinner Hsusp Hspec")
-      as "(%Hc & Hinner & Hsusp & Hspec & Hnew)".
+    iMod ("Hlem" $! v t v c t' Hsub with "Hauth Hinner Hsusp Hspec")
+      as "(%Hc & Hauth' & #Hfin & Hinner & Hsusp & Hspec & Hnew)".
     (* Combine the new [1/Nc] fragment with the existing aggregator. *)
-    iModIntro. iFrame "Hsusp Hspec Hcap".
+    iModIntro. iFrame "Hauth' Hfin Hsusp Hspec Hcap".
     iSplit; [iPureIntro; lia|]. iFrame "Hinner".
     (* Aggregator update: (Nc-c)/Nc + 1/Nc = (Nc-(c-1))/Nc. *)
     iDestruct "Hagg" as "[%HcN | [%HcN Hq]]".
@@ -2299,8 +2383,9 @@ Proof. Admitted.
 
   Definition auth_v (v : val) (s : string) : iProp Σ :=
     (⌜v = InjLV #(hash s)⌝) ∨
-      (∃ (s' : string) (susp : loc),
-        ⌜v = InjRV #susp⌝ ∗
+      (∃ (s' : string) (susp : loc) γ n,
+        ⌜v = InjRV #susp⌝ ∗ lg_mapg_frag susp γ ∗
+        visit_reached_done γ n
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
         seq_inv (ver_susp_n N v) 
           (auth_susp_v_ser_proph_inv v s')).
