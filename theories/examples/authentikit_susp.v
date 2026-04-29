@@ -23,14 +23,6 @@ Definition v_bind : val :=
             "f" "a" "pf'"
         end.
 
-Definition v_auth : val :=
-  Λ: λ: "evi" "a",
-      let, ("serialize", "deserialize", "count") := "evi" in
-      match: "serialize" "a" with
-        NONE => NONEV
-      | SOME "sera" => SOME (InjL (Hash "sera"))
-      end.
-
 Definition v_finish : val :=
   λ: "susp_table" "a" "x" "serialize" <>,
     match: "serialize" "x" with
@@ -127,16 +119,6 @@ Definition p_bind : val :=
   Λ: Λ: λ: "c" "f" "buf",
     let, ("buf'", "a") := ("c" "buf") in
     "f" "a" "buf'".
-
-Definition p_auth : val :=
-  Λ: λ: "evi" "a",
-    let, ("s", "serialize", "suspend", "unsuspend") := "evi" in
-    match: ("unsuspend" "a") with
-      NONE => NONEV
-    | SOME "unsusp_a" =>
-        (ref #false, ref #false, "unsusp_a",
-           Hash ("serialize" "unsusp_a"), NewProph)
-    end.
 
 Definition p_finish : val :=
   λ: "serialize" "susp_un_a" "pprf",

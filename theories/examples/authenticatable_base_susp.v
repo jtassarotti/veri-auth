@@ -98,6 +98,14 @@ Definition v_Auth_string : val :=
 Definition v_Auth_int : val :=
   (int_ser', λ: <>, int_deser, int_count).
 
+Definition v_auth : val :=
+  Λ: λ: "evi" "a",
+      let, ("serialize", "deserialize", "count") := "evi" in
+      match: "serialize" "a" with
+        NONE => NONEV
+      | SOME "sera" => SOME (InjL (Hash "sera"))
+      end.
+
 
 (* Definition new_br : val :=
   λ: <>, (ref #false, NewProph).
@@ -217,4 +225,14 @@ Definition id : val := λ: "x", "x".
 (* Definition id_some : val := λ: "x", SOME "x". *)
 Definition p_Auth_string : val := (string_ser, string_ser, id, id).
 Definition p_Auth_int : val := (int_ser, int_ser, id, id).
+
+Definition p_auth : val :=
+  Λ: λ: "evi" "a",
+    let, ("s", "serialize", "suspend", "unsuspend") := "evi" in
+    match: ("unsuspend" "a") with
+      NONE => NONEV
+    | SOME "unsusp_a" =>
+        (ref #false, ref #false, "unsusp_a",
+           Hash ("serialize" "unsusp_a"), NewProph)
+    end.
 
