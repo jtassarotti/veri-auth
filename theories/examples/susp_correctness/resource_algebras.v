@@ -1,6 +1,6 @@
 From auth.prelude Require Import stdpp.
 From auth.rel_logic_tern_susp Require Export model.
-From iris.algebra Require Import gmap auth excl gset csum.
+From iris.algebra Require Import gmap auth excl gset csum frac.
 From iris.algebra.lib Require Import dfrac_agree.
 
 
@@ -590,20 +590,30 @@ Section idcntr.
 
 End idcntr.
 
-Definition intransitUR := exclR unitO.
+Definition intransitUR := fracR.
 Class intransitG Σ := IntransitG { intransit_inG :> inG Σ intransitUR; intransitG_name : gname }.
 
 Section intransit_res.
   Context `{!intransitG Σ}.
 
-  Definition intransit : iProp Σ := own intransitG_name (Excl ()).
+  Definition intransit (q : Qp) : iProp Σ := own intransitG_name q.
 
-  Lemma intransit_excl :
-    intransit -∗ intransit -∗ False.
+  Lemma intransit_valid q : intransit q ⊢ ⌜(q ≤ 1)%Qp⌝.
+  Proof.
+    iIntros "H". by iDestruct (own_valid with "H") as %?%frac_valid.
+  Qed.
+
+  Lemma intransit_split q1 q2 :
+    intransit (q1 + q2)%Qp ⊣⊢ intransit q1 ∗ intransit q2.
+  Proof. by rewrite /intransit -own_op frac_op. Qed.
+
+  Lemma intransit_excl_full q :
+    intransit 1%Qp -∗ intransit q -∗ False.
   Proof.
     rewrite /intransit. iIntros "H1 H2".
     iCombine "H1 H2" as "H".
-    by iDestruct (own_valid with "H") as %?.
+    iDestruct (own_valid with "H") as %Hv%frac_valid.
+    iPureIntro. revert Hv. apply Qp.not_add_le_l.
   Qed.
 
 End intransit_res.

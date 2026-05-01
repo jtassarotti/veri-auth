@@ -330,7 +330,7 @@ Section authentikit_helpers.
     susp ↦ᵥ{#3/4} InjLV (#pid, #p) -∗
     sub_susp_count t (InjRV (InjRV #susp)) c pid Nc v_outer -∗
     visit_reached_done γ id -∗
-    intransit ==∗
+    intransit 1%Qp ==∗
       visit_finished γ id ∗
       visited_map_update_finished m d ps pn γ id ∗
       sub_susp_count t (InjRV (InjRV #susp)) c pid Nc v_outer ∗
@@ -377,7 +377,7 @@ Section authentikit_helpers.
              iFrame "Hlg' Hsusp_s Hfrag Hcap'". iSplit; [done|].
              iRight. iExists id'. iSplit; [iPureIntro; done|].
              iRight. iFrame "Hintr". iExact "Hfin".
-          -- by iDestruct (intransit_excl with "Hintr Hintr2") as %[].
+          -- by iDestruct (intransit_excl_full with "Hintr Hintr2") as %[].
   Qed.
 
   Lemma visited_update_finished (id : nat) :
@@ -389,7 +389,7 @@ Section authentikit_helpers.
         susp ↦ᵥ{#3/4} InjLV (#pid, #p) -∗
         sub_susp_count_frags t v c pid Nc -∗
         visit_reached_done γ id ∗
-        intransit ==∗
+        intransit 1%Qp ==∗
           visit_finished γ id ∗
           visited_map_update_finished m d ps pn γ id ∗
           sub_susp_count_frags t v c pid Nc ∗
@@ -403,7 +403,7 @@ Section authentikit_helpers.
                lg_mapg_frag susp γ -∗
                susp ↦ᵥ{#3/4} InjLV (#pid, #p) -∗
                sub_susp_count tind vind cind pid Nc v_outer -∗
-               intransit ==∗
+               intransit 1%Qp ==∗
                visit_finished γ id ∗
                visited_map_update_finished m d ps pn γ id ∗
                sub_susp_count tind vind cind pid Nc v_outer ∗
@@ -497,7 +497,7 @@ Section authentikit_helpers.
     spec_verifier tᵥ (fill K (#susp <- InjRV #h))
     ={⊤}=∗
       ⌜c = 1⌝ ∗
-      intransit ∗
+      intransit 1%Qp ∗
       sub_susp_count t (InjRV (InjRV #susp)) (c-1) pid Nc v_outer ∗
       susp ↦ᵥ{#(3/4)} InjRV #h ∗
       spec_verifier tᵥ (fill K (#())) ∗
@@ -555,7 +555,7 @@ Section authentikit_helpers.
       susp ↦ᵥ{#(3/4)} InjLV (#pid, v') -∗
       spec_verifier tᵥ (fill K (#susp <- InjRV #h))
       ={⊤}=∗
-        intransit ∗
+        intransit 1%Qp ∗
         sub_susp_count_frags t v (c-1) pid Nc ∗
         susp ↦ᵥ{#(3/4)} InjRV #h ∗
         spec_verifier tᵥ (fill K (#())).
@@ -568,7 +568,7 @@ Section authentikit_helpers.
                susp ↦ᵥ{#3/4} InjLV (#pid, v') -∗
                spec_verifier tᵥ (fill K (#susp <- InjRV #h)) ={⊤}=∗
                ⌜1 ≤ c⌝ ∗
-               intransit ∗
+               intransit 1%Qp ∗
                sub_susp_count t v (c - 1) pid Nc v_outer ∗
                susp ↦ᵥ{#3/4} InjRV #h ∗
                spec_verifier tᵥ (fill K #()) ∗

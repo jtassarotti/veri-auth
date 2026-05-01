@@ -440,11 +440,11 @@ Section proof.
           spec_ideal t3 (fill K3 (v3 #())) ∗
           p_proof_state w1 ps1 ps_fix lpn ∗ v_proof_state w2 ps2 ∗
           proph_proof p ps ∗ ⌜ps = reverse ps2 ++ ps1⌝ ∗
-          intransit
+          intransit 1%Qp
       }}}
         v1 w1
       {{{ ps1' lpn' (w1' a1 a3 : val), RET (w1', a1)%V;
-          seq_tok ⊤ ∗ spec_ideal t3 (fill K3 a3) ∗ intransit ∗
+          seq_tok ⊤ ∗ spec_ideal t3 (fill K3 a3) ∗ intransit 1%Qp ∗
           proph_proof p ps ∗ p_proof_state w1' ps1' ps_fix lpn' ∗
           
           ((∃ ps2' (w2' a2 : val),

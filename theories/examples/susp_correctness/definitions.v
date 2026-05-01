@@ -189,14 +189,16 @@ Section authenticatable_definitions.
       ⌜v = (a, #h)%V ∧ s = simple_string h⌝.
 
   Definition susp_p_fill_inv (ps : proph_id) (lb lr : loc) : iProp Σ :=
-    lb ↦ #false ∗ 
+    lb ↦ #false ∗
       ((∃ (bs : list bool), lr ↦ #false ∗ fill_proph_bs ps bs) ∨
       (∃ (bs : list bool), lr ↦ #true ∗ proph_bs ps bs) ∨
-      (lr ↦ #false ∗ empty_proph_bs ps)).
+      (lr ↦ #false ∗ empty_proph_bs ps) ∨
+      (∃ (bs : list bool) (q : Qp) (b : bool),
+          lr ↦ #b ∗ proph_bs ps bs ∗ intransit q)).
 
   Definition auth_susp_ser_p_fill (v : val) (s : string) : iProp Σ :=
     ∃ (p : proph_id) (lb lr : loc) (a : val) (h : string) (r : bool),
-      ⌜v = (#lb, #lr, a, #h, #p)%V ∧ s = simple_string h⌝ ∗
+      ⌜v = (#lb, #lr, a, #h, #p)%V ∧ s = filled_string h⌝ ∗
       lg_mapg_unalloc lb ∗
       seq_inv (prover_susp_n N v) (susp_p_fill_inv p lb lr).
 
@@ -205,7 +207,7 @@ Section authenticatable_definitions.
       lb ↦ #false ∗ lr ↦ #false ∗ unfill_proph_bs ps bs) ∨
     (∃ (r : bool) (bs : list bool) (n : nat) (γ : gname),
       lb ↦ #true ∗ lr ↦ #r ∗ proph_bs ps bs ∗ lg_mapg_frag lb γ ∗
-      (good_state -∗ good_state ∗ visit_reached_done γ n)).
+      □ (good_state -∗ good_state ∗ visit_reached_done γ n)).
 
   Definition auth_susp_ser_p_emp (v : val) (s : string) : iProp Σ :=
     ∃ (p : proph_id) (lb lr : loc) (a : val) (h : string) (r : bool),
@@ -360,7 +362,7 @@ Section authenticatable_definitions.
                 cap_frag pid N ∗
                 (visit_pending γ ∨ 
                   (∃ id, ⌜id > pid⌝ ∗ 
-                    (visit_done γ id ∨ (visit_finished γ id ∗ intransit)))))))).
+                    (visit_done γ id ∨ (visit_finished γ id ∗ intransit 1%Qp)))))))).
 
   Fixpoint sub_susp_count
       (t : evi_type) (v : val) (c id N : nat) (v_outer : val) : iProp Σ :=
@@ -395,14 +397,14 @@ Section authenticatable_definitions.
     count_aggregator c id N v.
 
   Definition susp_p_ser_spec (ser : val) (t : evi_type) : iProp Σ :=
-    ∀ (E : coPset) (a1 : val) (s : string) (c : nat),
+    ∀ (E : coPset) (a1 : val) (s : string) (c : nat) (q : Qp),
       ⌜↑prover_susp_set N ⊆ E⌝ -∗
-      {{{ susp_ser_p_real t c a1 s }}}
+      {{{ susp_ser_p_real t c a1 s ∗ seq_tok E ∗ intransit q }}}
         ser a1
-      {{{ RET #s; 
-          (good_state -∗ 
+      {{{ RET #s; seq_tok E ∗ intransit (q/2)%Qp ∗
+          (good_state -∗
             ∃ (γl : pending_setg_type), good_state ∗ ⌜size γl = c⌝ ∗
-            ([∗ set] γ ∈ γl, (∃ n, visit_reached_done γ n) ∗ 
+            ([∗ set] γ ∈ γl, (∃ n, visit_reached_done γ n) ∗
               ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a1 #lb⌝)) }}}.
 
   Definition unsusp_p_ser_spec (ser : val) (t : evi_type) : iProp Σ :=
@@ -465,9 +467,9 @@ Section authenticatable_definitions.
   Definition unsuspend_spec (unsuspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
     ∀ E (a1 a2 a3 : val),
       ⌜↑prover_susp_set N ⊆ E⌝ -∗
-      {{{ ▷ A a1 a2 a3 ∗ seq_tok E }}}
+      {{{ ▷ A a1 a2 a3 ∗ seq_tok E ∗ intransit 1%Qp }}}
         unsuspend a1
-      {{{ un_v s, RET un_v; seq_tok E ∗
+      {{{ un_v s, RET un_v; seq_tok E ∗ intransit 1%Qp ∗
           ⌜unsusp t a1 un_v⌝ ∗ unsusp_ser_p t un_v s }}}.
             (* if o is Some v then ∃ s, unsusp_ser_p t v s (* ∗ s_is_ser_p_proph t a1 s'*)
             else ⌜invalid_value t a1⌝ ∨ (∃ s, unsusp_ser_p t a1 s) }}}. *)
