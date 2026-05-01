@@ -700,3 +700,59 @@ Section state_res.
   Qed.
 
 End state_res.
+
+(* Single-instance token carrying a [gname]. The full fraction (1) is
+   exclusive; any two fragments agree on the carried [gname] and
+   split/combine via fractional ownership. *)
+Definition gnameTokUR := dfrac_agreeR (leibnizO gname).
+Class gnameTokG Σ := GnameTokG {
+  gname_tok_inG :> inG Σ gnameTokUR;
+  gname_tok_name : gname;
+}.
+
+Section gname_tok_res.
+  Context `{!gnameTokG Σ}.
+
+  Definition gtok (q : Qp) (γ : gname) : iProp Σ :=
+    own gname_tok_name (to_dfrac_agree (DfracOwn q) (γ : leibnizO gname)).
+
+  Lemma gtok_agree q1 q2 γ1 γ2 :
+    gtok q1 γ1 -∗ gtok q2 γ2 -∗ ⌜γ1 = γ2⌝.
+  Proof.
+    iIntros "H1 H2". rewrite /gtok. iCombine "H1 H2" as "H".
+    iDestruct (own_valid with "H") as %[_ Heq]%dfrac_agree_op_valid_L.
+    done.
+  Qed.
+
+  Lemma gtok_split q1 q2 γ :
+    gtok (q1 + q2)%Qp γ ⊣⊢ gtok q1 γ ∗ gtok q2 γ.
+  Proof.
+    by rewrite /gtok -own_op -dfrac_agree_op dfrac_op_own.
+  Qed.
+
+  Lemma gtok_combine q1 q2 γ1 γ2 :
+    gtok q1 γ1 -∗ gtok q2 γ2 -∗ ⌜γ1 = γ2⌝ ∗ gtok (q1 + q2)%Qp γ1.
+  Proof.
+    iIntros "H1 H2".
+    iDestruct (gtok_agree with "H1 H2") as %->.
+    iSplit; [done|]. iApply gtok_split. iFrame.
+  Qed.
+
+  Lemma gtok_excl q γ1 γ2 :
+    gtok 1 γ1 -∗ gtok q γ2 -∗ False.
+  Proof.
+    iIntros "H1 H2". rewrite /gtok. iCombine "H1 H2" as "H".
+    iDestruct (own_valid with "H") as %[Hv _]%dfrac_agree_op_valid_L.
+    iPureIntro. apply dfrac_valid_own in Hv.
+    by apply Qp.not_add_le_l in Hv.
+  Qed.
+
+  Lemma gtok_update γ γ' :
+    gtok 1 γ ==∗ gtok 1 γ'.
+  Proof.
+    iIntros "H". rewrite /gtok.
+    iApply (own_update with "H").
+    by apply cmra_update_exclusive.
+  Qed.
+
+End gname_tok_res.
