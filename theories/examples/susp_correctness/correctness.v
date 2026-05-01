@@ -279,9 +279,9 @@ Section proof.
   Admitted.
 
   Definition p_finish_spec (finish ser a : val) (s : string) (c : nat) : iProp Σ :=
-    ∀ E pr_s ls t,
+    ∀ E pr_s ls t q,
       ⌜↑prover_susp_set ⊆ E⌝ -∗
-      {{{ seq_tok E ∗ proph_proof pr_s ls ∗
+      {{{ seq_tok E ∗ intransit q ∗ proph_proof pr_s ls ∗
           susp_p_ser_spec ser t ∗ susp_ser_p_real t c a s }}}
           finish #pr_s
       {{{ ls' (s' : string), RET #s'; 
@@ -306,10 +306,10 @@ Section proof.
     iIntros (?????) "_ HΦ".
     wp_rec. wp_pures. iApply "HΦ".
     iModIntro.
-    iIntros (???? ? ?) "!# (Htok & Hprf & #Hserspec & #Hser) HΦ".
+    iIntros (????? ? ?) "!# (Htok & Hintr & Hprf & #Hserspec & #Hser) HΦ".
     wp_pures.
-    wp_apply ("Hserspec" with "[//] Hser"); eauto.
-    iIntros "Hgood". wp_pures.
+    wp_apply ("Hserspec" with "[//] [$Hser $Htok $Hintr]"); eauto.
+    iIntros "(Htok & Hintr & Hgood)". wp_pures.
 
     destruct ls; simplify_eq.
     { wp_apply (wp_resolve_proph_string with "Hprf").
@@ -358,27 +358,27 @@ Section proof.
 
   Lemma flush_buf_stream_spec :
     ∀ (p : proph_id) (prf buf : val) (lpn : list nat) (pn : nat)
-        (ps ps_real ps_proph : list string) (bufl : list val),
+        (ps ps_real ps_proph : list string) (bufl : list val) q,
       {{{ ⌜is_list bufl buf⌝ ∗ ⌜is_proof prf ps⌝ ∗
           ⌜List.length bufl = List.length ps_real⌝ ∗
           ⌜List.length bufl = List.length lpn⌝ ∗ 
           ⌜pn = sum_list lpn⌝ ∗
           proph_proof p ps_proph ∗ 
           p_buffer (combine (combine bufl ps_real) lpn) ∗
-          seq_tok ⊤ }}}
+          seq_tok ⊤ ∗ intransit q }}}
         flush_buf_stream buf prf #p
       {{{ prf' (ps' ps_proph' x : list string), RET prf';
           ⌜ps_proph = ps_proph' ++ x⌝ ∗ ⌜ps_proph' = ps_real⌝ ∗
           ⌜is_proof prf' ps'⌝ ∗ ⌜ps' = reverse ps_proph' ++ ps⌝ ∗
           proph_proof p x ∗ seq_tok ⊤ ∗
           (∀ m d pset, 
-            good_state -∗ visited_mapg_auth m d pset pn -∗ 
+            good_state -∗ visited_mapg_auth m d pset pn ==∗ 
             good_state ∗ visited_mapg_auth m d pset 0) }}}.
   Proof.
-    iIntros (????????? ?) 
-      "(%Hbuf & %Hprf & %Hlen1 & %Hlen2 & %Hsumpn & Hproph & Hpbuffer & Htok) HΦ".
+    iIntros (?????????? ?) 
+      "(%Hbuf & %Hprf & %Hlen1 & %Hlen2 & %Hsumpn & Hproph & Hpbuffer & Htok & Hintr) HΦ".
     iInduction (bufl) as [|h_buf t_buf] "IH"
-        forall (buf Hbuf ps_real Hlen1 pn lpn Hlen2 Hsumpn prf ps Hprf ps_proph Φ) "Hpbuffer Hproph HΦ"; 
+        forall (buf Hbuf ps_real Hlen1 pn lpn Hlen2 Hsumpn prf ps Hprf ps_proph q Φ) "Hpbuffer Hproph Hintr HΦ"; 
       rewrite /flush_buf_stream; wp_pures; fold flush_buf_stream.
     - wp_apply gwp_list_head; try done.
       iIntros (? H). destruct! H; simplify_eq.
@@ -388,19 +388,22 @@ Section proof.
 
       iFrame "∗ %". instantiate (1 := []).
       
-      by iModIntro.
+      iModIntro. iFrame. repeat (iSplit; eauto).
+      iIntros (???) "Hst Hvm".
+      iFrame. done.
 
     - wp_apply gwp_list_head; try done.
       iIntros (? H). destruct! H; simplify_eq.
       destruct ps_real; simplify_eq.
-      wp_pures.
+      destruct lpn; simplify_eq.
+      wp_pures. simpl.
 
-      iPoseProof (big_sepL_cons _ (H0, s) (combine H ps_real) with "Hpbuffer") as "[Hbuf Hpbuffer]".
-      iDestruct "Hbuf" as (????? ?) "(Hserp & Hserspec & Hpfinish)".
-      simplify_eq.
+      iPoseProof (big_sepL_cons _ (H0, s, n) (combine (combine H ps_real) lpn) with "Hpbuffer") as "[Hbuf Hpbuffer]".
+      iDestruct "Hbuf" as (??????? ?) "(Hpset & %& HbigS & Hserp & Hserspec & Hpfinish)".
+      simplify_eq. iDestruct "Hintr" as "[Hintr Hintr']".
 
-      wp_apply ("Hpfinish" $! ⊤ with "[//] [$Htok $Hproph $Hserp $Hserspec]").
-      iIntros (??) "(Htok & Hproph & %Heq)".
+      wp_apply ("Hpfinish" $! ⊤ with "[//] [$Htok $Hproph $Hserp $Hserspec $Hintr]").
+      iIntros (??) "(Htok & Hproph & %Heq & Hgoodtr)".
       destruct! Heq. destruct ps_proph; simplify_eq.
 
       wp_pures. wp_bind (_ :: _)%E.
@@ -411,13 +414,29 @@ Section proof.
       wp_apply (gwp_list_tail ⊤ with "[//]").
       iIntros (??). simpl in H1.
 
-      wp_apply ("IH" with "[//] [//] [//] Htok Hpbuffer Hproph"); try done.
-      iIntros (????) "(%&%&%& Hproph & Htok)".
+      wp_apply ("IH" with "[//] [//] [//] [//] [//] Htok Hpbuffer Hproph Hintr'"); try done.
+      iIntros (????) "(%&%&%&%& Hproph & Htok & Hgoodtr')".
 
       iApply "HΦ". iFrame "∗ %".
       instantiate (1 := s'::ps_proph').
       rewrite reverse_cons.
-      simplify_list_eq. eauto.
+      simplify_list_eq.
+      repeat (iSplit; eauto).
+
+      iIntros (???) "Hgood Hvm".
+
+      iMod ("Hgoodtr" $! m d pset (size γl + sum_list lpn) γl with "Hgood Hpset Hvm [//] HbigS")
+        as "[Hgood Hvm_rem]".
+      
+      iEval (rewrite visited_mapg_pending_remove_rewrite) in "Hvm_rem".
+      assert (size γl + sum_list lpn - size γl = sum_list lpn) as -> by lia.
+
+      iMod ("Hgoodtr'" $! m d (pset ∖ γl) with "Hgood Hvm_rem").
+      { iApply visited_mapg_pending_remove_rewrite. }
+
+      Print visited_mapg_pending_remove_rewrite. in "Hvm_rem".
+      iDestruct "Hvm_rem" as "[Hvm H]".
+
   Qed.
 
   (* Lemma flush_buf_stream_spec_bad :
