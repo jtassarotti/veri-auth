@@ -770,14 +770,70 @@ Section authentikit_helpers.
       iDestruct ("" $! v1 s1 c1 γs1 with "Hser1 H1") as %Hsz1.
       iDestruct ("1" $! v2 s2 c2 γs2 with "Hser2 H2") as %Hsz2.
       iPureIntro. rewrite Hsplit size_union; [|done]. lia.
-    - (* tsum: p_sub_obj is contradictory, so γs must be empty *)
-      iAssert (⌜γs = ∅⌝)%I as %->.
-      { destruct (decide (γs = ∅)) as [-> | Hne]; [done|].
-        apply set_choose_L in Hne as [γ Hin].
-        iDestruct (big_sepS_elem_of with "HbigL") as (lb) "[_ %Hsub]"; [exact Hin|].
-        simpl in Hsub. destruct Hsub as (v' & [(He1 & _ & He3) | (He1 & _ & He3)]);
-          subst; exfalso; [by apply (no_fix_InjLV v')|by apply (no_fix_InjRV v')]. }
-      iPureIntro. rewrite size_empty. lia.
+    - (* tsum: p_sub_obj forces v = InjLV/InjRV #lb, so the inner
+         susp_ser_p_real holds at #lb — but no [t] makes #lb a serializable
+         leaf, so γs must be empty. *)
+      simpl. iDestruct "Hser" as (w s') "[H | H]".
+      + iDestruct "H" as "[#Hser1 %Heq]". destruct Heq as [-> ->].
+        iAssert (⌜∀ lb : loc, w ≠ #lb⌝)%I as %Hw_not_loc.
+        { iIntros (lb).
+          destruct t1; simpl.
+          - iDestruct "Hser1" as (??) "[_ Hser']".
+            iDestruct "Hser'" as (????) "[%Hp _]".
+            iPureIntro. intros Heq. by destruct Hp as [-> _].
+          - iDestruct "Hser1" as (??) "[H|H]".
+            + iDestruct "H" as "[_ %Hp]".
+              iPureIntro. intros Heq. by destruct Hp as [-> _].
+            + iDestruct "H" as "[_ %Hp]".
+              iPureIntro. intros Heq. by destruct Hp as [-> _].
+          - iDestruct "Hser1" as "[%Hp _]".
+            iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
+          - iDestruct "Hser1" as "[%Hp _]".
+            iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
+          - iDestruct "Hser1" as "[[Hf _]|[He _]]".
+            + iDestruct "Hf" as (??????) "[%Hp _]".
+              iPureIntro. intros Heq. by destruct Hp as [-> _].
+            + iDestruct "He" as (??????) "[%Hp _]".
+              iPureIntro. intros Heq. by destruct Hp as [-> _]. }
+        iAssert (⌜γs = ∅⌝)%I as %->.
+        { destruct (decide (γs = ∅)) as [-> | Hne]; [done|].
+          apply set_choose_L in Hne as [γ Hin].
+          iDestruct (big_sepS_elem_of with "HbigL") as (lb) "[_ %Hsub]"; [exact Hin|].
+          simpl in Hsub. destruct Hsub as (v' & [(He1 & _ & He2)|(He1 & _ & _)]).
+          - subst v'. injection He1 as ->.
+            iPureIntro. exfalso. by apply (Hw_not_loc lb).
+          - discriminate. }
+        rewrite size_empty. iPureIntro. lia.
+      + iDestruct "H" as "[#Hser2 %Heq]". destruct Heq as [-> ->].
+        iAssert (⌜∀ lb : loc, w ≠ #lb⌝)%I as %Hw_not_loc.
+        { iIntros (lb).
+          destruct t2; simpl.
+          - iDestruct "Hser2" as (??) "[_ Hser']".
+            iDestruct "Hser'" as (????) "[%Hp _]".
+            iPureIntro. intros Heq. by destruct Hp as [-> _].
+          - iDestruct "Hser2" as (??) "[H|H]".
+            + iDestruct "H" as "[_ %Hp]".
+              iPureIntro. intros Heq. by destruct Hp as [-> _].
+            + iDestruct "H" as "[_ %Hp]".
+              iPureIntro. intros Heq. by destruct Hp as [-> _].
+          - iDestruct "Hser2" as "[%Hp _]".
+            iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
+          - iDestruct "Hser2" as "[%Hp _]".
+            iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
+          - iDestruct "Hser2" as "[[Hf _]|[He _]]".
+            + iDestruct "Hf" as (??????) "[%Hp _]".
+              iPureIntro. intros Heq. by destruct Hp as [-> _].
+            + iDestruct "He" as (??????) "[%Hp _]".
+              iPureIntro. intros Heq. by destruct Hp as [-> _]. }
+        iAssert (⌜γs = ∅⌝)%I as %->.
+        { destruct (decide (γs = ∅)) as [-> | Hne]; [done|].
+          apply set_choose_L in Hne as [γ Hin].
+          iDestruct (big_sepS_elem_of with "HbigL") as (lb) "[_ %Hsub]"; [exact Hin|].
+          simpl in Hsub. destruct Hsub as (v' & [(He1 & _ & _)|(He1 & _ & He2)]).
+          - discriminate.
+          - subst v'. injection He1 as ->.
+            iPureIntro. exfalso. by apply (Hw_not_loc lb). }
+        rewrite size_empty. iPureIntro. lia.
     - (* tstring *)
       simpl. iDestruct "Hser" as "[_ %Hc0]". subst c.
       iAssert (⌜γs = ∅⌝)%I as %->.
