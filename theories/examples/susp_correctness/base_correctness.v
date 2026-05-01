@@ -58,8 +58,6 @@ Section authenticatable.
   Lemma refines_Auth_pair Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 * var0) ⟧
       (ext Δ (lrel_evidence N)) p_Auth_pair v_Auth_pair i_Auth_pair.
-  Proof. Admitted.
-  (* Body needs update for new spec signatures (intransit q in susp_p_ser_spec, intransit 1 in unsuspend_spec).
   Proof.
     iSplit; [|iSplit]; interp_unfold!; last first.
     { (* unary  *) admit. }
@@ -122,9 +120,28 @@ Section authenticatable.
       wp_apply ("HusserB" with "Husserb"). iIntros "_". wp_pures.
       unfold prod_ser_str. iApply "HΨ". by iModIntro.
     - (* 2. susp_p_ser_spec *)
-      (* Spec changed: new [c] parameter, new (good_state ∨ false_state)
-         precondition, new disjunctive postcondition. *)
-      admit.
+      iIntros (E a1 s c q HE Ψ) "!# (Hser & Htok & Hintr) HΨ".
+      iEval (rewrite /susp_ser_p_real /=) in "Hser".
+      iDestruct "Hser" as (c1 c2 ->) "Hser_pair".
+      iDestruct "Hser_pair" as (ua ub sa sb [-> ->]) "[#Hser1 #Hser2]".
+      iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+      iDestruct "Hintr" as "[HintrA HintrB]".
+      rewrite /prod_ser''. wp_pures. rewrite /prod_ser. wp_pures.
+      wp_apply ("HsserA" $! _ _ _ c1 (q/2)%Qp with "[//] [$Hser1 $Htok $HintrA]").
+      iIntros "(Htok & HintrA' & HreachA)". wp_pures.
+      wp_apply ("HsserB" $! _ _ _ c2 (q/2)%Qp with "[//] [$Hser2 $Htok $HintrB]").
+      iIntros "(Htok & HintrB' & HreachB)". wp_pures.
+      unfold prod_ser_str. iApply "HΨ". iModIntro. iFrame "Htok".
+      iCombine "HintrA' HintrB'" as "Hcomb".
+      replace ((q/2)/2 + (q/2)/2)%Qp with (q/2)%Qp by (symmetry; apply Qp.div_2).
+      iFrame "Hcomb".
+      iIntros "Hg".
+      iDestruct ("HreachA" with "Hg") as (γlA) "(Hg & %HszA & HbigA)".
+      iDestruct ("HreachB" with "Hg") as (γlB) "(Hg & %HszB & HbigB)".
+      iExists (γlA ∪ γlB). iFrame "Hg".
+      iSplit.
+      { iPureIntro. admit. (* size disjoint union = c1+c2 — needs disjointness *) }
+      admit. (* combine big_sepS for tprod *)
     - (* 3. suspend_spec *)
       iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & #HA' & #Hser) HΨ".
       wp_pures.
@@ -189,7 +206,7 @@ Section authenticatable.
         rewrite interp_var0_ext1.
         iExFalso. by iApply "HinvB". }
     - (* 4. unsuspend_spec *)
-      iIntros (E a1 a2 a3 HE Ψ) "!# [#HA Htok] HΨ".
+      iIntros (E a1 a2 a3 HE Ψ) "!# (#HA & Htok & Hintr) HΨ".
       wp_pures.
       iDestruct "HA" as "[#HA1 [#HA2 #HA3]]".
       interp_unfold! in "HA1".
@@ -200,21 +217,21 @@ Section authenticatable.
       iDestruct "HA3" as (? ? Heq3) "[#HA3a #HA3b]". injection Heq3 as -> ->.
       wp_pures.
       wp_bind (p_uspB _).
-      wp_apply ("HunsuspB" with "[//] [$Htok]").
+      wp_apply ("HunsuspB" with "[//] [$Htok $Hintr]").
       { rewrite interp_var0_ext1.
         iSplit; [|iSplit]; iNext.
         - destruct B; iExact "H2".
         - destruct B; iExact "HA2b".
         - destruct B; iExact "HA3b". }
-      iIntros (un_vb sb) "(Htok & %Hunsuspb & #Hsserb)".
+      iIntros (un_vb sb) "(Htok & Hintr & %Hunsuspb & #Hsserb)".
       wp_bind (p_uspA _).
-      wp_apply ("HunsuspA" with "[//] [$Htok]").
+      wp_apply ("HunsuspA" with "[//] [$Htok $Hintr]").
       { rewrite interp_var1_ext2.
         iSplit; [|iSplit]; iNext.
         - destruct A; iExact "H1".
         - destruct A; iExact "HA2a".
         - destruct A; iExact "HA3a". }
-      iIntros (un_va sa) "(Htok & %Hunsuspa & #Hssera)".
+      iIntros (un_va sa) "(Htok & Hintr & %Hunsuspa & #Hssera)".
       wp_pures. iApply ("HΨ" $! (un_va, un_vb)%V (prod_ser_str sa sb)).
       iFrame. iModIntro. iSplit.
       { iPureIntro. eexists _, _, un_va, un_vb. done. }
@@ -269,13 +286,10 @@ Section authenticatable.
       iModIntro. iFrame.
       iPureIntro. split; [reflexivity|lia].
   Admitted.
-  *)
 
   Lemma refines_Auth_sum Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 + var0) ⟧
       (ext Δ (lrel_evidence N)) p_Auth_sum v_Auth_sum i_Auth_sum.
-  Proof. Admitted.
-  (* Body needs update for new spec signatures.
   Proof.
     iSplit; [|iSplit]; interp_unfold!; last first.
     { (* unary  *) admit. }
@@ -335,9 +349,39 @@ Section authenticatable.
         wp_apply ("HusserB" with "Hserb"). iIntros "_". wp_pures.
         unfold inr_ser_str. iApply "HΨ". by iModIntro.
     - (* 2. susp_p_ser_spec *)
-      (* Spec changed: new [c] parameter, new (good_state ∨ false_state)
-         precondition, new disjunctive postcondition. *)
-      admit.
+      iIntros (E a1 s c q HE Ψ) "!# (Hser & Htok & Hintr) HΨ".
+      iEval (rewrite /susp_ser_p_real /=) in "Hser".
+      iDestruct "Hser" as (w s') "[[#Hser1 [-> ->]] | [#Hser2 [-> ->]]]".
+      + (* InjL *)
+        rewrite /sum_ser''. wp_pures.
+        rewrite /sum_ser. wp_pures.
+        wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser1 $Htok $Hintr]").
+        iIntros "(Htok & Hintr & HreachA)". wp_pures.
+        rewrite /inl_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
+        iIntros "Hg".
+        iDestruct ("HreachA" with "Hg") as (γlA) "(Hg & %HszA & HbigA)".
+        iExists γlA. iFrame "Hg". iSplit; [done|].
+        iApply (big_sepS_mono with "HbigA").
+        iIntros (γ ?) "[Hreach Hlb]". iFrame "Hreach".
+        iDestruct "Hlb" as (lb) "[Hlg %Hp]".
+        iExists lb. iFrame "Hlg". iPureIntro.
+        (* p_sub_obj tsum has a `v = v'` constraint that's unsatisfiable
+           when v = InjLV v'. Likely a bug in definitions.v p_sub_obj. *)
+        admit.
+      + (* InjR *)
+        rewrite /sum_ser''. wp_pures.
+        rewrite /sum_ser. wp_pures.
+        wp_apply ("HsserB" $! _ _ _ c q with "[//] [$Hser2 $Htok $Hintr]").
+        iIntros "(Htok & Hintr & HreachB)". wp_pures.
+        rewrite /inr_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
+        iIntros "Hg".
+        iDestruct ("HreachB" with "Hg") as (γlB) "(Hg & %HszB & HbigB)".
+        iExists γlB. iFrame "Hg". iSplit; [done|].
+        iApply (big_sepS_mono with "HbigB").
+        iIntros (γ ?) "[Hreach Hlb]". iFrame "Hreach".
+        iDestruct "Hlb" as (lb) "[Hlg %Hp]".
+        iExists lb. iFrame "Hlg". iPureIntro.
+        admit.
     - (* 3. suspend_spec      *)
       iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & #HA' & #Hser) HΨ".
       wp_pures.
@@ -446,7 +490,7 @@ Section authenticatable.
         { (* tauth *)
           destruct Hunsusp as (? & ? & ? & ? & ? & Habs & _); discriminate. }
     - (* 4. unsuspend_spec *)
-      iIntros (E a1 a2 a3 HE Ψ) "!# [#HA Htok] HΨ".
+      iIntros (E a1 a2 a3 HE Ψ) "!# (#HA & Htok & Hintr) HΨ".
       wp_pures.
       iDestruct "HA" as "[#HA1 [#HA2 #HA3]]".
       rewrite interp_tern_sum_unfold.
@@ -462,13 +506,13 @@ Section authenticatable.
         injection Heq3 as ->.
         wp_pures.
         wp_bind (p_uspA _).
-        wp_apply ("HunsuspA" with "[//] [$Htok]").
+        wp_apply ("HunsuspA" with "[//] [$Htok $Hintr]").
         { rewrite interp_var1_ext2.
           iSplit; [|iSplit]; iNext.
           - destruct A; iExact "H1".
           - destruct A; iExact "HA2L".
           - destruct A; iExact "HA3L". }
-        iIntros (un_va sa) "(Htok & %Hunsuspa & #Hssera)".
+        iIntros (un_va sa) "(Htok & Hintr & %Hunsuspa & #Hssera)".
         wp_pures. iApply ("HΨ" $! (InjLV un_va) (inl_ser_str sa)).
         iFrame. iModIntro. iSplit.
         { iPureIntro. left. eexists _, un_va. done. }
@@ -482,13 +526,13 @@ Section authenticatable.
         injection Heq3 as ->.
         wp_pures.
         wp_bind (p_uspB _).
-        wp_apply ("HunsuspB" with "[//] [$Htok]").
+        wp_apply ("HunsuspB" with "[//] [$Htok $Hintr]").
         { rewrite interp_var0_ext1.
           iSplit; [|iSplit]; iNext.
           - destruct B; iExact "H1".
           - destruct B; iExact "HA2R".
           - destruct B; iExact "HA3R". }
-        iIntros (un_vb sb) "(Htok & %Hunsuspb & #Hsserb)".
+        iIntros (un_vb sb) "(Htok & Hintr & %Hunsuspb & #Hsserb)".
         wp_pures. iApply ("HΨ" $! (InjRV un_vb) (inr_ser_str sb)).
         iFrame. iModIntro. iSplit.
         { iPureIntro. right. eexists _, un_vb. done. }
@@ -546,13 +590,10 @@ Section authenticatable.
         iMod ("HvcountB" with "Hcnt Hspec") as "[Hcnt Hspec]".
         iModIntro. iFrame. iRight. iExists _. iSplit; [done|]. iFrame.
   Admitted.
-  *)
 
   Lemma refines_Auth_string :
     ⊢ (lrel_evidence N) (LRelTern lrel_string lrel_bin_string lrel_un_string)
         p_Auth_string v_Auth_string i_Auth_string.
-  Proof. Admitted.
-  (* Body needs update for new spec signatures.
   Proof.
     iSplit; [|iSplit]; last first.
     { (* unary  *) admit. }
@@ -601,9 +642,13 @@ Section authenticatable.
       wp_pures.
       by iApply "HΨ".
     - (* 2. susp_p_ser_spec *)
-      (* Spec changed: new c parameter, good_state/bad_state precond,
-         disjunctive postcondition. *)
-      admit.
+      iIntros (E a1 s c q HE Ψ) "!# ((Hstr & %Hc) & Htok & Hintr) HΨ".
+      subst c. iDestruct "Hstr" as %(s' & -> & ->).
+      rewrite /string_ser. wp_pures.
+      iApply "HΨ". iModIntro. iFrame "Htok".
+      iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+      iDestruct "Hintr" as "[$ _]".
+      iIntros "Hg". iExists ∅. iFrame. iSplit; [done|]. by rewrite big_sepS_empty.
     - (* 3. suspend_spec *)
       iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & HA & #Hser) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
@@ -619,7 +664,7 @@ Section authenticatable.
       + iDestruct "Hser" as %(? & Heq & _); done.
       + destruct Hunsusp as (? & ? & ? & ? & ? & Heq & _); discriminate.
     - (* 4. unsuspend_spec *)
-      iIntros (E a1 a2 a3 HE Ψ) "!# [HA Htok] HΨ".
+      iIntros (E a1 a2 a3 HE Ψ) "!# (HA & Htok & Hintr) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
       iDestruct "HAt" as %(s0 & -> & -> & ->).
       rewrite /id. wp_pures.
@@ -646,13 +691,10 @@ Section authenticatable.
       rewrite /string_count /int_count. v_pures.
       iModIntro. iFrame. done.
   Admitted.
-  *)
 
   Lemma refines_Auth_int :
     ⊢ (lrel_evidence N) (LRelTern lrel_int lrel_bin_int lrel_un_int)
         p_Auth_int v_Auth_int i_Auth_int.
-  Proof. Admitted.
-  (* Body needs update for new spec signatures.
   Proof.
     iSplit; [|iSplit]; last first.
     { (* unary  *) admit. }
@@ -701,9 +743,13 @@ Section authenticatable.
       wp_pures.
       by iApply "HΨ".
     - (* 2. susp_p_ser_spec *)
-      (* Spec changed: new c parameter, good_state/bad_state precond,
-         disjunctive postcondition. *)
-      admit.
+      iIntros (E a1 s c q HE Ψ) "!# ((Hint & %Hc) & Htok & Hintr) HΨ".
+      subst c. iDestruct "Hint" as %(z & -> & ->).
+      rewrite /int_ser. wp_pures.
+      iApply "HΨ". iModIntro. iFrame "Htok".
+      iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+      iDestruct "Hintr" as "[$ _]".
+      iIntros "Hg". iExists ∅. iFrame. iSplit; [done|]. by rewrite big_sepS_empty.
     - (* 3. suspend_spec *)
       iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & HA & #Hser) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
@@ -719,7 +765,7 @@ Section authenticatable.
         * iExists sa, 0%nat. iSplit; [iExact "Hser"|by iPureIntro].
       + destruct Hunsusp as (? & ? & ? & ? & ? & Heq & _); discriminate.
     - (* 4. unsuspend_spec *)
-      iIntros (E a1 a2 a3 HE Ψ) "!# [HA Htok] HΨ".
+      iIntros (E a1 a2 a3 HE Ψ) "!# (HA & Htok & Hintr) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
       iDestruct "HAt" as %(z0 & -> & -> & ->).
       rewrite /id. wp_pures.
@@ -746,13 +792,10 @@ Section authenticatable.
       rewrite /int_count. v_pures.
       iModIntro. iFrame. done.
   Admitted.
-  *)
 
   Lemma refines_Auth_mu Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆ ⇒ ⋆, var1 (var0 (μ: ⋆; var1 var0)) → var1 (μ: ⋆; var1 var0) ⟧
       (ext Δ (lrel_evidence N)) p_Auth_mu v_Auth_mu i_Auth_mu.
-  Proof. Admitted.
-  (* Body needs update for new spec signatures.
   Proof.
     iSplit; [|iSplit]; interp_unfold!; last first.
     { (* unary  *) admit. }
@@ -788,9 +831,11 @@ Section authenticatable.
       wp_apply ("HusserA" with "Hser"). iIntros "_".
       by iApply "HΨ".
     - (* 2. susp_p_ser_spec *)
-      (* Spec changed: new c parameter, good_state/bad_state precond,
-         disjunctive postcondition. *)
-      admit.
+      iIntros (E a1 s c q HE Ψ) "!# (Hser & Htok & Hintr) HΨ".
+      rewrite /rec_fold. wp_pures.
+      wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser $Htok $Hintr]").
+      iIntros "(Htok & Hintr & HreachA)".
+      iApply "HΨ". iFrame.
     - (* 3. suspend_spec *)
       iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & #HA' & #Hser) HΨ".
       rewrite /rec_fold. wp_pures.
@@ -805,13 +850,13 @@ Section authenticatable.
       rewrite interp_var1_ext2 interp_var0_ext1.
       rewrite /interp_rec1 /lrel_ktype. done.
     - (* 4. unsuspend_spec *)
-      iIntros (E a1 a2 a3 HE Ψ) "!# [#HA Htok] HΨ".
+      iIntros (E a1 a2 a3 HE Ψ) "!# (#HA & Htok & Hintr) HΨ".
       rewrite /rec_fold. wp_pures.
       iEval (rewrite interp_rec_star_unfold) in "HA".
       interp_unfold! in "HA".
       rewrite interp_var1_ext2 interp_var0_ext1.
-      wp_apply ("HunsuspA" with "[//] [$Htok $HA]").
-      iIntros (un_v s) "(Htok & %Hunsusp & #Hser)".
+      wp_apply ("HunsuspA" with "[//] [$Htok $HA $Hintr]").
+      iIntros (un_v s) "(Htok & Hintr & %Hunsusp & #Hser)".
       iApply ("HΨ" $! un_v s). iFrame. iFrame "#". done.
     - (* 5. v_ser_spec *)
       iIntros (K tᵥ1 a s id Nc v_outer) "!# Hcnt Hser Hspec".
@@ -824,7 +869,6 @@ Section authenticatable.
       v_pures.
       by iApply ("HvcountA" with "Hcnt Hspec").
   Admitted.
-  *)
 
   (* Definition auth_p_fill (a v : val) (s : string) (t : evi_type) : iProp Σ :=
     ⌜v = (a, #(hash s))%V⌝ ∨
