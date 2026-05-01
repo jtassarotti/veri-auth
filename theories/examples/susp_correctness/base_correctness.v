@@ -472,25 +472,30 @@ Section authenticatable.
         iIntros "(Htok & Hintr & HreachA)". wp_pures.
         rewrite /inl_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
         iIntros (γl) "Hg Hpen %Hsz Hbig".
-        (* Convert big_sepS body from p_sub_obj tsum to p_sub_obj tA *)
-        iAssert ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj tA w #lb⌝)%I
-          with "[Hbig]" as "HbigA".
-        { iApply (big_sepS_mono with "Hbig").
-          iIntros (γ ?) "(%lb & Hlg & %Hp)". iExists lb. iFrame "Hlg".
-          iPureIntro. simpl in Hp.
-          destruct Hp as (v' & [Hl | Hr]); [|destruct Hr as (Heq & _ & _); discriminate].
+        (* p_sub_obj (tsum tA tB) (InjLV w) #lb is unsatisfiable for any
+           non-trivial substructure: it forces #lb = w AND
+           p_sub_obj tA w #lb (= p_sub_obj tA #lb #lb), which fails by
+           constructor mismatch for any tA. So γl must be empty. *)
+        iAssert ⌜γl = ∅⌝%I as %->.
+        { destruct (decide (γl = ∅)) as [->|Hne]; [done|].
+          apply set_choose_L in Hne as [γ Hin].
+          iDestruct (big_sepS_elem_of _ _ _ Hin with "Hbig") as "(%lb & _ & %Hp)".
+          iPureIntro. exfalso.
+          simpl in Hp.
+          destruct Hp as (v' & [Hl | Hr]);
+            [|destruct Hr as (Heq & _ & _); discriminate].
           destruct Hl as (Heq1 & Hsub & Heq2).
-          inversion Heq1; subst v'. exact Hsub. }
-        iSpecialize ("HreachA" $! γl with "Hg Hpen [//] HbigA").
-        iDestruct "HreachA" as "(Hg & Hpen & HbigA')". iFrame "Hg Hpen".
-        iApply (big_sepS_mono with "HbigA'").
-        iIntros (γ ?) "[Hreach Hlb]". iFrame "Hreach".
-        iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
-        iPureIntro. simpl. exists w. left. split; [done|].
-        split; [done|]. (* sv = v' i.e. #lb = w. Provable from input Hbig but
-                           that has been consumed. Recovering would need a
-                           persistent copy of #lb = w per γ before HreachA. *)
-        admit.
+          (* Heq1 : InjLV w = InjLV v', Heq2 : #lb = v'. Combine to get w = #lb. *)
+          assert (v' = w) as -> by (by inversion Heq1).
+          assert (w = #lb) as Heq3 by (by inversion Heq2). clear Heq1 Heq2.
+          rewrite Heq3 in Hsub. clear Heq3.
+          destruct tA; simpl in Hsub.
+          - destruct Hsub as (? & ? & Heq & _). discriminate.
+          - destruct Hsub as (? & [(Heq & _ & _) | (Heq & _ & _)]); discriminate.
+          - by destruct Hsub.
+          - by destruct Hsub.
+          - destruct Hsub as (? & ? & ? & ? & ? & [Heq _]). discriminate. }
+        iFrame "Hg Hpen". by rewrite big_sepS_empty.
       + (* InjR *)
         rewrite /sum_ser''. wp_pures.
         rewrite /sum_ser. wp_pures.
@@ -498,22 +503,25 @@ Section authenticatable.
         iIntros "(Htok & Hintr & HreachB)". wp_pures.
         rewrite /inr_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
         iIntros (γl) "Hg Hpen %Hsz Hbig".
-        iAssert ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj tB w #lb⌝)%I
-          with "[Hbig]" as "HbigB".
-        { iApply (big_sepS_mono with "Hbig").
-          iIntros (γ ?) "(%lb & Hlg & %Hp)". iExists lb. iFrame "Hlg".
-          iPureIntro. simpl in Hp.
-          destruct Hp as (v' & [Hl | Hr]); [destruct Hl as (Heq & _ & _); discriminate|].
+        iAssert ⌜γl = ∅⌝%I as %->.
+        { destruct (decide (γl = ∅)) as [->|Hne]; [done|].
+          apply set_choose_L in Hne as [γ Hin].
+          iDestruct (big_sepS_elem_of _ _ _ Hin with "Hbig") as "(%lb & _ & %Hp)".
+          iPureIntro. exfalso.
+          simpl in Hp.
+          destruct Hp as (v' & [Hl | Hr]);
+            [destruct Hl as (Heq & _ & _); discriminate|].
           destruct Hr as (Heq1 & Hsub & Heq2).
-          inversion Heq1; subst v'. exact Hsub. }
-        iSpecialize ("HreachB" $! γl with "Hg Hpen [//] HbigB").
-        iDestruct "HreachB" as "(Hg & Hpen & HbigB')". iFrame "Hg Hpen".
-        iApply (big_sepS_mono with "HbigB'").
-        iIntros (γ ?) "[Hreach Hlb]". iFrame "Hreach".
-        iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
-        iPureIntro. simpl. exists w. right. split; [done|].
-        split; [done|].
-        admit.
+          assert (v' = w) as -> by (by inversion Heq1).
+          assert (w = #lb) as Heq3 by (by inversion Heq2). clear Heq1 Heq2.
+          rewrite Heq3 in Hsub. clear Heq3.
+          destruct tB; simpl in Hsub.
+          - destruct Hsub as (? & ? & Heq & _). discriminate.
+          - destruct Hsub as (? & [(Heq & _ & _) | (Heq & _ & _)]); discriminate.
+          - by destruct Hsub.
+          - by destruct Hsub.
+          - destruct Hsub as (? & ? & ? & ? & ? & [Heq _]). discriminate. }
+        iFrame "Hg Hpen". by rewrite big_sepS_empty.
     - (* 3. suspend_spec      *)
       iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & #HA' & #Hser) HΨ".
       wp_pures.
