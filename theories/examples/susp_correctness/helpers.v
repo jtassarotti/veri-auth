@@ -388,7 +388,7 @@ Section authentikit_helpers.
         lg_mapg_frag susp γ -∗
         susp ↦ᵥ{#3/4} InjLV (#pid, #p) -∗
         sub_susp_count_frags t v c pid Nc -∗
-        visit_reached_done γ id ∗
+        visit_reached_done γ id -∗
         intransit 1%Qp ==∗
           visit_finished γ id ∗
           visited_map_update_finished m d ps pn γ id ∗
@@ -396,7 +396,7 @@ Section authentikit_helpers.
           susp ↦ᵥ{#3/4} InjLV (#pid, #p).
   Proof.
     iIntros (t t' v c pid Nc susp p γ m d ps pn Hid Hsub)
-      "Hauth #Hlg Hsusp (#Hcap & %Hle & Hinner & Hagg) [#Hreached Hintr]".
+      "Hauth #Hlg Hsusp (#Hcap & %Hle & Hinner & Hagg) #Hreached Hintr".
     iAssert (∀ v_outer (tind : evi_type) (vind : val) (cind : nat) (tind' : evi_type),
                ⌜v_sub_obj tind' vind #susp⌝ -∗
                visited_mapg_auth m d ps pn -∗

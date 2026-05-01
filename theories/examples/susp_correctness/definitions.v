@@ -102,6 +102,9 @@ Section proph.
   Definition is_proph_proof (v : val) (p : proph_id) (ps : list string) : iProp Σ :=
     ⌜is_proof v ps⌝ ∗ proph_proof p ps.
 
+  Definition is_proph_reverse_proof (v : val) (p : proph_id) (ps : list string) : iProp Σ :=
+    ⌜is_proof v (reverse ps)⌝ ∗ proph_proof p ps.
+
 End proph.
 
 
@@ -235,19 +238,19 @@ Section authenticatable_definitions.
       ⌜s = suspended_string ∧ v = InjRV #susp⌝ ∗ 
       susp ↦ᵥ{#(3/4)} InjLV (#pid, #p) ∗ proph_v_susp p h. *)
 
-  Definition auth_susp_emp_v_proph (v : val) : iProp Σ :=
-    ∃ (h : string) (susp : loc) (pid: nat) (p : proph_id) pv pt (q : Qp) γ,
+  Definition auth_susp_emp_v_proph (pid : nat) (v : val) : iProp Σ :=
+    ∃ (h : string) (susp : loc) (p : proph_id) pv pt (q : Qp) γ,
       ⌜v = InjRV #susp⌝ ∗ mapg_frag #pid q pv ∗ lg_mapg_frag susp γ ∗
       ⌜v_sub_obj pt pv #susp⌝ ∗ susp ↦ᵥ{#(3/4)} InjLV (#pid, #p) ∗ proph_v_susp p h.
 
-  Definition auth_susp_v_ser_proph_inv (v : val) (s : string) : iProp Σ :=
+  Definition auth_susp_v_ser_proph_inv (pid : nat) (v : val) (s : string) : iProp Σ :=
     (∃ (s1 : string), 
       ⌜s = filled_string (hash s1)⌝ ∗
       auth_susp_fill_v v s) ∨ 
-    auth_susp_emp_v_proph v.
+    auth_susp_emp_v_proph pid v.
 
-  Definition auth_susp_v_ser_proph (v : val) (s : string) : iProp Σ :=
-    seq_inv (ver_susp_n N v) (auth_susp_v_ser_proph_inv v s).
+  Definition auth_susp_v_ser_proph (pid : nat) (v : val) (s : string) : iProp Σ :=
+    seq_inv (ver_susp_n N v) (auth_susp_v_ser_proph_inv pid v s).
 
   Fixpoint unsusp (t : evi_type) (v un_v : val) : Prop :=
     match t with
@@ -319,18 +322,18 @@ Section authenticatable_definitions.
   #[global] Instance ser_v_persistent t v s : Persistent (ser_v t v s).
   Proof. revert v s. induction t => v s; simpl; apply _. Qed.
 
-  Fixpoint ser_v_proph (t : evi_type) (v : val) (s : string) : iProp Σ :=
+  Fixpoint ser_v_proph (t : evi_type) (pid : nat) (v : val) (s : string) : iProp Σ :=
     match t with
-    | tprod t1 t2 => prod_is_ser' v s (ser_v_proph t1) (ser_v_proph t2)
-    | tsum t1 t2 => sum_is_ser' v s (ser_v_proph t1) (ser_v_proph t2)
+    | tprod t1 t2 => prod_is_ser' v s (ser_v_proph t1 pid) (ser_v_proph t2 pid)
+    | tsum t1 t2 => sum_is_ser' v s (ser_v_proph t1 pid) (ser_v_proph t2 pid)
     | tstring => string_is_ser v s
     | tint => int_is_ser v s
     | tauth => ∃ v1, ⌜v = SOMEV v1⌝ ∗
-                       (auth_fill_ser_v v1 s ∨ auth_susp_v_ser_proph v1 s)
+                       (auth_fill_ser_v v1 s ∨ auth_susp_v_ser_proph pid v1 s)
   end.
  
-  #[global] Instance ser_v_proph_persistent t v s : Persistent (ser_v_proph t v s).
-  Proof. revert v s. induction t => v s; simpl; apply _. Qed.
+  #[global] Instance ser_v_proph_persistent t pid v s : Persistent (ser_v_proph t pid v s).
+  Proof. revert pid v s. induction t => pid v s; simpl; apply _. Qed.
 
   (* For both prover/verifier
   Fixpoint invalid_value (t : evi_type) (v : val) :=
@@ -360,9 +363,7 @@ Section authenticatable_definitions.
                 susp ↦ᵥ{#1/4} InjLV (#pid, #p) ∗ ⌜c = 1⌝ ∗
                 mapg_frag #pid (1 / pos_to_Qp (Pos.of_nat N))%Qp v_outer ∗
                 cap_frag pid N ∗
-                (visit_pending γ ∨ 
-                  (∃ id, ⌜id > pid⌝ ∗ 
-                    (visit_done γ id ∨ (visit_finished γ id ∗ intransit 1%Qp)))))))).
+                (visit_pending γ ∨ (∃ id, ⌜id > pid⌝ ∗ visit_done γ id)))))).
 
   Fixpoint sub_susp_count
       (t : evi_type) (v : val) (c id N : nat) (v_outer : val) : iProp Σ :=
@@ -417,10 +418,12 @@ Section authenticatable_definitions.
       {{{ RET #s; True }}}.
 
   Definition suspend_spec (suspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
-    ∀ t' (v un_v a2 a3 : val) s,
-      {{{ ⌜unsusp t' v un_v⌝ ∗ ▷ A v a2 a3 ∗ susp_ser_p t' v s }}}
+    ∀ t' (v un_v a2 a3 : val) s m,
+      {{{ ⌜unsusp t' v un_v⌝ ∗ ▷ A v a2 a3 ∗ susp_ser_p t' v s ∗
+          lg_mapg_auth m }}}
         suspend un_v
-      {{{ v', RET v'; A v' a2 a3 ∗ susp_ser_p t v' s ∗
+      {{{ v' m', RET v'; lg_mapg_auth m' ∗
+          A v' a2 a3 ∗ susp_ser_p t v' s ∗
           ∃ s' c', susp_ser_p_real t c' v' s' }}}.
 
   Definition v_deser_spec (v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
@@ -439,7 +442,7 @@ Section authenticatable_definitions.
             ([∗ set] γ ∈ γl, ∃ susp lb,
               lg_mapg_frag lb γ ∗ lg_mapg_frag susp γ ∗
               ⌜p_sub_obj t a1 #lb⌝ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
-            A a1 a2' a3 ∗ ser_v_proph t a2' s')).
+            A a1 a2' a3 ∗ ser_v_proph t id a2' s')).
   
   (* Definition suspend_v_deser_spec (suspend v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
     □(∀ t' (a1 un_a1 a2 a3 : val) (s s' : string) K tᵥ (id : nat) m d ps pn,
@@ -500,7 +503,7 @@ Section authenticatable_definitions.
           ={⊤}=∗
             (∃ (c : nat) (a2' : val) s'',
               spec_verifier tᵥ (fill K (SOMEV a2')) ∗
-              ser_v_proph t a2' s'' ∗ sub_susp_count_frags t a2' c id c ∗
+              ser_v_proph t id a2' s'' ∗ sub_susp_count_frags t a2' c id c ∗
               A a2') ∨
             spec_verifier tᵥ (fill K NONEV))).
 
@@ -514,10 +517,10 @@ Section authenticatable_definitions.
 
   Definition v_ser_spec (v_ser : val) (t : evi_type) : iProp Σ :=
     □(∀ K tᵥ a s id Nc v_outer,
-      sub_susp_count t a 0 id Nc v_outer -∗ ser_v_proph t a s -∗
+      sub_susp_count t a 0 id Nc v_outer -∗ ser_v_proph t id a s -∗
       spec_verifier tᵥ (fill K (v_ser a))
       ={⊤}=∗
-        sub_susp_count t a 0 id Nc v_outer ∗ ser_v_proph t a s ∗
+        sub_susp_count t a 0 id Nc v_outer ∗ ser_v_proph t id a s ∗
         spec_verifier tᵥ (fill K (SOMEV #s))).
       
   Definition v_auth_ser_spec (v_ser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
@@ -580,11 +583,12 @@ Section authenticatable_definitions.
 
   Definition auth_v (v : val) (s : string) (id : nat) : iProp Σ :=
     (⌜v = InjLV #(hash s)⌝) ∨
-      (∃ (s' : string) (susp : loc),
-        ⌜v = InjRV #susp⌝ ∗
+      (∃ (s' : string) (susp : loc) pid γ,
+        ⌜v = InjRV #susp⌝ ∗ lg_mapg_frag susp γ ∗
+        visit_reached_done γ id ∗ ⌜id > pid⌝ ∗
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
         seq_inv (ver_susp_n N v) 
-          (auth_susp_v_ser_proph_inv v s')).
+          (auth_susp_v_ser_proph_inv pid v s')).
 
   Definition susplb_gname (v1 v2 : val) : iProp Σ :=
     (∃ v, ⌜v2 = InjLV v⌝) ∨
@@ -597,12 +601,12 @@ Section authenticatable_definitions.
       ⌜vₚ = (#lb, #lr, un_vₚ, #(hash s), #ps)%V⌝ ∗
       ((⌜vᵥ = InjLV #(hash s)⌝ ∗ 
         seq_inv (prover_susp_n N vₚ) (susp_p_fill_inv ps lb lr)) ∨
-      (∃ (s' : string) (susp : loc),
+      (∃ (s' : string) (susp : loc) pid,
         ⌜vᵥ = InjRV #susp⌝ ∗ susplb_gname vₚ vᵥ ∗
         seq_inv (prover_susp_n N vₚ) (susp_p_unfill_inv ps lb lr) ∗
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
         seq_inv (ver_susp_n N vᵥ) 
-          (auth_susp_v_ser_proph_inv vᵥ s'))).
+          (auth_susp_v_ser_proph_inv pid vᵥ s'))).
 
   Definition lrel_auth_tern (A : lrel_tern Σ) : lrel Σ := LRel (λ v1 v2 v3,
     ∃ (t : evi_type) (v2' a1 a2 un_a1 : val) (s : string),

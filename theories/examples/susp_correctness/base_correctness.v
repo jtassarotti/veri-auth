@@ -256,11 +256,10 @@ Section authenticatable.
       iPureIntro. simpl. exists ua, ub. split; [done|].
       right. right. right. done.
     - (* 3. suspend_spec *)
-      iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & #HA' & #Hser) HΨ".
+      iIntros (t v un_v a2 a3 sa m Ψ) "!# (%Hunsusp & #HA' & #Hser & Hauth) HΨ".
       wp_pures.
       iDestruct "HA'" as "[#HA1 [#HA2 #HA3]]".
       interp_unfold! in "HA1".
-      (* iEval (cbv [lrel_tern_tern lrel_tern_prod lrel_car]) in "HA1". *)
       iDestruct "HA1" as (wa1 wa2 wa3 wb1 wb2 wb3) "(-> & -> & -> & H1 & H2)".
       destruct t; simpl in Hunsusp.
       { (* tprod *)
@@ -268,32 +267,29 @@ Section authenticatable.
         iSimpl in "Hser".
         iDestruct "Hser" as (? ? sa1 sa2 [[= -> ->] ->]) "[#Hser1 #Hser2]".
         rewrite interp_bin_prod_unfold. rewrite interp_un_prod_unfold.
-        (* iEval (cbv [lrel_tern_bin lrel_tern_prod lrel_bin_car]) in "HA2".
-        iEval (cbv [lrel_tern_un lrel_tern_prod lrel_un_car]) in "HA3".
-        interp_unfold! in "HA2". *)
         iDestruct "HA2" as (? ? ? ?) "(%Heq1 & %Heq2 & #HA2a & #HA2b)".
         injection Heq1 as -> ->. injection Heq2 as -> ->.
         iDestruct "HA3" as (? ? Heq3) "[#HA3a #HA3b]". injection Heq3 as -> ->.
         wp_pures.
         wp_bind (p_spB _).
-        wp_apply ("HsuspB" with "[]").
-        { iSplit; [done|]. iFrame "Hser2". iNext.
+        wp_apply ("HsuspB" $! _ _ _ _ _ _ m with "[Hauth]").
+        { iSplit; [done|]. iFrame "Hser2 Hauth". iNext.
           rewrite interp_var0_ext1.
-          iSplit; [|iSplit]. 
+          iSplit; [|iSplit].
           - destruct B; iExact "H2".
           - destruct B; iExact "HA2b".
           - destruct B; iExact "HA3b". }
-        iIntros (vb') "(#HBv' & #Hserv'b & Hreal_b)".
+        iIntros (vb' m') "(Hauth & #HBv' & #Hserv'b & Hreal_b)".
         wp_bind (p_spA _).
-        wp_apply ("HsuspA" with "[]").
-        { iSplit; [done|]. iFrame "Hser1". iNext.
+        wp_apply ("HsuspA" $! _ _ _ _ _ _ m' with "[Hauth]").
+        { iSplit; [done|]. iFrame "Hser1 Hauth". iNext.
           rewrite interp_var1_ext2.
           iSplit; [|iSplit].
           - destruct A; iExact "H1".
           - destruct A; iExact "HA2a".
           - destruct A; iExact "HA3a". }
-        iIntros (va') "(#HAv' & #Hserv'a & Hreal_a)".
-        wp_pures. iApply "HΨ". iModIntro. iSplit; [|iSplit].
+        iIntros (va' m'') "(Hauth & #HAv' & #Hserv'a & Hreal_a)".
+        wp_pures. iApply "HΨ". iModIntro. iFrame "Hauth". iSplit; [|iSplit].
         - iDestruct "HAv'" as "[#Av1 [#Av2 #Av3]]".
           iDestruct "HBv'" as "[#Bv1 [#Bv2 #Bv3]]".
           iSplit; [|iSplit]; interp_unfold!;
@@ -523,15 +519,12 @@ Section authenticatable.
           - destruct Hsub as (? & ? & ? & ? & ? & [Heq _]). discriminate. }
         iFrame "Hg Hpen". by rewrite big_sepS_empty.
     - (* 3. suspend_spec      *)
-      iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & #HA' & #Hser) HΨ".
+      iIntros (t v un_v a2 a3 sa m Ψ) "!# (%Hunsusp & #HA' & #Hser & Hauth) HΨ".
       wp_pures.
       iDestruct "HA'" as "[#HA1 [#HA2 #HA3]]".
       rewrite interp_tern_sum_unfold.
       rewrite interp_bin_sum_unfold.
       rewrite interp_un_sum_unfold.
-      (* iEval (cbv [lrel_tern_tern lrel_tern_sum lrel_car]) in "HA1".
-      iEval (cbv [lrel_tern_bin lrel_tern_sum lrel_bin_car]) in "HA2".
-      iEval (cbv [lrel_tern_un lrel_tern_sum lrel_un_car]) in "HA3". *)
       iDestruct "HA1" as (wA wV wI) "[(-> & -> & -> & #H1) | (-> & -> & -> & #H1)]".
       + (* InjL case on v *)
         iDestruct "HA2" as (? ?) "[(%Heq1 & %Heq2 & #HA2L) | (%Heq1 & %Heq2 & _)]";
@@ -551,14 +544,14 @@ Section authenticatable.
             last discriminate.
           injection Heqv as ->.
           wp_pures.
-          wp_apply ("HsuspA" with "[]").
-          { iSplit; [done|]. iFrame "Hser1". iNext.
+          wp_apply ("HsuspA" $! _ _ _ _ _ _ m with "[Hauth]").
+          { iSplit; [done|]. iFrame "Hser1 Hauth". iNext.
             iSplit; [|iSplit]; rewrite interp_var1_ext2.
             - destruct A; iExact "H1".
             - destruct A; iExact "HA2L".
             - destruct A; iExact "HA3L". }
-          iIntros (va') "(#HAv' & #Hserv'a & Hreal_a)".
-          wp_pures. iApply "HΨ". iModIntro. iSplit; [|iSplit].
+          iIntros (va' m') "(Hauth & #HAv' & #Hserv'a & Hreal_a)".
+          wp_pures. iApply "HΨ". iModIntro. iFrame "Hauth". iSplit; [|iSplit].
           - iDestruct "HAv'" as "[#Av1 [#Av2 #Av3]]".
             iSplit; [|iSplit]; interp_unfold!;
               rewrite interp_var1_ext2; rewrite interp_var0_ext1.
@@ -599,14 +592,14 @@ Section authenticatable.
             first discriminate.
           injection Heqv as ->.
           wp_pures.
-          wp_apply ("HsuspB" with "[]").
-          { iSplit; [done|]. iFrame "Hser2". iNext.
+          wp_apply ("HsuspB" $! _ _ _ _ _ _ m with "[Hauth]").
+          { iSplit; [done|]. iFrame "Hser2 Hauth". iNext.
             iSplit; [|iSplit]; rewrite interp_var0_ext1.
             - destruct B; iExact "H1".
             - destruct B; iExact "HA2R".
             - destruct B; iExact "HA3R". }
-          iIntros (vb') "(#HBv' & #Hserv'b & Hreal_b)".
-          wp_pures. iApply "HΨ". iModIntro. iSplit; [|iSplit].
+          iIntros (vb' m') "(Hauth & #HBv' & #Hserv'b & Hreal_b)".
+          wp_pures. iApply "HΨ". iModIntro. iFrame "Hauth". iSplit; [|iSplit].
           - iDestruct "HBv'" as "[#Bv1 [#Bv2 #Bv3]]".
             iSplit; [|iSplit]; interp_unfold!;
               rewrite interp_var1_ext2; rewrite interp_var0_ext1.
@@ -792,14 +785,14 @@ Section authenticatable.
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
     - (* 3. suspend_spec *)
-      iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & HA & #Hser) HΨ".
+      iIntros (t v un_v a2 a3 sa m Ψ) "!# (%Hunsusp & HA & #Hser & Hauth) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
       iDestruct "HAt" as %(s0 & -> & -> & ->).
       destruct t as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp; try done.
       + destruct Hunsusp as (? & ? & ? & ? & Heq & _); discriminate.
       + destruct Hunsusp as [(? & ? & Heq & _ & _) | (? & ? & Heq & _ & _)]; discriminate.
       + subst un_v. rewrite /id. wp_pures. iApply "HΨ". iModIntro.
-        iSplit; [|iSplit].
+        iFrame "Hauth". iSplit; [|iSplit].
         * iSplit; [|iSplit]; iExists s0; done.
         * iExact "Hser".
         * iExists sa, 0%nat. iSplit; [iExact "Hser"|by iPureIntro].
@@ -895,7 +888,7 @@ Section authenticatable.
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
     - (* 3. suspend_spec *)
-      iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & HA & #Hser) HΨ".
+      iIntros (t v un_v a2 a3 sa m Ψ) "!# (%Hunsusp & HA & #Hser & Hauth) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
       iDestruct "HAt" as %(z0 & -> & -> & ->).
       destruct t as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp; try done.
@@ -903,7 +896,7 @@ Section authenticatable.
       + destruct Hunsusp as [(? & ? & Heq & _ & _) | (? & ? & Heq & _ & _)]; discriminate.
       + iDestruct "Hser" as %(? & Heq & _); done.
       + subst un_v. rewrite /id. wp_pures. iApply "HΨ". iModIntro.
-        iSplit; [|iSplit].
+        iFrame "Hauth". iSplit; [|iSplit].
         * iSplit; [|iSplit]; iExists z0; done.
         * iExact "Hser".
         * iExists sa, 0%nat. iSplit; [iExact "Hser"|by iPureIntro].
@@ -981,14 +974,14 @@ Section authenticatable.
       iIntros "(Htok & Hintr & HreachA)".
       iApply "HΨ". iFrame.
     - (* 3. suspend_spec *)
-      iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & #HA' & #Hser) HΨ".
+      iIntros (t v un_v a2 a3 sa m Ψ) "!# (%Hunsusp & #HA' & #Hser & Hauth) HΨ".
       rewrite /rec_fold. wp_pures.
       iEval (rewrite interp_rec_star_unfold) in "HA'".
       interp_unfold! in "HA'".
       rewrite interp_var1_ext2 interp_var0_ext1.
-      wp_apply ("HsuspA" with "[$Hser $HA' //]").
-      iIntros (v') "(#HAv' & #Hserv' & Hreal)".
-      iApply "HΨ". iFrame "# Hreal".
+      wp_apply ("HsuspA" $! _ _ _ _ _ _ m with "[$Hser $HA' $Hauth //]").
+      iIntros (v' m') "(Hauth & #HAv' & #Hserv' & Hreal)".
+      iApply "HΨ". iFrame "Hauth # Hreal".
       iEval (rewrite interp_rec_star_unfold).
       interp_unfold!.
       rewrite interp_var1_ext2 interp_var0_ext1.
@@ -1184,7 +1177,97 @@ Section authenticatable.
           iFrame "Hg Hpen". rewrite big_sepS_singleton.
           iSplit; [iExists n; iExact "Hreached"|].
           iExists lb. iFrame "Hlg'". iPureIntro. exact Hp'.
-    - (* 3. suspend_spec      *) admit.
+    - (* 3. suspend_spec *)
+      iIntros (t' v un_v a2 a3 sa m Ψ) "!# (%Hunsusp & #HA' & #Hser & Hauth) HΨ".
+      (* Non-tauth t' cases require deriving v's 5-tuple shape from
+         [auth_pv un_a1 v v2' s_inner] (under ▷) and contradicting with
+         susp_ser_p t' v s's structural constraints. Defer for now. *)
+      destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp;
+        [ admit | admit | admit | admit | ].
+      (* tauth: v = (#lb_o, #lr_o, a, #h, #p_o), un_v = (a, #h) *)
+      destruct Hunsusp as (lb_o & lr_o & a & h & p_o & -> & ->).
+      rewrite /authenticatable_base_susp.auth_suspend_p. wp_pures.
+      wp_apply wp_new_proph; first done.
+      iIntros (pvs p_n) "Hp_n".
+      wp_alloc lr_n as "Hlr_n". wp_alloc lb_n as "Hlb_n". wp_pures.
+      (* Build proph_bs from proph *)
+      iAssert (proph_bs p_n (longest_valid_prefix_bool (map snd pvs))) with "[Hp_n]" as "Hpb_n".
+      { iExists pvs. iFrame "Hp_n". done. }
+      remember (longest_valid_prefix_bool (map snd pvs)) as bs eqn:Hbs.
+      destruct bs as [|[|] bs'].
+      + (* bs = [] : empty prophecy prefix → allocate fill_inv with D3 *)
+        admit.
+      + (* bs = true :: bs' : allocate unfill_inv with D1.
+           The output's auth_pv must match precondition's v2' (InjL or InjR).
+           For unfill_inv to align with auth_pv, precondition must be InjR branch. *)
+        iDestruct "HA'" as "[#HAt [#HAb #HAu]]".
+        iEval (rewrite interp_var3_ext4 interp_var0_ext1) in "HAt".
+        iSimpl in "HAt".
+        iDestruct "HAt" as (t_in v2' a1 a2_orig un_a1 s_inner) "(%Heq_in & #Hser_in & #HA1 & Hauth_pv)".
+        destruct Heq_in as [Heqa2 Hunsusp_in].
+        iDestruct "Hauth_pv" as (lb_o' lr_o' p_o') "[%Heqv [HfillL | HemR]]".
+        * (* InjL branch — mismatch with our unfill_inv allocation *)
+          admit.
+        * (* InjR branch — matches *)
+          iDestruct "HemR" as (s_v susp) "[%Heqv2' [#Hsplb [#Hinv_o_unf [%Heqsv #Hinv_o_v]]]]".
+          (* Recover a = un_a1, h = hash s_inner from Heqv *)
+          inversion Heqv as [[Hlb_eq2 Hlr_eq2 Ha_eq2 Hh_eq2 Hp_eq2]].
+          subst un_a1 lb_o' lr_o' p_o'. subst h. clear Heqv.
+          (* Extract γ from Hsplb (OLD susplb_gname): we want lg_mapg_frag susp γ
+             so we can allocate the same γ for the new lb_n. *)
+          iDestruct "Hsplb" as "[%Habs|Hsplb_some]".
+          { destruct Habs as (? & Habs). rewrite Heqv2' in Habs. discriminate. }
+          iDestruct "Hsplb_some" as (γ susp' lb_old lr_old un_a' v1' h')
+            "([%HeqV1 %HeqV2] & #Hlg_lb_o & #Hlg_susp)".
+          rewrite Heqv2' in HeqV2. inversion HeqV2 as [[HsuspEq]].
+          subst susp'. clear HeqV2.
+          (* Insert lb_n with same γ into lg_mapg_auth, assuming lb_n ∉ m.
+             Freshness: lb_n is freshly allocated; to formalize requires pairing
+             m with an invariant connecting to the heap. Admit for now. *)
+          assert (m !! lb_n = None) as Hfresh by admit.
+          iMod (lg_mapg_insert m lb_n γ Hfresh with "Hauth") as "[Hauth #Hlg_lb_n]".
+          (* Allocate susp_p_unfill_inv at p_n, lb_n, lr_n with D1 *)
+          iMod (na_inv_alloc seqG_name ⊤
+                  (prover_susp_n N (#lb_n, #lr_n, a, #(hash s_inner), #p_n)%V)
+                  (susp_p_unfill_inv p_n lb_n lr_n)
+                with "[Hlb_n Hlr_n Hpb_n]") as "#Hinv_n_unf".
+          { iNext. iLeft. iExists (true :: bs'). iFrame "Hlb_n Hlr_n Hpb_n".
+            iPureIntro. by exists bs'. }
+          (* Extract sa = simple_string (hash s_inner) from Hser *)
+          iDestruct "Hser" as %(p_o2 & lb_o2 & lr_o2 & a'' & h'' & [Heqv2 Hsa_eq]).
+          inversion Heqv2 as [[Hlb_eq Hlr_eq Ha_eq Hh_eq Hp_eq]].
+          subst lb_o2 lr_o2 a'' h'' p_o2 sa.
+          iApply "HΨ". iModIntro. iFrame "Hauth".
+          iSplit; [|iSplit].
+          { (* A v' a2 a3 — tern + bin + un parts *)
+            iSplit; [|iSplit].
+            - (* tern *)
+              iEval (rewrite interp_var3_ext4 interp_var0_ext1). iSimpl.
+              iExists t_in, v2', a1, a2_orig, a, s_inner.
+              iSplit; [done|].
+              iFrame "Hser_in HA1".
+              iExists lb_n, lr_n, p_n. iSplit; [done|].
+              iRight. iExists s_v, susp.
+              iSplit; [done|]. iSplitR.
+              { (* susplb_gname for NEW v': use lg_mapg_frag lb_n γ + lg_mapg_frag susp γ *)
+                iRight. iExists γ, susp, lb_n, lr_n, a, #p_n, (hash s_inner).
+                iSplit; [done|]. iFrame "Hlg_lb_n Hlg_susp". }
+              iFrame "Hinv_n_unf". iSplit; [done|].
+              rewrite Heqv2'. iExact "Hinv_o_v".
+            - (* bin — use HAb directly, but it depends on v. Reconstruct for v'. *)
+              admit.
+            - (* un — depends only on a2, reuse HAu *)
+              iExact "HAu". }
+          { (* susp_ser_p tauth v' sa = auth_susp_ser_p v' sa *)
+            iSimpl. iExists p_n, lb_n, lr_n, a, (hash s_inner). done. }
+          { (* ∃ s' c', susp_ser_p_real tauth c' v' s' *)
+            iExists suspended_string, 1%nat. iSimpl.
+            rewrite /auth_susp_ser_p_real. iRight.
+            iSplit; [|done].
+            iExists p_n, lb_n, lr_n, a, (hash s_inner), false.
+            iFrame "Hinv_n_unf". done. }
+      + (* bs = false :: bs' : allocate fill_inv with D1 *)
+        admit.
     - (* 4. unsuspend_spec    *) admit.
     - (* 5. v_ser_spec        *) admit.
     - (* 6. v_auth_ser_spec   *) admit.
