@@ -427,7 +427,7 @@ Section authenticatable_definitions.
           susp_ser_p t a1 s' -∗ visited_mapg_auth m d ps pn -∗
           spec_verifier tᵥ (fill K (v_deser_par #s))
           ={⊤}=∗ ∃ (a2' : val) (γl : pending_setg_type),
-            ⌜size γl = c⌝ ∗ pencount_frag c ∗ penset_frag γl ∗
+            ⌜size γl = c⌝ ∗ penset_frag γl ∗
             spec_verifier tᵥ (fill K (SOMEV a2')) ∗
             sub_susp_count t a2' c id c a2' ∗
             visited_map_update_pending m d ps pn γl ∗
