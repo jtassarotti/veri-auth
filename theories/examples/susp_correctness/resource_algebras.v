@@ -89,6 +89,25 @@ Section visited_map_res.
     own pending_set_name (● GSet (ps ∖ γs)) ∗
     ⌜visited_coherent m d⌝ ∗ ⌜pending_coherent m (ps ∖ γs) (pending_n - size γs)⌝.
 
+  Lemma visited_map_update_pending_rewrite m d ps pn γs:
+    visited_map_update_pending m d ps pn γs ⊣⊢
+    visited_mapg_auth (set_fold (λ γ m, <[ γ := pending_val ]>m) m γs) d (ps ∪ γs) (pn + size γs).
+  Proof. rewrite /visited_map_update_pending /visited_mapg_auth. done. Qed.
+
+  Lemma visited_map_update_done_rewrite m d ps pn γ n:
+    visited_map_update_done m d ps pn γ n ⊣⊢
+    visited_mapg_auth (<[ γ := done_val n ]>m) (<[ γ := to_agree n ]>d) ps pn.
+  Proof. rewrite /visited_map_update_done /visited_mapg_auth. done. Qed.
+
+  Lemma visited_map_update_finished_rewrite m d ps pn γ n:
+    visited_map_update_finished m d ps pn γ n ⊣⊢
+    visited_mapg_auth (<[ γ := finished_val n ]>m) d ps pn.
+  Proof. rewrite /visited_map_update_finished /visited_mapg_auth. done. Qed.
+
+  Lemma visited_mapg_pending_remove_rewrite m d ps pn γs:
+    visited_mapg_pending_removed m d ps pn γs ⊣⊢ visited_mapg_auth m d (ps ∖ γs) (pn - size γs).
+  Proof. rewrite /visited_mapg_pending_removed /visited_mapg_auth. done. Qed.
+
   Definition visit_pending γ : iProp Σ :=
     own visited_state_name (◯ {[ γ := pending_val ]}).
 
