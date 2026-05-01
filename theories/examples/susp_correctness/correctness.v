@@ -373,7 +373,7 @@ Section proof.
           proph_proof p x ∗ seq_tok ⊤ ∗
           (∀ m d pset, 
             good_state -∗ visited_mapg_auth m d pset pn ==∗ 
-            good_state ∗ visited_mapg_auth m d pset 0) }}}.
+            good_state ∗ visited_mapg_auth m d ∅ 0) }}}.
   Proof.
     iIntros (?????????? ?) 
       "(%Hbuf & %Hprf & %Hlen1 & %Hlen2 & %Hsumpn & Hproph & Hpbuffer & Htok & Hintr) HΦ".
@@ -390,7 +390,11 @@ Section proof.
       
       iModIntro. iFrame. repeat (iSplit; eauto).
       iIntros (???) "Hst Hvm".
-      iFrame. done.
+      iDestruct "Hvm" as "(Hms & Hd & Hps & %Hcoh & %Hpcoh)".
+      destruct Hpcoh as [Hsize Hpend].
+      symmetry in Hsize. apply size_empty_inv, leibniz_equiv in Hsize as ->.
+      iModIntro. iFrame.
+      iPureIntro. split; [done|]. split; [by rewrite size_empty|done].
 
     - wp_apply gwp_list_head; try done.
       iIntros (? H). destruct! H; simplify_eq.
@@ -431,12 +435,8 @@ Section proof.
       iEval (rewrite visited_mapg_pending_remove_rewrite) in "Hvm_rem".
       assert (size γl + sum_list lpn - size γl = sum_list lpn) as -> by lia.
 
-      iMod ("Hgoodtr'" $! m d (pset ∖ γl) with "Hgood Hvm_rem").
-      { iApply visited_mapg_pending_remove_rewrite. }
-
-      Print visited_mapg_pending_remove_rewrite. in "Hvm_rem".
-      iDestruct "Hvm_rem" as "[Hvm H]".
-
+      iMod ("Hgoodtr'" $! m d (pset ∖ γl) with "Hgood Hvm_rem") as "[$ $]".
+      done.
   Qed.
 
   (* Lemma flush_buf_stream_spec_bad :
@@ -507,16 +507,16 @@ Section proof.
       }}})%I.
 
   Definition lrel_auth_comp_bin (A : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ v1 v3,
-    ∀ t3 K3 p (ps ps1 ps_fix : list string) (w1 : val),
+    ∀ t3 K3 p (ps ps1 ps_fix : list string) (lpn : list nat) (w1 : val),
       {{{ seq_tok ⊤ ∗ spec_ideal t3 (fill K3 (v3 #())) ∗
-          p_proof_state w1 ps1 ps_fix ∗ proph_proof p ps ∗
+          p_proof_state w1 ps1 ps_fix lpn ∗ proph_proof p ps ∗
           ⌜lastn (List.length ps1) ps ≠ ps1⌝
       }}}
         v1 w1
       {{{ ps1' (w1' a1 a3 : val), RET (w1', a1)%V;
           ⌜lastn (List.length ps1') ps ≠ ps1'⌝ ∗
           proph_proof p ps ∗ 
-          seq_tok ⊤ ∗ p_proof_state w1' ps1' ps_fix ∗
+          seq_tok ⊤ ∗ p_proof_state w1' ps1' ps_fix lpn ∗
           spec_ideal t3 (fill K3 a3) ∗ A a1 a3
       }}})%I.
 
