@@ -3,7 +3,7 @@ From auth.rel_logic_tern_susp Require Export model spec_rules spec_tactics inter
 From auth.heap_lang Require Import primitive_laws derived_laws.
 From auth.heap_lang.lib Require Import list map.
 From auth.examples Require Export authentikit_susp.
-From auth.examples.susp_correctness Require Import base_correctness helpers.
+From auth.examples.susp_correctness Require Import definitions helpers.
 From iris.base_logic.lib Require Export na_invariants fancy_updates.
 From iris.algebra.lib Require Import dfrac_agree.
 
@@ -15,7 +15,8 @@ Definition i_Authentikit : expr := (i_return, i_bind, i_Authenticable).
 
 (** * Correctness proof *)
 Section proof.
-  Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, !mapG Σ, !capG Σ, !idcntrG Σ}.
+  Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, 
+      !mapG Σ, !capG Σ, !idcntrG Σ, !intransitG Σ, !stateG Σ}.
 
   Definition authBaseN : namespace := nroot .@ "susp_sec".
   Definition tableN : namespace := authBaseN .@ "table".
@@ -34,7 +35,7 @@ Section proof.
 		□(∀ (E: coPset) tᵥ K (s : string) (t : evi_type) id Nc,
       ⌜↑ver_susp_set ⊆ E ∧ ↑tableN ⊆ E⌝ -∗ £ 1 -∗
       seq_tok E -∗ ser_v_proph t x s -∗ v_ser_spec ser t -∗
-			sub_susp_count t x 0 id Nc x -∗ auth_v a s -∗
+			sub_susp_count t x 0 id Nc x -∗ auth_v a s id -∗
 			spec_verifier tᵥ (fill K (finish #()))
 			={⊤}=∗ spec_verifier tᵥ (fill K (SOMEV #())) ∗ seq_tok E).
 
@@ -58,7 +59,7 @@ Section proof.
   Definition v_susp_big_sep_lam (m : gmap val val) (m' : mapg_type) k agv : iProp Σ :=
     ∃ (ctr id Nc: nat) (finish x a ser : val) (t : evi_type) (s : string) (q : Qp),
       (⌜ctr > 0 ∧ m !! k = Some (#ctr, finish)%V ∧ agv ≡ to_frac_agree q x ∧ k = #id⌝ ∗
-      £ 1 ∗ ser_v_proph t x s ∗ v_ser_spec ser t ∗ auth_v a s ∗
+      £ 1 ∗ ser_v_proph t x s ∗ v_ser_spec ser t ∗ auth_v a s id ∗
       sub_susp_count_frags t x ctr id Nc ∗ v_finish_spec' finish x a ser)%I.
 
   Definition v_susp_big_sep (m : gmap val val) (m' : mapg_type) : iProp Σ :=
@@ -66,14 +67,13 @@ Section proof.
 
   Definition is_v_susp_table (l : loc) : iProp Σ :=
     ∃ (d : val) (m : gmap val val) (m' : mapg_type) (vm : state_mapg_type)
-        (dm : done_mapg_type) (ctr : nat),
-      l ↦ᵥ d ∗ ⌜is_map d m⌝ ∗ v_susp_big_sep m m' ∗ 
-      mapg_auth m' ∗ id_frag ctr ∗ visited_mapg_auth vm dm ∗
+        (dm : done_mapg_type) (ps : pending_setg_type) (ctr pn : nat),
+      l ↦ᵥ d ∗ ⌜is_map d m⌝ ∗ v_susp_big_sep m m' ∗ mapg_auth m' ∗ 
+      id_frag ctr ∗ visited_mapg_auth vm dm ps pn ∗
       ⌜∀ (ctr' : nat), ctr' ≥ ctr → m !! #ctr' = None⌝ ∗
-      ⌜∀ (ctr' : nat) v, m !! #ctr' = Some v ↔ ∃ γ, vm !! γ = Some (done_val ctr')⌝ ∗
-      ⌜∀ (ctr' : nat), (∃ γ, vm !! γ = Some (done_val ctr')) → 
-          (∃ ctr'', ctr'' > ctr' ∧ ∃ γ, vm !! γ = Some (done_val ctr'')) ∨ 
-            ∃ γ1, vm !! γ1 = Some pending_val⌝.
+      ⌜∀ (γ : gname) id v, vm !! γ = Some (done_val id) ↔ m !! #id = Some v⌝ ∗
+      ⌜∀ (id : nat), ∃ v, m !! #id = Some v →
+        (size ps > 0) ∨ (∃ id' v', id' > id → m !! #id' = Some v')⌝.
 
   Definition inv_v_susp_table (l: loc) := seq_inv tableN (is_v_susp_table l).
 
@@ -86,11 +86,11 @@ Section proof.
 				v_finish_spec' finish x a ser ∗
 				spec_verifier tᵥ (fill K finish).
   Proof.
-   iIntros (?? ????) "#Htab Hi".
+   (* iIntros (?? ????) "#Htab Hi".
     rewrite /v_finish. v_pures.
     iFrame. iModIntro.
-    iIntros "!#" (???????[??]) "Hlc Htok Hser Hserspec Hc Hvauth Hv".
-    iDestruct "Hvauth" as "[->|(%&%&%&%& -> & #Hlbfrag & #Hvisdone & -> & #Hinv)]".
+    iIntros "!#" (????????[??]) "Hlc Htok Hser Hserspec Hc Hvauth Hvdone Hv".
+    iDestruct "Hvauth" as "[->|(%&%& -> & #Hlbfrag & -> & #Hinv)]".
     - v_pures. v_bind (ser _).
       iMod ("Hserspec" with "Hc Hser Hv") as "(Hc & Hser & Hv) /=".
       v_pures. v_bind (Hash _).
@@ -125,7 +125,8 @@ Section proof.
         
       + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%&%& Hmfrag & Hlbfrag' & %Hmsub & Hsusp & Hproph)".
 
-
+        simplify_eq H1. intros <-.
+        iPoseProof (lg_mapg_agree with "Hlbfrag' Hlbfrag") as "(-> & _ & _)".
 
         iMod (lc_fupd_elim_later with "Hlc Htabo") as "Htabo".
         iDestruct "Htabo" as "(%&%&%&%&%&%idctr & Hl & %Hm & 
@@ -143,15 +144,17 @@ Section proof.
         destruct Hin as [(?&Hin&?)%Some_equiv_eq ?].
 
         iDestruct (big_sepM_delete _ m' #pid _ Hin with "Hbigsep") as "[Hms Hbigsep]".
-        iDestruct "Hms" as (ctr ?????????[Hcgt [Hin' [? ?]]]) "(Hlc & Hxser & Hxserspec & #Hauthv & Hxc & Hxfin)".
+        iDestruct "Hms" as (ctr ??????????[Hcgt [Hin' [? ?]]]) 
+            "(Hlc & Hxser & Hxserspec & Hauthv & Hxvisdone & Hxc & Hxfin)".
         assert (pid = id0) as <-; try by simplify_eq. simplify_eq.
 
-        
-        iMod (get_visit_reached_done with )
+        iDestruct "Hxc" as "(Hcap & % & Hxc & Hxagg)".
+        iAssert (sub_susp_count_frags t0 x1 ctr pid Nc0) with "[$Hcap $Hxc $Hxagg //]" as "Hxc".
 
-        iMod (count_update with "[] Hlbfrag [] Hvmap Hxc Hsusp Hv") as "(Hvmap & #Hvisfin & Hxc & Hsusp & Hv) /=".
+        iMod (visited_update_finished with "[] [] [] Hvmap Hlbfrag Hsusp Hxc") as 
+
+        iMod (count_update authBaseN with "[] Hlbfrag Hvisdone Hvmap Hxc Hsusp Hv") as "(Hvmap & #Hvisfin & Hxc & Hsusp & Hv) /=".
         { assert (x1 = pv) by admit. by simplify_eq. }
-        { admit. }
 
         v_pures. v_load. v_bind (map_lookup _ _).
         iMod (gwp_map_lookup #pid d m () ⊤ _
@@ -178,7 +181,7 @@ Section proof.
             with "Hbigsep") as "Hbigsep".
           { iIntros (?? Hlook) "Hbigsep".
             rewrite /v_susp_big_sep_lam.
-            iDestruct "Hbigsep" as (??????????[?[?[??]]]) "($ & $ & $ & $)".
+            iDestruct "Hbigsep" as (???????????[?[?[??]]]) "($ & $ & $ & $)".
             iPureIntro. exists q1. 
             split; eauto. split; last eauto.
             destruct (decide (k = #pid)); simplify_eq.
@@ -189,7 +192,7 @@ Section proof.
           v_store. v_pures.
           assert (ctr - 1 = 0) as ->.
           { assert (ctr = 1) as ->; eauto. simplify_eq. lia. }
-          iMod (mapg_remove_count_0 authBaseN with "Hxc Hmauth") as "[Hxc Hmauth]".
+          iMod (mapg_remove_count_0 with "Hxc Hmauth") as "[Hxc Hmauth]"; try lia.
 
           iMod ("Hclose_tab" with "[$Htok $Hl $Hmauth $Hbigsep $Hidfrag $Hvmap]") as "Htok".
           { iNext. iFrame "%".
@@ -200,12 +203,12 @@ Section proof.
               right. by apply Hidinv.
             - split.
               + intros ?.
-                rewrite lookup_delete_Some in H4.
-                destruct! H4.
+                rewrite lookup_delete_Some in H5.
+                destruct! H5.
                 pose proof (Hvisinv ctr' v0) as Hvisinv'.
                 destruct Hvisinv' as [Hvisinvf Hvisinvb].
-                specialize (Hvisinvf H6).
-                destruct Hvisinvf as (?)
+                specialize (Hvisinvf H7).
+                destruct Hvisinvf as [? Hvisin].
                  }
 
           by iMod ("Hxfin" $! E with "[//] Hlc Htok Hxser Hxserspec Hxc Hauthv Hv") as "[$$]".
@@ -272,42 +275,41 @@ Section proof.
             by apply Hidinv.
             intros ?. simplify_eq.
             specialize (Hidinv ctr' H4). simplify_eq. }
-          by iFrame.
+          by iFrame. *)
   Admitted.
 
-  Definition p_finish_spec (finish ser a : val) (s : string) : iProp Σ :=
+  Definition p_finish_spec (finish ser a : val) (s : string) (c : nat) : iProp Σ :=
     ∀ E pr_s ls t,
       ⌜↑prover_susp_set ⊆ E⌝ -∗
       {{{ seq_tok E ∗ proph_proof pr_s ls ∗
-          susp_p_ser_spec ser t ∗ susp_ser_p_real t a s }}}
+          susp_p_ser_spec ser t ∗ susp_ser_p_real t c a s }}}
           finish #pr_s
       {{{ ls' (s' : string), RET #s'; 
             seq_tok E ∗ proph_proof pr_s ls' ∗ 
-            ⌜s = s' ∧ ls = s' :: ls'⌝ }}}.
-
-  (* Definition p_finish_spec_bad (finish ser a : val) (sprf : string) : iProp Σ :=
-    ∀ E pr_s s ls t,
-      ⌜↑prover_susp_set ⊆ E⌝ -∗
-      {{{ seq_tok E ∗ proph_proof pr_s (sprf :: ls) ∗
-          susp_p_ser_spec ser t ∗ susp_ser_p_real t a s ∗
-          ⌜sprf ≠ s⌝ }}}
-          finish #pr_s
-      {{{ v, RET v; False }}}. *)
+            ⌜s = s' ∧ ls = s' :: ls'⌝ ∗
+            (∀ m d ps pn (γl : pending_setg_type),
+              good_state -∗ penset_frag γl -∗
+              visited_mapg_auth m d ps pn -∗ 
+              pencount_frag pn -∗ ⌜size γl = c⌝ -∗
+              ([∗ set] γ ∈ γl, ∃ lb,
+                lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) ==∗ 
+              good_state ∗
+              visited_mapg_pending_removed m d ps pn γl) }}}.
 
   Lemma p_finish_spec' :
-    ∀ ser a sprf,
+    ∀ ser a sprf pn,
       {{{ True }}}
           p_finish ser a
       {{{ (finish : val), RET finish; 
-          p_finish_spec finish ser a sprf }}}.
+          p_finish_spec finish ser a sprf pn }}}.
   Proof.
-    iIntros (????) "_ HΦ".
+    iIntros (?????) "_ HΦ".
     wp_rec. wp_pures. iApply "HΦ".
     iModIntro.
-    iIntros (??????) "!# (Htok & Hprf & #Hserspec & #Hser) HΦ".
+    iIntros (???? ? ?) "!# (Htok & Hprf & #Hserspec & #Hser) HΦ".
     wp_pures.
-    wp_apply ("Hserspec" with "[//] Hser").
-    iIntros (?). wp_pures.
+    wp_apply ("Hserspec" with "[//] Hser"); eauto.
+    iIntros "Hgood". wp_pures.
 
     destruct ls; simplify_eq.
     { wp_apply (wp_resolve_proph_string with "Hprf").
@@ -317,71 +319,58 @@ Section proof.
     iIntros (?) "[% Hprf]". wp_pures.
     simplify_eq.
 
-    iApply "HΦ". by iFrame.
+    iApply "HΦ". iFrame.
+    iModIntro. repeat (iSplit; eauto).
+    iIntros (?????) "Hst Hpset Hvm Hpc % #HbigL".
+    
+    iPoseProof ("Hgood" with "Hst") as (?) "($ &% & #HbigL')".
+    iPoseProof (big_sepS_sep
+          (λ γ, ∃ n : natO, visit_reached_done γ n)%I
+          (λ γ, ∃ (lb : loc), lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝)%I
+        with "HbigL'") as "[HbigLreached HbigL'']".
+
+    iPoseProof (susp_ser_p_real_γl_unique authBaseN γl γl0 with "Hser [//] [//] HbigL HbigL''") as "<-".
+    
+    iMod (pending_set_remove with "Hvm Hpc Hpset HbigLreached")
+      as "[$ _]".
+    done.
   Qed.
 
-  (* Lemma p_finish_spec_bad' :
-    ∀ ser a sprf,
-      {{{ True }}}
-          p_finish ser a
-      {{{ (finish : val), RET finish; 
-          p_finish_spec_bad finish ser a sprf }}}.
-  Proof.
-    iIntros (????) "_ HΦ".
-    wp_rec. wp_pures. iApply "HΦ".
-    iModIntro.
-    iIntros (???????) "!# (Htok & Hprf & #Hserspec & #Hser & %) HΦ".
-    wp_pures.
-    wp_apply ("Hserspec" with "[//] Hser").
-    iIntros (?). wp_pures.
+  Definition p_buffer_elem (finish_s_pn : (val * string * nat)) : iProp Σ :=
+    ∃ (finish ser a : val) (s : string) (pn : nat) (t : evi_type) γl,
+      ⌜finish_s_pn = (finish, s, pn)⌝ ∗ penset_frag γl ∗ ⌜pn = size γl⌝ ∗
+      ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) ∗
+      susp_ser_p_real t pn a s ∗ susp_p_ser_spec ser t ∗
+      p_finish_spec finish ser a s pn.
 
-    wp_apply (wp_resolve_proph_string with "Hprf").
-    iIntros (?) "[% Hprf]". wp_pures.
-    simplify_eq.
-  Qed. *)
+  Definition p_buffer (buf : list (val * string * nat)) : iProp Σ :=
+    [∗ list] k ↦ finish_s_pn ∈ buf, p_buffer_elem finish_s_pn.
 
-  Definition p_buffer_elem (finish_s : (val * string)) : iProp Σ :=
-    ∃ (finish ser a : val) (s : string) (t : evi_type),
-      ⌜finish_s = (finish, s)⌝ ∗
-      susp_ser_p_real t a s ∗ susp_p_ser_spec ser t ∗
-      p_finish_spec finish ser a s.
+  Definition sum_list (l : list nat) : nat :=
+    fold_right Nat.add 0 l.
 
-  (* Definition p_buffer_elem_bad (finish_s : (val * string)) : iProp Σ :=
-    ∃ (finish ser a : val) (pr_s s : string) (t : evi_type),
-      ⌜finish_s = (finish, pr_s)⌝ ∗
-      susp_ser_p_real t a s ∗ susp_p_ser_spec ser t ∗
-      p_finish_spec_bad finish ser a pr_s. *)
-
-  Definition p_buffer (buf : list (val * string)) : iProp Σ :=
-    [∗ list] k ↦ finish_s ∈ buf, p_buffer_elem finish_s.
-
-  (* Definition p_buffer_bad (buf : list (val * string)) : iProp Σ :=
-    ∃ buf' buf'' finish pr_s,
-      ⌜buf = buf' ++ [(finish, pr_s)] ++ buf''⌝ ∗
-      p_buffer_elem_bad (finish, pr_s) ∗
-      [∗ list] k ↦ finish_s ∈ buf', p_buffer_elem finish_s ∗
-      [∗ list] k ↦ finish_s ∈ buf'', p_buffer_elem finish_s. *)
-
-  Definition p_proof_state (v : val) (ps ps_fix : list string) : iProp Σ :=
-    ∃ (prf1 buf1 : val) (bufl : list val),
-      ⌜List.length ps = List.length bufl⌝ ∗
-      ⌜v = (prf1, buf1)%V⌝ ∗ p_buffer (List.combine bufl ps) ∗
+  Definition p_proof_state (v : val) (ps ps_fix : list string) (lpn : list nat) : iProp Σ :=
+    ∃ (prf1 buf1 : val) (bufl : list val) (pn : nat),
+      ⌜List.length ps = List.length bufl⌝ ∗ pencount_frag pn ∗
+      ⌜List.length ps = List.length lpn⌝ ∗ ⌜pn = sum_list lpn⌝ ∗
+      ⌜v = (prf1, buf1)%V⌝ ∗ p_buffer (List.combine (List.combine bufl ps) lpn) ∗
       ⌜is_proof prf1 ps_fix⌝ ∗ ⌜is_list bufl buf1⌝.
 
-  (* Definition p_bad_proof_state (v : val) (ps : list string) : iProp Σ :=
-    ∃ (prf1 buf1 : val) (bufl : list val) ps',
-      ⌜v = (prf1, buf1)%V⌝ ∗ p_buffer_bad (List.combine bufl ps) ∗
-      ⌜is_proof prf1 ps'⌝ ∗ ⌜is_list bufl buf1⌝. *)
-
   Lemma flush_buf_stream_spec :
-    ∀ (p : proph_id) (prf buf : val) (ps ps_real ps_proph : list string) (bufl : list val),
+    ∀ (p : proph_id) (prf buf : val) (lpn : list nat) (pn : nat)
+        (ps ps_real ps_proph : list string) (bufl : list val)
+        m d pset,
       {{{ ⌜is_list bufl buf⌝ ∗ ⌜is_proof prf ps⌝ ∗
           ⌜List.length bufl = List.length ps_real⌝ ∗
-          proph_proof p ps_proph ∗ p_buffer (combine bufl ps_real) ∗
+          ⌜List.length bufl = List.length lpn⌝ ∗ 
+          pencount_frag pn ∗ ⌜pn = sum_list lpn⌝ ∗
+          visited_mapg_auth m d pset pn ∗
+          proph_proof p ps_proph ∗ p_buffer (combine (combine bufl ps_real) lpn) ∗
           seq_tok ⊤ }}}
         flush_buf_stream buf prf #p
       {{{ prf' (ps' ps_proph' x : list string), RET prf';
           ⌜ps_proph = ps_proph' ++ x⌝ ∗ ⌜ps_proph' = ps_real⌝ ∗
+          pencount_frag 0 ∗ visited_mapg_auth m d pset 0 ∗
           ⌜is_proof prf' ps'⌝ ∗ ⌜ps' = reverse ps_proph' ++ ps⌝ ∗
           proph_proof p x ∗ seq_tok ⊤ }}}.
   Proof.
@@ -446,16 +435,17 @@ Section proof.
     List.skipn (length l - n) l.
 
   Definition lrel_auth_comp_tern (A : lrel_tern Σ) : lrel Σ := LRel (λ v1 v2 v3,
-    ∀ t2 K2 t3 K3 p (ps ps1 ps2 ps_fix : list string) (w1 w2 : val),
+    ∀ t2 K2 t3 K3 p (ps ps1 ps2 ps_fix : list string) (lpn : list nat) (w1 w2 : val),
       {{{ seq_tok ⊤ ∗ spec_verifier t2 (fill K2 (v2 w2)) ∗
           spec_ideal t3 (fill K3 (v3 #())) ∗
-          p_proof_state w1 ps1 ps_fix ∗ v_proof_state w2 ps2 ∗
-          proph_proof p ps ∗ ⌜ps = reverse ps2 ++ ps1⌝
+          p_proof_state w1 ps1 ps_fix lpn ∗ v_proof_state w2 ps2 ∗
+          proph_proof p ps ∗ ⌜ps = reverse ps2 ++ ps1⌝ ∗
+          intransit
       }}}
         v1 w1
-      {{{ ps1' (w1' a1 a3 : val), RET (w1', a1)%V;
-          seq_tok ⊤ ∗ spec_ideal t3 (fill K3 a3) ∗
-          proph_proof p ps ∗ p_proof_state w1' ps1' ps_fix ∗
+      {{{ ps1' lpn' (w1' a1 a3 : val), RET (w1', a1)%V;
+          seq_tok ⊤ ∗ spec_ideal t3 (fill K3 a3) ∗ intransit ∗
+          proph_proof p ps ∗ p_proof_state w1' ps1' ps_fix lpn' ∗
           
           ((∃ ps2' (w2' a2 : val),
             ⌜ps = reverse ps2' ++ ps1'⌝ ∗ A a1 a2 a3 ∗ 
