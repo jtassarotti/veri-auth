@@ -971,17 +971,18 @@ Section proof.
     { (* unary  *) admit. }
     { (* binary *) admit. }
     rewrite interp_var0_ext1 interp_var2_ext3.
-    iIntros (??????????? Ψ) "!# (Htok & Hv & Hi & Hpw & Hvw & Hpr & %) HΨ".
+    iIntros (???????????? Ψ) "!# (Htok & Hv & Hi & Hpw & Hvw & Hpr & % & Hintr) HΨ".
     interp_unfold! in "Hauth".
     rewrite interp_var3_ext4 interp_var0_ext1.
     iDestruct "Hauth" as "(Hauth & _ & _)".
     iDestruct "Hauth" as (tA' ? a1 a2 un_a1 s [-> ?]) "(Hpserp & #HA & Hpvauth)".
-    iDestruct "Hpw" as (???? ->) "(Hbuf & % & %)".
+    iDestruct "Hpw" as (???? ->) "(% & % & % & Hbuf & % & %)".
     iDestruct "Hvw" as (??) "([-> %Hvprf] & Hid)".
     iDestruct "Hpvauth" as (??? ->) "Hvinv".
     v_pures; i_pures; wp_pures.
     iDestruct "Hvinv" as "[[-> Hinv_fill]|(%&%& -> & Hslb & Hinv_unfill & -> & Hinv_authv)]".
-    - iMod (na_inv_acc with "Hinv_fill Htok") as "(>Hinvo & Htok & Hclose_inv)"; try solve_ndisj.
+  Admitted.
+    (* - iMod (na_inv_acc with "Hinv_fill Htok") as "(>Hinvo & Htok & Hclose_inv)"; try solve_ndisj.
       iDestruct "Hinvo" as "[Hlb [(% & Hlr & [Hbrproph %Hin])|[Hlr Hbrproph]]]"; wp_load; wp_pures.
       + wp_apply (wp_resolve_proph_bool with "Hbrproph").
         iIntros (?) "[% Hbrproph]". 
@@ -1749,7 +1750,7 @@ Section proof.
               combine (p_finish :: bufl) (s' :: ps1))
             as -> by done.
           iFrame "Hbuf". iExists v, ps'. by iFrame "%". *)
-  Admitted.
+  Admitted. *)
 
   Lemma refines_Authenticatable Θ (Δ : ctxO Σ Θ) :
     ⊢ REL p_Authenticatable << v_Authenticable << i_Authenticable : ⟦ Authenticatable ⟧ (auth_ctx Δ).
@@ -1857,7 +1858,9 @@ Section proof.
     iDestruct "Hc" as "(Hc & _ & _)".
     v_bind (f2 _).
     wp_apply ("Hc" $! _ _ _ _ _ ps [] (reverse ps) with "[$Hproph $Hv $Hi $Htok $Hid]").
-    { iSplit; last first. repeat (iSplit; eauto).
+    { iSplitL.
+      {  }
+      last first. repeat (iSplit; eauto).
       iPureIntro.
       { eexists _. admit. }
       { admit. }

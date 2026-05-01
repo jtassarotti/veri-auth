@@ -135,13 +135,11 @@ Section authenticatable.
       iCombine "HintrA' HintrB'" as "Hcomb".
       replace ((q/2)/2 + (q/2)/2)%Qp with (q/2)%Qp by (symmetry; apply Qp.div_2).
       iFrame "Hcomb".
-      iIntros "Hg".
-      iDestruct ("HreachA" with "Hg") as (γlA) "(Hg & %HszA & HbigA)".
-      iDestruct ("HreachB" with "Hg") as (γlB) "(Hg & %HszB & HbigB)".
-      iExists (γlA ∪ γlB). iFrame "Hg".
-      iSplit.
-      { iPureIntro. admit. (* size disjoint union = c1+c2 — needs disjointness *) }
-      admit. (* combine big_sepS for tprod *)
+      iIntros (γl) "Hg Hpen %Hsz Hbig".
+      (* Partition γl into γlA ⊎ γlB by where each γ's lb sits in (ua, ub).
+         Then split penset_frag, call HreachA/HreachB transformers, recombine.
+         TODO: derive the partition + size γlA = c1 ∧ size γlB = c2 + big_sepS split. *)
+      admit.
     - (* 3. suspend_spec *)
       iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & #HA' & #Hser) HΨ".
       wp_pures.
@@ -358,15 +356,7 @@ Section authenticatable.
         wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser1 $Htok $Hintr]").
         iIntros "(Htok & Hintr & HreachA)". wp_pures.
         rewrite /inl_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
-        iIntros "Hg".
-        iDestruct ("HreachA" with "Hg") as (γlA) "(Hg & %HszA & HbigA)".
-        iExists γlA. iFrame "Hg". iSplit; [done|].
-        iApply (big_sepS_mono with "HbigA").
-        iIntros (γ ?) "[Hreach Hlb]". iFrame "Hreach".
-        iDestruct "Hlb" as (lb) "[Hlg %Hp]".
-        iExists lb. iFrame "Hlg". iPureIntro.
-        (* p_sub_obj tsum has a `v = v'` constraint that's unsatisfiable
-           when v = InjLV v'. Likely a bug in definitions.v p_sub_obj. *)
+        (* Forward γl through HreachA's transformer *)
         admit.
       + (* InjR *)
         rewrite /sum_ser''. wp_pures.
@@ -374,13 +364,6 @@ Section authenticatable.
         wp_apply ("HsserB" $! _ _ _ c q with "[//] [$Hser2 $Htok $Hintr]").
         iIntros "(Htok & Hintr & HreachB)". wp_pures.
         rewrite /inr_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
-        iIntros "Hg".
-        iDestruct ("HreachB" with "Hg") as (γlB) "(Hg & %HszB & HbigB)".
-        iExists γlB. iFrame "Hg". iSplit; [done|].
-        iApply (big_sepS_mono with "HbigB").
-        iIntros (γ ?) "[Hreach Hlb]". iFrame "Hreach".
-        iDestruct "Hlb" as (lb) "[Hlg %Hp]".
-        iExists lb. iFrame "Hlg". iPureIntro.
         admit.
     - (* 3. suspend_spec      *)
       iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & #HA' & #Hser) HΨ".
@@ -648,7 +631,9 @@ Section authenticatable.
       iApply "HΨ". iModIntro. iFrame "Htok".
       iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
       iDestruct "Hintr" as "[$ _]".
-      iIntros "Hg". iExists ∅. iFrame. iSplit; [done|]. by rewrite big_sepS_empty.
+      iIntros (γl) "Hg Hpen %Hsz Hbig".
+      apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+      iFrame "Hg Hpen". by rewrite big_sepS_empty.
     - (* 3. suspend_spec *)
       iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & HA & #Hser) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
@@ -749,7 +734,9 @@ Section authenticatable.
       iApply "HΨ". iModIntro. iFrame "Htok".
       iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
       iDestruct "Hintr" as "[$ _]".
-      iIntros "Hg". iExists ∅. iFrame. iSplit; [done|]. by rewrite big_sepS_empty.
+      iIntros (γl) "Hg Hpen %Hsz Hbig".
+      apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+      iFrame "Hg Hpen". by rewrite big_sepS_empty.
     - (* 3. suspend_spec *)
       iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & HA & #Hser) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
@@ -964,7 +951,9 @@ Section authenticatable.
             iExists (longest_valid_prefix_bool (map snd us')), (q/2)%Qp, true.
             iFrame "Hlr Hdonate". iExists us'. iFrame. done. }
           iApply "HΨ". iModIntro. iFrame "Htok Hkeep".
-          iIntros "Hg". iExists ∅. iFrame. iSplit; [done|]. by rewrite big_sepS_empty.
+          iIntros (γl) "Hg Hpen %Hsz Hbig".
+          apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+          iFrame "Hg Hpen". by rewrite big_sepS_empty.
         * (* D3: lr false, empty_proph_bs → close into D4 with lr=false *)
           iDestruct "Hpb" as (us) "[Hp %Hbs]".
           wp_apply (wp_resolve_proph with "Hp"). iIntros (us') "[%Husfm Hp]".
@@ -978,7 +967,9 @@ Section authenticatable.
             iExists (longest_valid_prefix_bool (map snd us')), (q/2)%Qp, false.
             iFrame "Hlr Hdonate". iExists us'. iFrame. done. }
           iApply "HΨ". iModIntro. iFrame "Htok Hkeep".
-          iIntros "Hg". iExists ∅. iFrame. iSplit; [done|]. by rewrite big_sepS_empty.
+          iIntros (γl) "Hg Hpen %Hsz Hbig".
+          apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+          iFrame "Hg Hpen". by rewrite big_sepS_empty.
         * (* D4: already deposited — combine our piece with existing, preserve b4 *)
           iDestruct "Hpb" as (us) "[Hp %Hbs]".
           wp_apply (wp_resolve_proph with "Hp"). iIntros (us') "[%Husfm Hp]".
@@ -993,7 +984,9 @@ Section authenticatable.
             iExists (longest_valid_prefix_bool (map snd us')), (q/2 + q4)%Qp, b4.
             iFrame "Hlr Hcombined". iExists us'. iFrame. done. }
           iApply "HΨ". iModIntro. iFrame "Htok Hkeep".
-          iIntros "Hg". iExists ∅. iFrame. iSplit; [done|]. by rewrite big_sepS_empty.
+          iIntros (γl) "Hg Hpen %Hsz Hbig".
+          apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+          iFrame "Hg Hpen". by rewrite big_sepS_empty.
       + (* emp, c=1 *)
         iDestruct "Hemp" as (p lb lr a h r) "([-> ->] & #Hinv)".
         wp_pures.
@@ -1019,13 +1012,9 @@ Section authenticatable.
           iApply "HΨ". iModIntro. iFrame "Htok".
           iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
           iDestruct "Hintr" as "[Hkeep _]". iFrame "Hkeep".
-          iIntros "Hg".
-          iDestruct ("Hgood" with "Hg") as "[Hg #Hreached]".
-          iExists {[γ]}. iFrame "Hg". iSplit; [iPureIntro; by rewrite size_singleton|].
-          rewrite big_sepS_singleton. iSplit.
-          { iExists n. iExact "Hreached". }
-          iExists lb. iFrame "Hlg".
-          iPureIntro. simpl. exists p, lb, lr, a, h. done.
+          iIntros (γl) "Hg Hpen %Hsz Hbig".
+          (* c=1 ⇒ γl is a singleton {[γ']}. Discharging size_inv via TODO. *)
+          admit.
     - (* 3. suspend_spec      *) admit.
     - (* 4. unsuspend_spec    *) admit.
     - (* 5. v_ser_spec        *) admit.

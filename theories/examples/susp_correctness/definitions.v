@@ -402,8 +402,11 @@ Section authenticatable_definitions.
       {{{ susp_ser_p_real t c a1 s ∗ seq_tok E ∗ intransit q }}}
         ser a1
       {{{ RET #s; seq_tok E ∗ intransit (q/2)%Qp ∗
-          (good_state -∗
-            ∃ (γl : pending_setg_type), good_state ∗ ⌜size γl = c⌝ ∗
+          (∀ (γl : pending_setg_type),
+            good_state -∗ penset_frag γl -∗ ⌜size γl = c⌝ -∗
+            ([∗ set] γ ∈ γl,
+              ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a1 #lb⌝) -∗
+            good_state ∗ penset_frag γl ∗
             ([∗ set] γ ∈ γl, (∃ n, visit_reached_done γ n) ∗
               ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a1 #lb⌝)) }}}.
 
