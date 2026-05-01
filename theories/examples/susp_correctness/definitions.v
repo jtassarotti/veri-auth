@@ -129,8 +129,8 @@ Section authenticatable_definitions.
     | tprod t1 t2 =>
         ∃ v1 v2, v = (v1, v2)%V ∧ (sv = v1 ∨ sv = v2 ∨ p_sub_obj t1 v1 sv ∨ p_sub_obj t2 v2 sv)
     | tsum t1 t2 =>
-        ∃ v', ((v = InjLV v' ∧ p_sub_obj t1 v' sv ∧ v = v') ∨
-                 (v = InjRV v' ∧ p_sub_obj t2 v' sv ∧ v = v'))
+        ∃ v', ((v = InjLV v' ∧ p_sub_obj t1 v' sv ∧ sv = v') ∨
+                 (v = InjRV v' ∧ p_sub_obj t2 v' sv ∧ sv = v'))
     | tstring => False
     | tint => False
     | tauth =>
