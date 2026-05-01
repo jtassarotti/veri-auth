@@ -1013,8 +1013,20 @@ Section authenticatable.
           iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
           iDestruct "Hintr" as "[Hkeep _]". iFrame "Hkeep".
           iIntros (γl) "Hg Hpen %Hsz Hbig".
-          (* c=1 ⇒ γl is a singleton {[γ']}. Discharging size_inv via TODO. *)
-          admit.
+          (* c=1 ⇒ γl is a singleton {[γ']} *)
+          destruct (size_1_elem_of γl Hsz) as [γ' Hequiv].
+          apply leibniz_equiv in Hequiv. subst γl.
+          rewrite big_sepS_singleton.
+          iDestruct "Hbig" as (lb') "[#Hlg' %Hp']".
+          (* Match γ' (caller's) with γ (inv's) via lg_mapg_agree on lb=lb'. *)
+          assert (lb' = lb) as -> by
+            (simpl in Hp'; destruct Hp' as (? & ? & ? & ? & ? & [Heq Heqlb]);
+             inversion Heq; subst; by inversion Heqlb).
+          iDestruct (lg_mapg_agree with "Hlg Hlg'") as "(<- & _ & _)".
+          iDestruct ("Hgood" with "Hg") as "[Hg #Hreached]".
+          iFrame "Hg Hpen". rewrite big_sepS_singleton.
+          iSplit; [iExists n; iExact "Hreached"|].
+          iExists lb. iFrame "Hlg'". iPureIntro. exact Hp'.
     - (* 3. suspend_spec      *) admit.
     - (* 4. unsuspend_spec    *) admit.
     - (* 5. v_ser_spec        *) admit.

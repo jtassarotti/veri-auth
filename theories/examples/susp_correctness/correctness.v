@@ -463,7 +463,7 @@ Section proof.
           spec_ideal t3 (fill K3 (v3 #())) ∗
           p_proof_state w1 ps1 ps_fix lpn ∗ v_proof_state w2 ps2 ∗
           proph_proof p ps ∗ ⌜ps = reverse ps2 ++ ps1⌝ ∗
-          intransit 1%Qp
+          intransit 1%Qp ∗ good_state
       }}}
         v1 w1
       {{{ ps1' lpn' (w1' a1 a3 : val), RET (w1', a1)%V;
@@ -473,11 +473,11 @@ Section proof.
           ((∃ ps2' (w2' a2 : val),
             ⌜ps = reverse ps2' ++ ps1'⌝ ∗ A a1 a2 a3 ∗ 
             spec_verifier t2 (fill K2 (SOMEV (w2', a2)%V)) ∗
-            v_proof_state w2' ps2') ∨
+            v_proof_state w2' ps2' ∗ good_state) ∨
               
             ((⌜List.length ps < List.length ps1'⌝) ∨
               ⌜lastn (List.length ps1') ps ≠ ps1'⌝ ∗
-              (lrel_tern_bin A) a1 a3))
+              (lrel_tern_bin A) a1 a3 ∗ false_state))
             
             (* (∃ K3 ps2' (v2' w2' : val),
               spec_verifier t2 (fill K3 (v2' w2')) ∗
@@ -1850,6 +1850,7 @@ Section proof.
 
     iAssert (id_frag 0) as "Hid"; first admit.
     iAssert (mapg_auth ∅) as "Hmauth"; first admit.
+    iAssert (intransit 1) as "Hintr"; first admit.
 
     iMod (na_inv_alloc seqG_name ⊤ tableN (is_v_susp_table l) 
       with "[$Hid $Hl $Hmauth]") as "#Htab".
@@ -1857,30 +1858,31 @@ Section proof.
 
     iDestruct "Hc" as "(Hc & _ & _)".
     v_bind (f2 _).
-    wp_apply ("Hc" $! _ _ _ _ _ ps [] (reverse ps) with "[$Hproph $Hv $Hi $Htok $Hid]").
+    wp_apply ("Hc" $! _ _ _ _ _ ps [] (reverse ps) with "[$Hproph $Hv $Hi $Htok $Hid $Hintr]").
     { iSplitL.
-      {  }
-      last first. repeat (iSplit; eauto).
-      iPureIntro.
-      { eexists _. admit. }
+      { repeat iExists _.
+        repeat instantiate (2 := []).
+        instantiate (3 := []).
+        repeat (iSplit; eauto).
+        simpl. unfold p_buffer.
+        by iApply big_sepL_nil. }
+      repeat (iSplit; eauto); last first.
       { admit. }
-      unfold p_proof_state.
-      do 2 iExists (InjLV #()).
-      instantiate (1 := []). iExists [].
-      repeat (iSplit; eauto).
-      rewrite /p_buffer.
-      rewrite combine_nil.
-      by iApply big_sepL_nil. }
+      iPureIntro.
+      eexists _. split; eauto.
+      admit. }
       
-    iClear "Hid Hmauth".
-    iIntros (ps1' w1 a1 a3) "(Htok & Hi & Hproph & Hpw & Hv) /=".
+    iClear "Hid Hmauth Hintr".
+    iIntros (ps1' lpn' w1 a1 a3) "(Htok & Hi & Hintr & Hproph & Hpw & Hv) /=".
     v_pures. wp_pures.
-    iDestruct "Hpw" as (???? ->) "(Hbuf & %Hprf & %Hbuf)".
+    iDestruct "Hpw" as (??????) "(% & -> & Hbuf & % & %Hbuf)".
     wp_pures.
-    wp_apply (flush_buf_stream_spec with "[$Hproph $Hbuf $Htok]").
-    { instantiate (1 := []). eauto. }
+    wp_apply (flush_buf_stream_spec with "[$Hproph $Hbuf $Htok $Hintr]").
+    { instantiate (1 := pn). instantiate (1 := []).
+      repeat (iSplit; eauto). iPureIntro.
+      rewrite -H. done. }
 
-    iIntros (????) "(%&%&%&%& Hproph & Htok)".
+    iIntros (????) "(%&%&%&%& Hproph & Htok & Hgoodtr)".
     wp_pures.
     
     wp_apply (wp_resolve_proph_nil_string with "Hproph").
@@ -1889,8 +1891,8 @@ Section proof.
     iDestruct "Hv" as "[(%&%&%& % & HA & Hv & Hvw)|[%|(%Hne & HA)]]"; last first.
     { unfold lastn in Hne. 
       assert (∀ {A} (x : list A), (length x) - (length x) = 0) by lia.
-      specialize (H0 _ (longest_valid_prefix_string (map snd us))).
-      rewrite H0 in Hne. simplify_list_eq. }
+      specialize (H1 _ (longest_valid_prefix_string (map snd us))).
+      rewrite H1 in Hne. simplify_list_eq. }
     { lia. }
 
     assert (ps2' = []) as -> by admit.
