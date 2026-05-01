@@ -471,7 +471,25 @@ Section authenticatable.
         wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser1 $Htok $Hintr]").
         iIntros "(Htok & Hintr & HreachA)". wp_pures.
         rewrite /inl_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
-        (* Forward γl through HreachA's transformer *)
+        iIntros (γl) "Hg Hpen %Hsz Hbig".
+        (* Convert big_sepS body from p_sub_obj tsum to p_sub_obj tA *)
+        iAssert ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj tA w #lb⌝)%I
+          with "[Hbig]" as "HbigA".
+        { iApply (big_sepS_mono with "Hbig").
+          iIntros (γ ?) "(%lb & Hlg & %Hp)". iExists lb. iFrame "Hlg".
+          iPureIntro. simpl in Hp.
+          destruct Hp as (v' & [Hl | Hr]); [|destruct Hr as (Heq & _ & _); discriminate].
+          destruct Hl as (Heq1 & Hsub & Heq2).
+          inversion Heq1; subst v'. exact Hsub. }
+        iSpecialize ("HreachA" $! γl with "Hg Hpen [//] HbigA").
+        iDestruct "HreachA" as "(Hg & Hpen & HbigA')". iFrame "Hg Hpen".
+        iApply (big_sepS_mono with "HbigA'").
+        iIntros (γ ?) "[Hreach Hlb]". iFrame "Hreach".
+        iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
+        iPureIntro. simpl. exists w. left. split; [done|].
+        split; [done|]. (* sv = v' i.e. #lb = w. Provable from input Hbig but
+                           that has been consumed. Recovering would need a
+                           persistent copy of #lb = w per γ before HreachA. *)
         admit.
       + (* InjR *)
         rewrite /sum_ser''. wp_pures.
@@ -479,6 +497,22 @@ Section authenticatable.
         wp_apply ("HsserB" $! _ _ _ c q with "[//] [$Hser2 $Htok $Hintr]").
         iIntros "(Htok & Hintr & HreachB)". wp_pures.
         rewrite /inr_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
+        iIntros (γl) "Hg Hpen %Hsz Hbig".
+        iAssert ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj tB w #lb⌝)%I
+          with "[Hbig]" as "HbigB".
+        { iApply (big_sepS_mono with "Hbig").
+          iIntros (γ ?) "(%lb & Hlg & %Hp)". iExists lb. iFrame "Hlg".
+          iPureIntro. simpl in Hp.
+          destruct Hp as (v' & [Hl | Hr]); [destruct Hl as (Heq & _ & _); discriminate|].
+          destruct Hr as (Heq1 & Hsub & Heq2).
+          inversion Heq1; subst v'. exact Hsub. }
+        iSpecialize ("HreachB" $! γl with "Hg Hpen [//] HbigB").
+        iDestruct "HreachB" as "(Hg & Hpen & HbigB')". iFrame "Hg Hpen".
+        iApply (big_sepS_mono with "HbigB'").
+        iIntros (γ ?) "[Hreach Hlb]". iFrame "Hreach".
+        iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
+        iPureIntro. simpl. exists w. right. split; [done|].
+        split; [done|].
         admit.
     - (* 3. suspend_spec      *)
       iIntros (t v un_v a2 a3 sa Ψ) "!# (%Hunsusp & #HA' & #Hser) HΨ".
