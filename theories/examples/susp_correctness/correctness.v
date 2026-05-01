@@ -290,7 +290,7 @@ Section proof.
             (∀ m d ps pn (γl : pending_setg_type),
               good_state -∗ penset_frag γl -∗
               visited_mapg_auth m d ps pn -∗ 
-              pencount_frag pn -∗ ⌜size γl = c⌝ -∗
+              ⌜size γl = c⌝ -∗
               ([∗ set] γ ∈ γl, ∃ lb,
                 lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) ==∗ 
               good_state ∗
@@ -321,7 +321,7 @@ Section proof.
 
     iApply "HΦ". iFrame.
     iModIntro. repeat (iSplit; eauto).
-    iIntros (?????) "Hst Hpset Hvm Hpc % #HbigL".
+    iIntros (?????) "Hst Hpset Hvm % #HbigL".
     
     iPoseProof ("Hgood" with "Hst") as (?) "($ &% & #HbigL')".
     iPoseProof (big_sepS_sep
@@ -331,8 +331,8 @@ Section proof.
 
     iPoseProof (susp_ser_p_real_γl_unique authBaseN γl γl0 with "Hser [//] [//] HbigL HbigL''") as "<-".
     
-    iMod (pending_set_remove with "Hvm Hpc Hpset HbigLreached")
-      as "[$ _]".
+    iMod (pending_set_remove with "Hvm Hpset HbigLreached")
+      as "$".
     done.
   Qed.
 
@@ -351,39 +351,43 @@ Section proof.
 
   Definition p_proof_state (v : val) (ps ps_fix : list string) (lpn : list nat) : iProp Σ :=
     ∃ (prf1 buf1 : val) (bufl : list val) (pn : nat),
-      ⌜List.length ps = List.length bufl⌝ ∗ pencount_frag pn ∗
+      ⌜List.length ps = List.length bufl⌝ ∗
       ⌜List.length ps = List.length lpn⌝ ∗ ⌜pn = sum_list lpn⌝ ∗
       ⌜v = (prf1, buf1)%V⌝ ∗ p_buffer (List.combine (List.combine bufl ps) lpn) ∗
       ⌜is_proof prf1 ps_fix⌝ ∗ ⌜is_list bufl buf1⌝.
 
   Lemma flush_buf_stream_spec :
     ∀ (p : proph_id) (prf buf : val) (lpn : list nat) (pn : nat)
-        (ps ps_real ps_proph : list string) (bufl : list val)
-        m d pset,
+        (ps ps_real ps_proph : list string) (bufl : list val),
       {{{ ⌜is_list bufl buf⌝ ∗ ⌜is_proof prf ps⌝ ∗
           ⌜List.length bufl = List.length ps_real⌝ ∗
           ⌜List.length bufl = List.length lpn⌝ ∗ 
-          pencount_frag pn ∗ ⌜pn = sum_list lpn⌝ ∗
-          visited_mapg_auth m d pset pn ∗
-          proph_proof p ps_proph ∗ p_buffer (combine (combine bufl ps_real) lpn) ∗
+          ⌜pn = sum_list lpn⌝ ∗
+          proph_proof p ps_proph ∗ 
+          p_buffer (combine (combine bufl ps_real) lpn) ∗
           seq_tok ⊤ }}}
         flush_buf_stream buf prf #p
       {{{ prf' (ps' ps_proph' x : list string), RET prf';
           ⌜ps_proph = ps_proph' ++ x⌝ ∗ ⌜ps_proph' = ps_real⌝ ∗
-          pencount_frag 0 ∗ visited_mapg_auth m d pset 0 ∗
           ⌜is_proof prf' ps'⌝ ∗ ⌜ps' = reverse ps_proph' ++ ps⌝ ∗
-          proph_proof p x ∗ seq_tok ⊤ }}}.
+          proph_proof p x ∗ seq_tok ⊤ ∗
+          (∀ m d pset, 
+            good_state -∗ visited_mapg_auth m d pset pn -∗ 
+            good_state ∗ visited_mapg_auth m d pset 0) }}}.
   Proof.
-    iIntros (??????? ?) "(%Hbuf & %Hprf & %Hlen & Hproph & Hpbuffer & Htok) HΦ".
+    iIntros (????????? ?) 
+      "(%Hbuf & %Hprf & %Hlen1 & %Hlen2 & %Hsumpn & Hproph & Hpbuffer & Htok) HΦ".
     iInduction (bufl) as [|h_buf t_buf] "IH"
-        forall (prf buf ps ps_real ps_proph Hbuf Hprf Hlen Φ) "Hpbuffer Hproph HΦ"; 
+        forall (buf Hbuf ps_real Hlen1 pn lpn Hlen2 Hsumpn prf ps Hprf ps_proph Φ) "Hpbuffer Hproph HΦ"; 
       rewrite /flush_buf_stream; wp_pures; fold flush_buf_stream.
     - wp_apply gwp_list_head; try done.
       iIntros (? H). destruct! H; simplify_eq.
       destruct ps_real; simplify_eq.
+      destruct lpn; simplify_eq. simpl.
       wp_pures. iApply "HΦ".
 
       iFrame "∗ %". instantiate (1 := []).
+      
       by iModIntro.
 
     - wp_apply gwp_list_head; try done.
