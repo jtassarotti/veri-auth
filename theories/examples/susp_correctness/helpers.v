@@ -206,11 +206,9 @@ Section authentikit_helpers.
              iRight. iExists p, γ.
              iFrame "Hlg' Hsusp_s Hfrag Hcap'". iSplit; [done|].
              iRight. iExists id. iSplit; [iPureIntro; done|].
-             iLeft. iExact "Hdone".
-          -- iAssert (∃ n, visit_reached_done γ n)%I as "(%n & #Hreached)".
-             { iDestruct "Hdone" as (n Hn) "[Hd|Hf]".
-               - iExists n. iDestruct "Hd" as "[_ $]".
-               - iExists n. iDestruct "Hf" as "[[_ $] _]". }
+             iExact "Hdone".
+          -- iDestruct "Hdone" as (n Hn) "Hd".
+             iDestruct "Hd" as "[_ #Hreached]".
              iDestruct "Hauth" as "(Hms & Hd & Hrest)".
              iDestruct (own_valid_2 with "Hd Hreached") as %Hvd.
              apply auth_both_valid_discrete in Hvd as [Hincl _].
@@ -323,187 +321,27 @@ Section authentikit_helpers.
     iModIntro. iFrame "Hreached Hauth' Hsusp Hcap Hinner Hagg". done.
   Qed.
 
-  Lemma sub_susp_count_finalizes_susp (id : nat) t (c pid Nc : nat) γ
-      (susp : loc) (p : proph_id) (v_outer : val) m d ps pn :
-    visited_mapg_auth m d ps pn -∗
-    lg_mapg_frag susp γ -∗
-    susp ↦ᵥ{#3/4} InjLV (#pid, #p) -∗
-    sub_susp_count t (InjRV (InjRV #susp)) c pid Nc v_outer -∗
-    visit_reached_done γ id -∗
-    intransit 1%Qp ==∗
-      visit_finished γ id ∗
-      visited_map_update_finished m d ps pn γ id ∗
-      sub_susp_count t (InjRV (InjRV #susp)) c pid Nc v_outer ∗
-      susp ↦ᵥ{#3/4} InjLV (#pid, #p).
-  Proof.
-    iIntros "Hauth #Hlg Hsusp Hcount #Hreached Hintr".
-    destruct t; simpl.
-    - iDestruct "Hcount" as (? ? ? ? [Heq _]) "_". discriminate.
-    - iDestruct "Hcount" as "[H|H]".
-      + iDestruct "H" as (?) "[%Heq _]". discriminate.
-      + iDestruct "H" as (v) "[%Heq H]". injection Heq as <-.
-        by iDestruct (sub_susp_count_ne_injr_loc with "H") as %[].
-    - iDestruct "Hcount" as "[Hv _]". iDestruct "Hv" as (?) "%Heq". discriminate.
-    - iDestruct "Hcount" as "[Hv _]". iDestruct "Hv" as (?) "%Heq". discriminate.
-    - (* tauth — substantive *)
-      iDestruct "Hcount" as (v1) "[%Heq Hcases]".
-      injection Heq as <-.
-      iDestruct "Hcases" as "[H|H]".
-      + iDestruct "H" as (h) "%Heq'". destruct Heq' as [Heq' _]. discriminate.
-      + iDestruct "H" as (susp') "[%Heq' Hinner]".
-        injection Heq' as Heq'. subst susp'.
-        iDestruct "Hinner" as "[Hfilled|Hsusp_inner]".
-        * iDestruct "Hfilled" as (h) "[Hsusp_f _]".
-          iDestruct (pointstoS_agree with "Hsusp Hsusp_f") as %[_ Heq''].
-          discriminate.
-        * iDestruct "Hsusp_inner" as (p' γ')
-            "(#Hlg' & Hsusp_s & %Hc & Hfrag & #Hcap' & Hdisj)".
-          iDestruct (lg_mapg_agree with "Hlg Hlg'") as "(<- & _ & _)".
-          iDestruct "Hdisj" as "[Hpen|Hinner_disj]".
-          { by iDestruct (visited_reached_done_invalid with "Hauth Hreached Hpen") as %[]. }
-          iDestruct "Hinner_disj" as (id' Hid') "[Hinner_done|[Hinner_fin Hintr2]]".
-          -- iDestruct (visit_done_keep with "Hinner_done") as "[Hinner_done #Hreached']".
-             iDestruct (visited_reached_done_agree with "Hreached Hreached'") as %->.
-             iMod (visited_transition_finished with "Hauth Hinner_done")
-               as "(Hauth' & #Hfin)".
-             iModIntro.
-             iSplit; [iExact "Hfin"|].
-             iSplitL "Hauth'"; [iExact "Hauth'"|].
-             iSplitR "Hsusp"; [|iExact "Hsusp"].
-             simpl.
-             iExists (InjRV #susp). iSplit; [done|].
-             iRight. iExists susp. iSplit; [done|].
-             iRight. iExists p', γ.
-             iFrame "Hlg' Hsusp_s Hfrag Hcap'". iSplit; [done|].
-             iRight. iExists id'. iSplit; [iPureIntro; done|].
-             iRight. iFrame "Hintr". iExact "Hfin".
-          -- by iDestruct (intransit_excl_full with "Hintr Hintr2") as %[].
-  Qed.
-
-  Lemma visited_update_finished (id : nat) :
-      ∀ t t' v (c pid Nc : nat) (susp : loc) (p : proph_id) γ m d ps pn,
-        id > pid →
-        v_sub_obj t' v #susp →
-        visited_mapg_auth m d ps pn -∗
-        lg_mapg_frag susp γ -∗
-        susp ↦ᵥ{#3/4} InjLV (#pid, #p) -∗
-        sub_susp_count_frags t v c pid Nc -∗
-        visit_reached_done γ id -∗
-        intransit 1%Qp ==∗
-          visit_finished γ id ∗
-          visited_map_update_finished m d ps pn γ id ∗
-          sub_susp_count_frags t v c pid Nc ∗
-          susp ↦ᵥ{#3/4} InjLV (#pid, #p).
-  Proof.
-    iIntros (t t' v c pid Nc susp p γ m d ps pn Hid Hsub)
-      "Hauth #Hlg Hsusp (#Hcap & %Hle & Hinner & Hagg) #Hreached Hintr".
-    iAssert (∀ v_outer (tind : evi_type) (vind : val) (cind : nat) (tind' : evi_type),
-               ⌜v_sub_obj tind' vind #susp⌝ -∗
-               visited_mapg_auth m d ps pn -∗
-               lg_mapg_frag susp γ -∗
-               susp ↦ᵥ{#3/4} InjLV (#pid, #p) -∗
-               sub_susp_count tind vind cind pid Nc v_outer -∗
-               intransit 1%Qp ==∗
-               visit_finished γ id ∗
-               visited_map_update_finished m d ps pn γ id ∗
-               sub_susp_count tind vind cind pid Nc v_outer ∗
-               susp ↦ᵥ{#3/4} InjLV (#pid, #p))%I
-      with "[]" as "Hlem".
-    { iClear "Hcap Hlg".
-      iIntros (v_outer t0).
-      iInduction t0 as [t1 t2 | t1 t2 | | | ] "IH".
-      all: iIntros (vind cind tind') "%Hsubind Hauth #Hlg Hsusp Hinner Hintr".
-      - (* tprod *)
-        simpl. iDestruct "Hinner" as (c1 c2 v1 v2 [-> <-]) "[Hc1 Hc2]".
-        destruct tind' as [t1' t2' | | | | ]; simpl in Hsubind; try done.
-        + destruct Hsubind as (v1' & v2' & Heq & Hdisj). injection Heq as <- <-.
-          destruct Hdisj as [<- | [<- | [Hsub1 | Hsub2]]].
-          * by iDestruct (sub_susp_count_ne_loc with "Hc1") as %[].
-          * by iDestruct (sub_susp_count_ne_loc with "Hc2") as %[].
-          * iMod ("IH" $! v1 c1 t1' Hsub1 with "Hauth Hlg Hsusp Hc1 Hintr")
-              as "(#Hfin & Hauth' & Hc1' & Hsusp')".
-            iModIntro. iFrame "Hfin Hauth' Hsusp'".
-            iExists c1, c2, v1, v2. by iFrame.
-          * iMod ("IH1" $! v2 c2 t2' Hsub2 with "Hauth Hlg Hsusp Hc2 Hintr")
-              as "(#Hfin & Hauth' & Hc2' & Hsusp')".
-            iModIntro. iFrame "Hfin Hauth' Hsusp'".
-            iExists c1, c2, v1, v2. by iFrame.
-        + destruct Hsubind as (? & [(Heq & _ & _) | (Heq & _ & _)]); discriminate.
-        + destruct Hsubind as (? & [Heq|Heq] & _); discriminate.
-      - (* tsum *)
-        simpl. iDestruct "Hinner" as "[Hl|Hr]".
-        + iDestruct "Hl" as (v1') "[-> Hc]".
-          destruct tind' as [t1' t2' | t1' t2' | | | ]; simpl in Hsubind; try done.
-          * destruct Hsubind as (? & ? & Heq & _); discriminate.
-          * destruct Hsubind as (v'' & [(Heq1 & _ & Heq3) | (Heq1 & _ & _)]).
-            -- subst v''. injection Heq1 as Heq. by apply no_fix_InjLV in Heq.
-            -- discriminate.
-          * destruct Hsubind as (? & [Heq|Heq] & _); discriminate.
-        + iDestruct "Hr" as (v2') "[-> Hc]".
-          destruct tind' as [t1' t2' | t1' t2' | | | ]; simpl in Hsubind; try done.
-          * destruct Hsubind as (? & ? & Heq & _); discriminate.
-          * destruct Hsubind as (v'' & [(Heq1 & _ & _) | (Heq1 & _ & Heq3)]).
-            -- discriminate.
-            -- subst v''. injection Heq1 as Heq. by apply no_fix_InjRV in Heq.
-          * destruct Hsubind as (v'' & [Heq|Heq] & Heqsv).
-            -- subst v''. injection Heq as ->.
-               by iDestruct (sub_susp_count_ne_injL_susp with "Hc") as %[].
-            -- subst v''. injection Heq as ->.
-               by iDestruct (sub_susp_count_ne_injr_loc with "Hc") as %[].
-      - (* tstring *)
-        simpl. iDestruct "Hinner" as "[Hv %Hc]". iDestruct "Hv" as (s) "->".
-        destruct tind'; simpl in Hsubind; try done.
-        + destruct Hsubind as (? & ? & Heq & _); discriminate.
-        + destruct Hsubind as (v'' & [(Heq & _) | (Heq & _)]); discriminate.
-        + destruct Hsubind as (? & [Heq|Heq] & _); discriminate.
-      - (* tint *)
-        simpl. iDestruct "Hinner" as "[Hv %Hc]". iDestruct "Hv" as (z) "->".
-        destruct tind'; simpl in Hsubind; try done.
-        + destruct Hsubind as (? & ? & Heq & _); discriminate.
-        + destruct Hsubind as (v'' & [(Heq & _) | (Heq & _)]); discriminate.
-        + destruct Hsubind as (? & [Heq|Heq] & _); discriminate.
-      - (* tauth *)
-        destruct tind'; simpl in Hsubind; try done.
-        + iDestruct "Hinner" as (v1) "[-> _]".
-          destruct Hsubind as (? & ? & Heq & _); discriminate.
-        + iDestruct "Hinner" as (v1) "[-> _]".
-          destruct Hsubind as (? & [(Heq & _ & _) | (Heq & _ & Heq2)]).
-          * discriminate.
-          * subst. injection Heq as Heq. by apply no_fix_InjRV in Heq.
-        + destruct Hsubind as (? & [Heq|Heq] & ->).
-          * iDestruct "Hinner" as (v1) "[-> Hcases]".
-            injection Heq as ->.
-            iDestruct "Hcases" as "[H|H]".
-            -- iDestruct "H" as (h) "%Heq'". destruct Heq' as [Heq' _]. discriminate.
-            -- iDestruct "H" as (susp') "[%Heq' _]". discriminate.
-          * subst vind.
-            iMod (sub_susp_count_finalizes_susp id _ cind pid Nc γ susp p v_outer m d ps pn
-              with "Hauth Hlg Hsusp Hinner Hreached Hintr")
-              as "(#Hfin & Hauth' & Hinner' & Hsusp')".
-            iModIntro. by iFrame. }
-    iMod ("Hlem" $! v t v c t' Hsub with "Hauth Hlg Hsusp Hinner Hintr")
-      as "(#Hfin & Hauth' & Hinner & Hsusp)".
-    iModIntro. iFrame "Hfin Hauth' Hsusp Hcap Hinner Hagg". done.
-  Qed.
-
   (* Substantive tauth B2 update: reached via tsum's right branch when the
      external [susp] matches a B2 leaf. Consumes [c = 1] for the leaf,
+     transitions [visit_done] -> [visit_finished] using the visited map auth,
      releases the [1/Nc] fragment, steps the verifier store. *)
-  Lemma count_update_eats_susp K tᵥ v' t (susp : loc) (c pid Nc : nat) (h : string) (v_outer : val) γ (n : nat) :
+  Lemma count_update_eats_susp K tᵥ v' t (susp : loc) (c pid Nc : nat) (h : string) (v_outer : val) γ (n : nat) m d ps pn :
+    visited_mapg_auth m d ps pn -∗
     lg_mapg_frag susp γ -∗
-    visit_finished γ n -∗
+    visit_reached_done γ n -∗
     sub_susp_count t (InjRV (InjRV #susp)) c pid Nc v_outer -∗
     susp ↦ᵥ{#(3/4)} InjLV (#pid, v') -∗
     spec_verifier tᵥ (fill K (#susp <- InjRV #h))
     ={⊤}=∗
       ⌜c = 1⌝ ∗
-      intransit 1%Qp ∗
+      visited_map_update_finished m d ps pn γ n ∗
+      visit_finished γ n ∗
       sub_susp_count t (InjRV (InjRV #susp)) (c-1) pid Nc v_outer ∗
       susp ↦ᵥ{#(3/4)} InjRV #h ∗
       spec_verifier tᵥ (fill K (#())) ∗
       mapg_frag #pid (1 / pos_to_Qp (Pos.of_nat Nc))%Qp v_outer.
   Proof.
-    iIntros "#Hlg #Hfin Hinner Hsusp Hspec".
+    iIntros "Hauth #Hlg #Hreached Hinner Hsusp Hspec".
     destruct t; simpl.
     - iDestruct "Hinner" as (? ? ? ? [Heq _]) "_". discriminate.
     - iDestruct "Hinner" as "[H|H]".
@@ -527,18 +365,21 @@ Section authentikit_helpers.
           iDestruct (lg_mapg_agree with "Hlg Hlg'") as "(<- & _ & _)".
           iDestruct (pointstoS_agree with "Hsusp Hsusp_s") as %[_ Heqvals].
           injection Heqvals as Heqv'. subst v'.
+          iDestruct "Hdisj" as "[Hpen|Hdone]".
+          { by iDestruct (visited_reached_done_invalid with "Hauth Hreached Hpen") as %[]. }
+          iDestruct "Hdone" as (id Hidpid) "Hdone".
+          iDestruct (visit_done_keep with "Hdone") as "[Hdone #Hreached']".
+          iDestruct (visited_reached_done_agree with "Hreached Hreached'") as %->.
+          iMod (visited_transition_finished with "Hauth Hdone")
+            as "(Hauth' & #Hfin)".
           iCombine "Hsusp Hsusp_s" as "Hsusp_full".
           rewrite Qp.three_quarter_quarter.
           iMod (step_verifier_store with "[$Hsusp_full $Hspec]") as "(Hspec & Hsusp_full)"; [done|].
           iEval (rewrite -Qp.three_quarter_quarter) in "Hsusp_full".
           iDestruct "Hsusp_full" as "[Hsusp Hsusp_s]".
-          iDestruct "Hdisj" as "[Hpen|Hinner_disj]".
-          { by iDestruct (visited_invalid_2 with "[$Hpen $Hfin]") as %[]. }
-          iDestruct "Hinner_disj" as (id Hidpid) "[Hdone|[Hifin Hintr]]".
-          { by iDestruct (visited_invalid_3 with "[$Hdone $Hfin]") as %[]. }
           iModIntro.
           iSplitR; [done|].
-          iFrame "Hintr".
+          iFrame "Hauth' Hfin".
           iSplitR "Hsusp Hspec Hfrag".
           { iExists (InjRV #susp). iSplit; [done|].
             iRight. iExists susp. iSplit; [done|].
@@ -547,28 +388,32 @@ Section authentikit_helpers.
   Qed.
 
   Lemma count_update :
-    ∀ K tᵥ v v' (t t' : evi_type) (susp : loc) (c pid Nc : nat) (h : string) γ (n : nat),
+    ∀ K tᵥ v v' (t t' : evi_type) (susp : loc) (c pid Nc : nat) (h : string) γ (n : nat) m d ps pn,
       ⌜v_sub_obj t' v #susp⌝ -∗
+      visited_mapg_auth m d ps pn -∗
       lg_mapg_frag susp γ -∗
-      visit_finished γ n -∗
+      visit_reached_done γ n -∗
       sub_susp_count_frags t v c pid Nc -∗
       susp ↦ᵥ{#(3/4)} InjLV (#pid, v') -∗
       spec_verifier tᵥ (fill K (#susp <- InjRV #h))
       ={⊤}=∗
-        intransit 1%Qp ∗
+        visited_map_update_finished m d ps pn γ n ∗
+        visit_finished γ n ∗
         sub_susp_count_frags t v (c-1) pid Nc ∗
         susp ↦ᵥ{#(3/4)} InjRV #h ∗
         spec_verifier tᵥ (fill K (#())).
   Proof.
-    iIntros (K tᵥ v v' t t' susp c pid Nc h γ n)
-      "%Hsub #Hlg #Hfin (#Hcap & %Hle & Hinner & Hagg) Hsusp Hspec".
+    iIntros (K tᵥ v v' t t' susp c pid Nc h γ n m d ps pn)
+      "%Hsub Hauth #Hlg #Hreached (#Hcap & %Hle & Hinner & Hagg) Hsusp Hspec".
     iAssert (∀ v_outer (t : evi_type) (v : val) (c : nat) (t' : evi_type),
                ⌜v_sub_obj t' v #susp⌝ -∗
+               visited_mapg_auth m d ps pn -∗
                sub_susp_count t v c pid Nc v_outer -∗
                susp ↦ᵥ{#3/4} InjLV (#pid, v') -∗
                spec_verifier tᵥ (fill K (#susp <- InjRV #h)) ={⊤}=∗
                ⌜1 ≤ c⌝ ∗
-               intransit 1%Qp ∗
+               visited_map_update_finished m d ps pn γ n ∗
+               visit_finished γ n ∗
                sub_susp_count t v (c - 1) pid Nc v_outer ∗
                susp ↦ᵥ{#3/4} InjRV #h ∗
                spec_verifier tᵥ (fill K #()) ∗
@@ -577,7 +422,7 @@ Section authentikit_helpers.
     { iClear "Hcap".
       iIntros (v_outer tind).
       iInduction tind as [t1 t2 | t1 t2 | | | ] "IH".
-      all: iIntros (vind cind tind') "%Hsubind Hinner' Hsusp' Hspec'".
+      all: iIntros (vind cind tind') "%Hsubind Hauth' Hinner' Hsusp' Hspec'".
       - (* tind = tprod *)
         simpl. iDestruct "Hinner'" as (c1 c2 v1 v2 [-> <-]) "[Hc1 Hc2]".
         destruct tind' as [t1' t2' | | | | ]; simpl in Hsubind; try done.
@@ -585,16 +430,16 @@ Section authentikit_helpers.
           destruct Hdisj as [<- | [<- | [Hsub1 | Hsub2]]].
           * by iDestruct (sub_susp_count_ne_loc with "Hc1") as %[].
           * by iDestruct (sub_susp_count_ne_loc with "Hc2") as %[].
-          * iMod ("IH" $! v1 c1 t1' Hsub1 with "Hc1 Hsusp' Hspec'")
-              as "(%Hc & Hintr & Hc1' & Hsusp'' & Hspec'' & Hnew)".
+          * iMod ("IH" $! v1 c1 t1' Hsub1 with "Hauth' Hc1 Hsusp' Hspec'")
+              as "(%Hc & Hauth' & #Hfin & Hc1' & Hsusp'' & Hspec'' & Hnew)".
             iModIntro. iSplit; [iPureIntro; lia|].
-            iFrame "Hintr Hsusp'' Hspec'' Hnew".
+            iFrame "Hauth' Hfin Hsusp'' Hspec'' Hnew".
             iExists (c1 - 1), c2, v1, v2.
             iSplit; [iPureIntro; split; [done|lia]|]. iFrame.
-          * iMod ("IH1" $! v2 c2 t2' Hsub2 with "Hc2 Hsusp' Hspec'")
-              as "(%Hc & Hintr & Hc2' & Hsusp'' & Hspec'' & Hnew)".
+          * iMod ("IH1" $! v2 c2 t2' Hsub2 with "Hauth' Hc2 Hsusp' Hspec'")
+              as "(%Hc & Hauth' & #Hfin & Hc2' & Hsusp'' & Hspec'' & Hnew)".
             iModIntro. iSplit; [iPureIntro; lia|].
-            iFrame "Hintr Hsusp'' Hspec'' Hnew".
+            iFrame "Hauth' Hfin Hsusp'' Hspec'' Hnew".
             iExists c1, (c2 - 1), v1, v2.
             iSplit; [iPureIntro; split; [done|lia]|]. iFrame.
         + destruct Hsubind as (v'' & [(Heq & _ & _) | (Heq & _ & _)]); discriminate.
@@ -646,12 +491,12 @@ Section authentikit_helpers.
             -- iDestruct "H" as (h') "%Heq'". destruct Heq' as [Heq' _]. discriminate.
             -- iDestruct "H" as (susp') "[%Heq' _]". discriminate.
           * subst vind.
-            iMod (count_update_eats_susp with "Hlg Hfin Hinner' Hsusp' Hspec'") as
-              "(%Hc & Hintr & Hc' & Hsusp'' & Hspec'' & Hnew)".
-            iModIntro. iSplit; [iPureIntro; lia|]. by iFrame. }
-    iMod ("Hlem" $! v t v c t' Hsub with "Hinner Hsusp Hspec")
-      as "(%Hc & Hintr & Hinner & Hsusp & Hspec & Hnew)".
-    iModIntro. iFrame "Hintr Hsusp Hspec Hcap".
+            iMod (count_update_eats_susp with "Hauth' Hlg Hreached Hinner' Hsusp' Hspec'") as
+              "(%Hc & Hauth' & #Hfin & Hc' & Hsusp'' & Hspec'' & Hnew)".
+            iModIntro. iSplit; [iPureIntro; lia|]. iFrame "Hauth' Hfin". iFrame. }
+    iMod ("Hlem" $! v t v c t' Hsub with "Hauth Hinner Hsusp Hspec")
+      as "(%Hc & Hauth & #Hfin & Hinner & Hsusp & Hspec & Hnew)".
+    iModIntro. iFrame "Hauth Hfin Hsusp Hspec Hcap".
     iSplit; [iPureIntro; lia|]. iFrame "Hinner".
     iDestruct "Hagg" as "[%HcN | [%HcN Hq]]".
     - iRight. iSplit; [iPureIntro; lia|].
