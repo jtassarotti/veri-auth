@@ -146,9 +146,37 @@ Section authenticatable.
         injection Heq as Hs'. subst s'.
         (* s_def = string_ser_str s0 = s_real (since c=0, no realization shift). *)
         destruct (decide (s_pred = string_ser_str s0)) as [Heq|Hne].
-        * (* Match branch — pending: deser step + post construction *)
-          admit.
-        * (* Mismatch branch — pending: deser step + post construction *)
+        * (* Match branch *)
+          subst s_pred.
+          iAssert (string_is_ser' (string_ser_str s0)) as %Hsis.
+          { iPureIntro. by exists s0. }
+          iMod (string_deser_spec' ⊤ _ () (λ v, ⌜v = SOMEV #s0⌝)%I
+                 with "[//] [] [$Hv //]") as (?) "[Hv ->]".
+          { iIntros "!#" (v) "%Hv".
+            destruct Hv as (s' & -> & Hs0_ss). simpl in Hs0_ss.
+            injection Hs0_ss as Hs0. by subst s'. }
+          iMod (own_unit pending_setUR pending_set_name) as "Hpe".
+          iApply ("HΨ" $! #s0 (string_ser_str s0) 0%nat ∅ mlg).
+          iModIntro. iFrame "Hauth".
+          iSplitL "";
+            [iSplit; [iPureIntro; by exists s0|iPureIntro; eauto]|].
+          iSplit; [iPureIntro; rewrite size_empty; lia|].
+          iSplitL "Hpe"; [iExact "Hpe"|].
+          iLeft. iSplit; [done|]. iExists #s0.
+          iSplit.
+          { iSplit; [iExists s0; done|].
+            iSplit; [iExists s0; done|]. by iExists s0. }
+          iSplit; [iPureIntro; by exists s0|].
+          iFrame "Hv".
+          iSplit; [rewrite big_sepS_empty; done|].
+          iSplit; [iSplit; [iExists s0; done|by iPureIntro]|].
+          iSplit; [iPureIntro; by exists s0|].
+          rewrite visited_map_update_pending_rewrite. rewrite size_empty.
+          replace (ps ∪ ∅) with ps by set_solver.
+          replace (pn + 0) with pn by lia.
+          rewrite (set_fold_empty (λ γ m, <[γ := pending_val]> m) m).
+          iExact "Hvm".
+        * (* Mismatch branch *)
           admit.
       + (* tint: contradicts string serialization *)
         iDestruct "Hser" as %(? & Heq & _); done.
