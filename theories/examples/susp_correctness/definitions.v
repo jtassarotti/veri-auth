@@ -431,11 +431,11 @@ Section authenticatable_definitions.
             lg_mapg_auth mlg ∗
             spec_verifier tᵥ (fill K (v_deser_par #s_pred)) }}}
           suspend un_a1
-        {{{ a1' s_real c γl mlg', RET a1';
-            lg_mapg_auth mlg' ∗
+        {{{ a1' s_real c, RET a1';
             susp_ser_p_real t c a1' s_real ∗
-            ⌜size γl = c⌝ ∗ penset_frag γl ∗
-            ((⌜s_pred = s_real⌝ ∗ ∃ a2',
+            ((⌜s_pred = s_real⌝ ∗ ∃ γl mlg' a2',
+              lg_mapg_auth mlg' ∗
+              ⌜size γl = c⌝ ∗ penset_frag γl ∗
               (lrel_tern_as_lrel A) a1' a2' a3 ∗
               susp_ser_p t a1' s_def ∗
               spec_verifier tᵥ (fill K (SOMEV a2')) ∗
@@ -445,12 +445,7 @@ Section authenticatable_definitions.
               sub_susp_count t a2' c id c a2' ∗
               ser_v_proph t id a2' s_def ∗
               visited_map_update_pending m d ps pn γl) ∨
-            (⌜s_pred ≠ s_real⌝ ∗
-              (lrel_tern_bin A) a1' a3 ∗
-              visited_mapg_auth m d ps pn ∗
-              ([∗ set] γ ∈ γl, ∃ lb,
-                  visit_pending γ ∗ lg_mapg_frag lb γ ∗
-                  ⌜p_sub_obj t a1' #lb⌝))) }}}).
+            (⌜s_pred ≠ s_real⌝ ∗ (lrel_tern_bin A) a1' a3)) }}}).
 
   Definition unsuspend_spec (unsuspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
     ∀ E (a1 a2 a3 : val),
