@@ -1,4 +1,4 @@
-From iris.algebra Require Import auth excl frac agree gmap list.
+From iris.algebra Require Import auth excl frac agree gmap gset list.
 From iris.proofmode Require Import proofmode.
 From auth.heap_lang Require Export lang notation tactics.
 From auth.base_logic Require Export spec_ra.
@@ -6,6 +6,40 @@ From auth.rel_logic_tern_susp Require Export model.
 Import uPred.
 
 Local Set Default Proof Using "Type".
+
+(** * Verifier-side per-loc exclusive token
+
+    A [vmeta_token l] is an exclusive resource at verifier loc [l],
+    obtained from [step_verifier_alloc]. Two such tokens at distinct
+    locs combine; at the same loc they are inconsistent (the
+    underlying [gset_disj] union would be non-disjoint). The single
+    consumer-facing lemma is [vmeta_token_ne]:
+
+      [vmeta_token l1 -∗ vmeta_token l2 -∗ ⌜l1 ≠ l2⌝].
+
+    The freshness comes from the [D ⊆ dom σᵥ.(heap)] invariant in
+    [spec_inv] together with [σᵥ.(heap) !! l = None] at allocation
+    time — discharged inside [step_verifier_alloc], not by the
+    caller. *)
+Section vmeta.
+  Context `{!spec_metaG Σ}.
+  Implicit Types l : loc.
+
+  Definition vmeta_token (l : loc) : iProp Σ :=
+    own spec_meta_name (◯ GSet {[l]}).
+
+  Global Instance vmeta_token_timeless l : Timeless (vmeta_token l).
+  Proof. apply _. Qed.
+
+  Lemma vmeta_token_ne l1 l2 :
+    vmeta_token l1 -∗ vmeta_token l2 -∗ ⌜l1 ≠ l2⌝.
+  Proof.
+    iIntros "H1 H2".
+    iDestruct (own_valid_2 with "H1 H2") as %Hv.
+    rewrite auth_frag_op_valid gset_disj_valid_op in Hv.
+    iPureIntro. set_solver.
+  Qed.
+End vmeta.
 
 Section rules.
   Context `{authG Σ, seqG Σ}.
@@ -21,6 +55,17 @@ Section rules.
   Local Hint Resolve to_tpool_insert : core.
   Local Hint Resolve to_tpool_insert' : core.
   Local Hint Resolve tpool_singleton_included : core.
+
+  (** Heap-dom is preserved when updating the value at an existing loc.
+      Used to thread the [D ⊆ dom σᵥ.(heap)] constraint through the
+      store/xchg/cmpxchg/faa lemmas without re-deriving the inclusion. *)
+  Local Lemma dom_state_upd_heap_insert_eq (σ : state) (l : loc) (v : val) :
+    is_Some (σ.(heap) !! l) →
+    dom (state_upd_heap <[l := Some v]> σ).(heap) = dom σ.(heap).
+  Proof.
+    intros [v' Hl]. rewrite /state_upd_heap /=. rewrite dom_insert_L.
+    apply elem_of_dom_2 in Hl. set_solver.
+  Qed.
 
   (** * Aux. lemmas *)
   Lemma step_insert K tp j e σ κ e' σ' efs :
@@ -84,10 +129,11 @@ Section rules.
   Proof.
     iIntros (HP Hex ?) "[#Hspec Hj]". iFrame "Hspec".
     iDestruct "Hspec" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hv Hj") as %Htpj.
     iMod (cfg_auth_tpool_update with "Hv Hj") as "[Hv $]".
-    iApply "Hclose". iNext. iExists _, _, _, _.
+    iApply "Hclose". iNext. iExists _, _, _, _, _.
     iFrame. iFrame "%". iPureIntro.
     by eapply (rtc_erase_step_PureExec P).
   Qed.
@@ -100,12 +146,14 @@ Section rules.
   Proof.
     iIntros (?) "[#Hinv Hj]". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hv Hj") as %Htpj.
     destruct (exist_fresh (used_proph_id σᵥ)) as [p Hv].
     iExists p.
     iMod (cfg_auth_tpool_update with "Hv Hj") as "[Hv $]".
-    iApply "Hclose". iNext. iExists _, (state_upd_used_proph_id ({[ p ]} ∪.) σᵥ), _, _.
+    iApply "Hclose". iNext.
+    iExists _, (state_upd_used_proph_id ({[ p ]} ∪.) σᵥ), _, _, _.
     iFrame. iFrame "%".
     rewrite cfg_auth_prophs_update.
     iFrame. iPureIntro.
@@ -119,7 +167,8 @@ Section rules.
   Proof.
     iIntros (?) "[#Hinv Hj]". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hv Hj") as %Htpj.
     iMod (cfg_auth_tpool_update with "Hv Hj") as "[Hv $]".
     iApply "Hclose". iNext.
@@ -132,19 +181,33 @@ Section rules.
     IntoVal e v →
     nclose specN ⊆ E →
     spec_verifier j (fill K (ref e))
-    ⊢ |={E}=> ∃ l, spec_verifier j (fill K (#l)) ∗ l ↦ᵥ v.
+    ⊢ |={E}=> ∃ l, spec_verifier j (fill K (#l)) ∗ l ↦ᵥ v ∗ vmeta_token l.
   Proof.
     iIntros (<- ?) "[#Hinv Hj]". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ D)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hv Hj") as %Htpj.
-    iMod (cfg_auth_heap_alloc with "Hv") as (l) "(% & Hv & $)".
+    iMod (cfg_auth_heap_alloc with "Hv") as (l) "(%Hheap_l & Hv & $)".
     iMod (cfg_auth_tpool_update with "Hv Hj") as "[Hv $]".
+    (* Derive [l ∉ D] from [Hheap_l] and [Hdom]. *)
+    assert (l ∉ D) as Hl_D.
+    { intros Hin. apply Hdom in Hin.
+      by apply not_elem_of_dom in Hin. }
+    (* Extend [D] by [{l}] and grab the [vmeta_token l] fragment. *)
+    rewrite /spec_meta_auth.
+    iMod (own_update _ _ (● GSet ({[l]} ∪ D) ⋅ ◯ GSet {[l]}) with "Hsmeta")
+      as "[Hsmeta Hvtok]".
+    { apply auth_update_alloc, gset_disj_alloc_empty_local_update. set_solver. }
+    iFrame "Hvtok".
     iApply "Hclose". iNext.
-    iFrame; iFrame "%". iPureIntro.
-    eapply rtc_r, step_insert_no_fork; eauto.
-    rewrite -state_init_heap_singleton. eapply AllocNS; first by lia.
-    intros. assert (i = 0) as -> by lia. by rewrite Loc.add_0.
+    iExists _, _, _, _, ({[l]} ∪ D).
+    rewrite /spec_meta_auth. iFrame "Hv Hi Hsmeta".
+    iPureIntro. split; [|split; [|done]].
+    - rewrite dom_insert_L. set_solver.
+    - eapply rtc_r, step_insert_no_fork; eauto.
+      rewrite -state_init_heap_singleton. eapply AllocNS; first by lia.
+      intros. assert (i = 0) as -> by lia. by rewrite Loc.add_0.
   Qed.
 
   Lemma step_verifier_load E j K l q v:
@@ -154,7 +217,8 @@ Section rules.
   Proof.
     iIntros (?) "([#Hinv Hj] & Hl)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hv Hj") as %Htpj.
     iDestruct (cfg_auth_heap_agree with "Hv Hl") as "%".
     iMod (cfg_auth_tpool_update with "Hv Hj") as "[Hv $]".
@@ -171,13 +235,16 @@ Section rules.
   Proof.
     iIntros (<-?) "([#Hinv Hj] & Hl)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ D)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hv Hj") as %Htpj.
-    iDestruct (cfg_auth_heap_agree with "Hv Hl") as %?.
+    iDestruct (cfg_auth_heap_agree with "Hv Hl") as %Hheap_l.
     iMod (cfg_auth_tpool_update with "Hv Hj") as "[Hv $]".
     iMod (cfg_auth_heap_update with "Hv Hl") as "[Hv $]".
     iApply "Hclose". iNext.
     iFrame; iFrame "%". iPureIntro.
+    rewrite dom_state_upd_heap_insert_eq; last by eauto.
+    split; [done|].
     eapply rtc_r, step_insert_no_fork; eauto. econstructor; eauto.
   Qed.
 
@@ -189,13 +256,16 @@ Section rules.
   Proof.
     iIntros (<-?) "([#Hinv Hj] & Hl)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ D)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hv Hj") as %Htpj.
-    iDestruct (cfg_auth_heap_agree with "Hv Hl") as %?.
+    iDestruct (cfg_auth_heap_agree with "Hv Hl") as %Hheap_l.
     iMod (cfg_auth_tpool_update with "Hv Hj") as "[Hv $]".
     iMod (cfg_auth_heap_update with "Hv Hl") as "[Hv $]".
     iApply "Hclose". iNext.
     iFrame; iFrame "%". iPureIntro.
+    rewrite dom_state_upd_heap_insert_eq; last by eauto.
+    split; [done|].
     eapply rtc_r, step_insert_no_fork; eauto. econstructor; eauto.
   Qed.
 
@@ -211,7 +281,8 @@ Section rules.
   Proof.
     iIntros (<-<-???) "([#Hinv Hj] & Hl)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hv Hj") as %Htpj.
     iDestruct (cfg_auth_heap_agree with "Hv Hl") as "%".
     iMod (cfg_auth_tpool_update with "Hv Hj") as "[Hv $]".
@@ -232,13 +303,16 @@ Section rules.
   Proof.
     iIntros (<-<-???) "([#Hinv Hj] & Hl)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ D)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hv Hj") as %Htpj.
-    iDestruct (cfg_auth_heap_agree with "Hv Hl") as %?.
+    iDestruct (cfg_auth_heap_agree with "Hv Hl") as %Hheap_l.
     iMod (cfg_auth_tpool_update with "Hv Hj") as "[Hv $]".
     iMod (cfg_auth_heap_update with "Hv Hl") as "[Hv $]".
     iApply "Hclose". iNext.
     iFrame; iFrame "%". iPureIntro.
+    rewrite dom_state_upd_heap_insert_eq; last by eauto.
+    split; [done|].
     eapply rtc_r, step_insert_no_fork; eauto. econstructor; eauto.
     case_bool_decide; done.
   Qed.
@@ -251,13 +325,16 @@ Section rules.
   Proof.
     iIntros (<-?) "([#Hinv Hj] & Hl)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ D)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hv Hj") as %Htpj.
-    iDestruct (cfg_auth_heap_agree with "Hv Hl") as %?.
+    iDestruct (cfg_auth_heap_agree with "Hv Hl") as %Hheap_l.
     iMod (cfg_auth_tpool_update with "Hv Hj") as "[Hv $]".
     iMod (cfg_auth_heap_update with "Hv Hl") as "[Hv $]".
     iApply "Hclose". iNext.
     iFrame; iFrame "%". iPureIntro.
+    rewrite dom_state_upd_heap_insert_eq; last by eauto.
+    split; [done|].
     eapply rtc_r, step_insert_no_fork; eauto. econstructor; eauto.
   Qed.
 
@@ -269,7 +346,8 @@ Section rules.
   Proof.
     iIntros (?) "[#Hinv Hj]". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hv Hj") as %Htpj.
     iMod (cfg_auth_tpool_update with "Hv Hj") as "[Hv $]".
     iMod (cfg_auth_tpool_fork with "Hv") as "[Hv $]".
@@ -286,7 +364,8 @@ Section rules.
   Proof.
     iIntros (?) "(#Hinv & Hj)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hv Hj") as %Htpj.
     iMod (cfg_auth_tpool_update with "Hv Hj") as "[Hv $]".
     iMod (cfg_auth_hash_update with "Hv") as "Hv".
@@ -306,7 +385,8 @@ Section rules.
   Proof.
     iIntros (HP Hex ?) "[#Hspec Hj]". iFrame "Hspec".
     iDestruct "Hspec" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hi Hj") as %Htpj.
     iMod (cfg_auth_tpool_update with "Hi Hj") as "[Hi $]".
     iApply "Hclose". iNext.
@@ -322,12 +402,14 @@ Section rules.
   Proof.
     iIntros (?) "[#Hinv Hj]". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hi Hj") as %Htpj.
     destruct (exist_fresh (used_proph_id σᵢ)) as [p Hv].
     iExists p.
     iMod (cfg_auth_tpool_update with "Hi Hj") as "[Hi $]".
-    iApply "Hclose". iNext. iExists _, _, _, (state_upd_used_proph_id ({[ p ]} ∪.) σᵢ).
+    iApply "Hclose". iNext.
+    iExists _, _, _, (state_upd_used_proph_id ({[ p ]} ∪.) σᵢ), _.
     iFrame. iFrame "%".
     rewrite cfg_auth_prophs_update.
     iFrame. iPureIntro.
@@ -341,7 +423,8 @@ Section rules.
   Proof.
     iIntros (?) "[#Hinv Hj]". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hi Hj") as %Htpj.
     iMod (cfg_auth_tpool_update with "Hi Hj") as "[Hi $]".
     iApply "Hclose". iNext.
@@ -358,7 +441,8 @@ Section rules.
   Proof.
     iIntros (<- ?) "[#Hinv Hj]". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hi Hj") as %Htpj.
     iMod (cfg_auth_heap_alloc with "Hi") as (l) "(% & Hi & $)".
     iMod (cfg_auth_tpool_update with "Hi Hj") as "[Hi $]".
@@ -376,7 +460,8 @@ Section rules.
   Proof.
     iIntros (?) "([#Hinv Hj] & Hl)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hi Hj") as %Htpj.
     iDestruct (cfg_auth_heap_agree with "Hi Hl") as "%".
     iMod (cfg_auth_tpool_update with "Hi Hj") as "[Hi $]".
@@ -393,7 +478,8 @@ Section rules.
   Proof.
     iIntros (<-?) "([#Hinv Hj] & Hl)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hi Hj") as %Htpj.
     iDestruct (cfg_auth_heap_agree with "Hi Hl") as %?.
     iMod (cfg_auth_tpool_update with "Hi Hj") as "[Hi $]".
@@ -411,7 +497,8 @@ Section rules.
   Proof.
     iIntros (<-?) "([#Hinv Hj] & Hl)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hi Hj") as %Htpj.
     iDestruct (cfg_auth_heap_agree with "Hi Hl") as %?.
     iMod (cfg_auth_tpool_update with "Hi Hj") as "[Hi $]".
@@ -433,7 +520,8 @@ Section rules.
   Proof.
     iIntros (<-<-???) "([#Hinv Hj] & Hl)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hi Hj") as %Htpj.
     iDestruct (cfg_auth_heap_agree with "Hi Hl") as "%".
     iMod (cfg_auth_tpool_update with "Hi Hj") as "[Hi $]".
@@ -454,7 +542,8 @@ Section rules.
   Proof.
     iIntros (<-<-???) "([#Hinv Hj] & Hl)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hi Hj") as %Htpj.
     iDestruct (cfg_auth_heap_agree with "Hi Hl") as %?.
     iMod (cfg_auth_tpool_update with "Hi Hj") as "[Hi $]".
@@ -473,7 +562,8 @@ Section rules.
   Proof.
     iIntros (<-?) "([#Hinv Hj] & Hl)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hi Hj") as %Htpj.
     iDestruct (cfg_auth_heap_agree with "Hi Hl") as %?.
     iMod (cfg_auth_tpool_update with "Hi Hj") as "[Hi $]".
@@ -491,7 +581,8 @@ Section rules.
   Proof.
     iIntros (?) "[#Hinv Hj]". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & %Hrtcv & %Hrtci)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & %Hrtcv & %Hrtci)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hi Hj") as %Htpj.
     iMod (cfg_auth_tpool_update with "Hi Hj") as "[Hi $]".
     iMod (cfg_auth_tpool_fork with "Hi") as "[Hi $]".
@@ -508,7 +599,8 @@ Section rules.
   Proof.
     iIntros (?) "(#Hinv & Hj)". iFrame "Hinv".
     iDestruct "Hinv" as (ρᵥ ρᵢ) "Hspec".
-    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hv & Hi & % & %)" "Hclose".
+    iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+      ">(Hv & Hi & Hsmeta & %Hdom & % & %)" "Hclose".
     iDestruct (cfg_auth_tpool_agree with "Hi Hj") as %Htpj.
     iMod (cfg_auth_tpool_update with "Hi Hj") as "[Hi $]".
     iMod (cfg_auth_hash_update with "Hi") as "Hi".
@@ -542,7 +634,7 @@ Proof.
     iMod (step_verifier_pure with "Hi") as "Hi"; [done|done|].
     by iMod ("H" with "[$Hi //]").
   - iIntros "H" (??) "[% Hi]".
-    iMod (step_verifier_alloc with "Hi") as (l) "($ & Hl)"; [done|].
+    iMod (step_verifier_alloc with "Hi") as (l) "($ & Hl & _)"; [done|].
     by iApply "H".
   - iIntros "Hl H" (??) "[% Hi]".
     iMod (step_verifier_load with "[$Hl $Hi]") as "($ & Hl)"; [done|].
