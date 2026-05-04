@@ -256,7 +256,37 @@ Section authenticatable.
       iPureIntro. simpl. exists ua, ub. split; [done|].
       right. right. right. done.
     - (* 3. suspend_v_deser_spec (combined) *)
-      admit.
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ3 pid m d ps pn mlg) "Hv".
+      v_pures.
+      (* HeapLang evaluation: argument first. Bind v_dB before v_dA. *)
+      v_bind tᵥ3 (v_dB #pid).
+      iMod ("HsuspvdeserB" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ with "Hv")
+        as (v_deser_par_B) "[Hv #Hsuspvdeser_inner_B] /=".
+      v_bind tᵥ3 (v_dA #pid).
+      iMod ("HsuspvdeserA" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ with "Hv")
+        as (v_deser_par_A) "[Hv #Hsuspvdeser_inner_A] /=".
+      rewrite /prod_deser. v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros (Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hv) HΨ".
+      destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp; try done.
+      + (* tprod — the actual case *)
+        destruct Hunsusp as (a1A & a1B & un_a1A & un_a1B & -> & -> & HunsuspA & HunsuspB).
+        iEval (rewrite /susp_ser_p -/susp_ser_p /=) in "Hser".
+        iDestruct "Hser" as (a1A' a1B' s_def_A s_def_B [Heq ->]) "[#HserA #HserB]".
+        injection Heq as -> ->.
+        (* Destructure HA into tern/bin/un parts (all under ▷) *)
+        iDestruct "HA" as "[#HAt [#HAb #HAu]]".
+        iEval (rewrite interp_tern_prod_unfold) in "HAt".
+        rewrite interp_var1_ext2 interp_var0_ext1.
+        admit.
+      + (* tsum: contradicts pair *)
+        admit.
+      + (* tstring: contradicts pair *)
+        admit.
+      + (* tint: contradicts pair *)
+        admit.
+      + (* tauth: contradicts pair *)
+        admit.
     - (* 4. unsuspend_spec *)
       iIntros (E a1 a2 a3 HE Ψ) "!# (#HA & Htok & Hintr) HΨ".
       wp_pures.
