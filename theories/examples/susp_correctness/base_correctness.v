@@ -146,9 +146,9 @@ Section authenticatable.
         injection Heq as Hs'. subst s'.
         (* s_def = string_ser_str s0 = s_real (since c=0, no realization shift). *)
         destruct (decide (s_pred = string_ser_str s0)) as [Heq|Hne].
-        * (* Match branch — pending: full reconstruction *)
+        * (* Match branch — pending: deser step + post construction *)
           admit.
-        * (* Mismatch branch — pending: full reconstruction *)
+        * (* Mismatch branch — pending: deser step + post construction *)
           admit.
       + (* tint: contradicts string serialization *)
         iDestruct "Hser" as %(? & Heq & _); done.
