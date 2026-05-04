@@ -1,5 +1,5 @@
 From auth.prelude Require Import stdpp.
-From auth.rel_logic_tern_susp Require Export model.
+From auth.rel_logic_tern_susp Require Export model spec_rules.
 From iris.algebra Require Import gmap auth excl gset csum frac.
 From iris.algebra.lib Require Import dfrac_agree.
 
@@ -415,12 +415,19 @@ Definition lg_mapUR := authR (gmapUR loc lg_mapEntry).
 Class lg_mapG Σ := Lg_mapG { lg_map_inG :> inG Σ lg_mapUR; lg_mapG_name : gname }.
 
 Section lg_map.
-  Context `{!lg_mapG Σ}.
+  Context `{!lg_mapG Σ, !spec_metaG Σ}.
 
   Definition lg_mapg_type := gmap loc lg_mapEntry.
 
+  (** [lg_mapg_auth m] bundles the lg-map authority with a held bag of
+      [vmeta_token]s for every key in [dom m]. The bag is the auth
+      fragment [own spec_meta_name (◯ GSet (dom m))]; it acts as proof
+      that every key was once handed to us via [step_verifier_alloc].
+      Composed with a fresh [vmeta_token l] from a new allocation,
+      [gset_disj] validity gives [l ∉ dom m] without any external
+      freshness obligation. *)
   Definition lg_mapg_auth (m : lg_mapg_type) : iProp Σ :=
-    own lg_mapG_name (● m).
+    own lg_mapG_name (● m) ∗ own spec_meta_name (◯ GSet (dom m)).
 
   Definition lg_mapg_frag l γ : iProp Σ :=
     own lg_mapG_name (◯ {[ l := Cinr (to_agree γ) ]}).
@@ -455,24 +462,48 @@ Section lg_map.
     done.
   Qed.
 
+  (** Combined [vmeta_token l ∗ own spec_meta_name (◯ GSet (dom m))]
+      proves [l ∉ dom m] via [gset_disj] validity, and the merged
+      fragment becomes [◯ GSet (dom m ∪ {[l]})] which equals
+      [◯ GSet (dom (<[l := _]> m))]. Used by both insert variants. *)
+  Local Lemma vmeta_combine_dom (m : lg_mapg_type) (l : loc) (e : lg_mapEntry) :
+    vmeta_token l -∗ own spec_meta_name (◯ GSet (dom m)) -∗
+      ⌜l ∉ dom m⌝ ∗ own spec_meta_name (◯ GSet (dom (<[ l := e ]> m))).
+  Proof.
+    iIntros "Hvtok Hsmeta".
+    iDestruct (own_valid_2 with "Hsmeta Hvtok") as %Hv.
+    rewrite auth_frag_op_valid gset_disj_valid_op in Hv.
+    iSplit; [iPureIntro; set_solver|].
+    iCombine "Hsmeta Hvtok" as "Hsmeta'".
+    rewrite gset_disj_union; [|set_solver].
+    rewrite dom_insert_L (comm_L union {[l]}).
+    iFrame "Hsmeta'".
+  Qed.
+
   Lemma lg_mapg_insert m l γ :
-    m !! l = None →
-    lg_mapg_auth m ==∗
+    vmeta_token l -∗ lg_mapg_auth m ==∗
       lg_mapg_auth (<[ l := Cinr (to_agree γ) ]> m) ∗ lg_mapg_frag l γ.
   Proof.
-    rewrite /lg_mapg_auth /lg_mapg_frag. iIntros (Hfresh) "H".
-    iMod (own_update with "H") as "[$ $]"; last done.
+    rewrite /lg_mapg_auth /lg_mapg_frag. iIntros "Hvtok [Hauth Hsmeta]".
+    iDestruct (vmeta_combine_dom m l (Cinr (to_agree γ))
+               with "Hvtok Hsmeta") as "[%Hl_nin Hsmeta']".
+    apply not_elem_of_dom in Hl_nin.
+    iMod (own_update with "Hauth") as "[$ $]";
+      last by iModIntro; iFrame "Hsmeta'".
     apply auth_update_alloc.
     by apply alloc_singleton_local_update.
   Qed.
 
   Lemma lg_mapg_insert_unalloc m l :
-    m !! l = None →
-    lg_mapg_auth m ==∗
+    vmeta_token l -∗ lg_mapg_auth m ==∗
       lg_mapg_auth (<[ l := Cinl (to_agree ()) ]> m) ∗ lg_mapg_unalloc l.
   Proof.
-    rewrite /lg_mapg_auth /lg_mapg_unalloc. iIntros (Hfresh) "H".
-    iMod (own_update with "H") as "[$ $]"; last done.
+    rewrite /lg_mapg_auth /lg_mapg_unalloc. iIntros "Hvtok [Hauth Hsmeta]".
+    iDestruct (vmeta_combine_dom m l (Cinl (to_agree ()))
+               with "Hvtok Hsmeta") as "[%Hl_nin Hsmeta']".
+    apply not_elem_of_dom in Hl_nin.
+    iMod (own_update with "Hauth") as "[$ $]";
+      last by iModIntro; iFrame "Hsmeta'".
     apply auth_update_alloc.
     by apply alloc_singleton_local_update.
   Qed.
