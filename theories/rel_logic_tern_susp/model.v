@@ -1,21 +1,43 @@
 From auth.heap_lang Require Export lang notation derived_laws_upto_bad metatheory adequacy_upto_bad.
 From auth.heap_lang Require Export proofmode_upto_bad.
 From auth.base_logic Require Export spec_ra.
+From iris.algebra Require Import gset.
 From iris.base_logic.lib Require Export na_invariants.
+
+(** Per-verifier-loc exclusive token, used to prove distinctness of
+    freshly-allocated verifier locs. The auth tracks the set of
+    allocated locs; a fragment [◯ GSet {[l]}] is the per-loc
+    [vmeta_token l]. Two such fragments at the same [l] would have
+    a non-disjoint union, so combining them yields [False] —
+    equivalently, two tokens prove [l1 ≠ l2]. Lives inside [spec_inv]. *)
+Definition spec_metaUR : ucmra := authR (gset_disjUR loc).
+
+Class spec_metaG Σ := SpecMetaG {
+  spec_meta_inG :: inG Σ spec_metaUR;
+  spec_meta_name : gname;
+}.
 
 Class authPreG Σ := AuthPreG {
   auth_preG_heapGpreS :: heapGpreS Σ;
   auth_preG_spec :: inG Σ (authR cfgUR);
+  auth_preG_spec_meta :: inG Σ spec_metaUR;
 }.
 Class authG Σ := AuthG {
   authG_heapG :: heapGS Σ;
   authG_verifierG :: cfgSG Σ;
   authG_idealG :: cfgSG Σ;
+  authG_meta :: spec_metaG Σ;
 }.
 
-Definition authΣ : gFunctors := #[heapΣ; GFunctor (authR cfgUR)].
+Definition authΣ : gFunctors :=
+  #[heapΣ; GFunctor (authR cfgUR); GFunctor spec_metaUR].
 Global Instance subG_authPreG {Σ} : subG authΣ Σ → authPreG Σ.
 Proof. solve_inG. Qed.
+
+(** Authoritative set of allocated verifier locs. Used inside
+    [spec_inv]; never user-facing. *)
+Definition spec_meta_auth `{!spec_metaG Σ} (D : gset loc) : iProp Σ :=
+  own spec_meta_name (● GSet D).
 
 (** Prover spec resources  *)
 #[global] Notation cfg_authᵥ := (@cfg_auth _ authG_verifierG).
@@ -331,9 +353,13 @@ Section refines.
   Context `{!authG Σ, !seqG Σ}.
 
   Definition spec_inv (ρᵥ ρᵢ: cfg heap_lang) : iProp Σ :=
-    (∃ tpᵥ σᵥ tpᵢ σᵢ,
+    (∃ tpᵥ σᵥ tpᵢ σᵢ (D : gset loc),
         (** Authoritative resources for verifier and ideal *)
         cfg_authᵥ tpᵥ σᵥ ∗ cfg_authᵢ tpᵢ σᵢ ∗
+        (** Verifier-side allocated-loc tracker; [D ⊆ dom σᵥ.(heap)]
+            makes [l ∉ D] derivable from [σᵥ.(heap) !! l = None]
+            when allocating a fresh verifier loc. *)
+        spec_meta_auth D ∗ ⌜D ⊆ dom σᵥ.(heap)⌝ ∗
         (** Valid verifier and ideal executions *)
         ⌜rtc erased_step ρᵥ (tpᵥ, σᵥ)⌝ ∗ ⌜rtc erased_step ρᵢ (tpᵢ, σᵢ)⌝)%I.
   Definition spec_ctx : iProp Σ :=
