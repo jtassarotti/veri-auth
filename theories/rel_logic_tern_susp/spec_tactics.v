@@ -489,11 +489,10 @@ Lemma tac_v_alloc `{authG Σ, seqG Σ} k Δ1 E1 i1 K' e e' v Q :
   nclose specN ⊆ E1 →
   e = fill K' (ref e') →
   IntoVal e' v →
-  (* TODO use match here as well *)
   (∀ l : loc, ∃ Δ2,
     envs_simple_replace i1 false
        (Esnoc Enil i1 (spec_verifier k (fill K' #l))) Δ1 = Some Δ2 ∧
-    (envs_entails Δ2 ((l ↦ᵥ v) -∗ Q)%I)) →
+    (envs_entails Δ2 ((l ↦ᵥ v ∗ vmeta_token l) -∗ Q)%I)) →
   envs_entails Δ1 Q.
 Proof.
   rewrite envs_entails_unseal. intros ??? Hfill <- HQ.
@@ -507,9 +506,11 @@ Proof.
   destruct (HQ l) as (Δ2 & HΔ2 & HQ').
   rewrite (envs_simple_replace_sound' _ _ i1 _ _ HΔ2) /=.
   rewrite HQ' right_id.
-  rewrite (comm _ _ (l ↦ᵥ _)%I).
+  (* Goal shape: (spec_ctx ∗ ((spec_verifier' ∗ l ↦ᵥ v ∗ vmeta_token l)))
+                   ⊢ ((spec_verifier' -∗ ((l ↦ᵥ v ∗ vmeta_token l) -∗ Q))) *)
+  rewrite (comm _ _ ((l ↦ᵥ _) ∗ vmeta_token _)%I).
   rewrite assoc.
-  rewrite -(assoc _ (l ↦ᵥ _)%I spec_ctx _). rewrite -assoc.
+  rewrite -(assoc _ ((l ↦ᵥ _) ∗ vmeta_token _)%I spec_ctx _). rewrite -assoc.
   rewrite bi.wand_elim_r.
   by rewrite bi.wand_elim_r.
 Qed.

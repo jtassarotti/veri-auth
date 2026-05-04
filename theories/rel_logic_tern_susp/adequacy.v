@@ -1,6 +1,7 @@
 From auth.heap_lang Require Import adequacy_upto_bad.
 From auth.base_logic Require Import spec_ra.
 From auth.rel_logic_tern_susp Require Import model.
+From iris.algebra Require Import auth gset.
 From iris.base_logic.lib Require Export na_invariants.
 
 Lemma refines_adequate Σ `{authPreG Σ, na_invG Σ}
@@ -22,9 +23,15 @@ Proof.
   iIntros (Hinv) "_".
   iMod (cfg_alloc eᵥ σ) as (Hcfgᵥ) "[Hauthᵥ Heᵥ]".
   iMod (cfg_alloc eᵢ σ) as (Hcfgᵢ) "[Hauthᵢ Heᵢ]".
-  set (Hcfg := AuthG _ _ Hcfgᵥ Hcfgᵢ).
-  iMod (inv_alloc specN _ (spec_inv ([eᵥ], σ) ([eᵢ], σ)) with "[Hauthᵥ Hauthᵢ]") as "#Hcfg".
-  { iNext. iExists _, _, _, _. iFrame "# ∗ %". eauto. }
+  iMod (own_alloc (● (GSet (∅ : gset loc)))) as (γm) "Hsmeta_auth".
+  { by apply auth_auth_valid. }
+  set (Hsmeta := SpecMetaG Σ _ γm).
+  set (Hcfg := AuthG _ _ Hcfgᵥ Hcfgᵢ Hsmeta).
+  iMod (inv_alloc specN _ (spec_inv ([eᵥ], σ) ([eᵢ], σ))
+          with "[Hauthᵥ Hauthᵢ Hsmeta_auth]") as "#Hcfg".
+  { iNext. iExists _, _, _, _, ∅.
+    rewrite /spec_meta_auth. iFrame "Hauthᵥ Hauthᵢ Hsmeta_auth".
+    iPureIntro. split_and!; [set_solver|done|done]. }
   iAssert (spec_ctx) as "#Hctx"; [by iExists _, _|].
   iMod na_alloc as (np) "Htok".
   set (Hseq := Build_seqG _ _ np).
@@ -34,7 +41,8 @@ Proof.
   iIntros (v).
   iIntros "(%vᵥ & %vᵢ & [_ Hp] & [_ Hi] & Hinterp & Htok) /=".
   iDestruct (HA with "Hinterp") as %Hφ.
-  iInv specN as (tpᵥ σᵥ tpᵢ σᵢ) ">(Hauthᵥ & Hauthᵢ & %Hexecᵥ & %Hexecᵢ)" "Hclose".
+  iInv specN as (tpᵥ σᵥ tpᵢ σᵢ m)
+    ">(Hauthᵥ & Hauthᵢ & Hsmeta & %Hdom & %Hexecᵥ & %Hexecᵢ)" "Hclose".
   iDestruct (cfg_auth_tpool_agree with "Hauthᵥ Hp") as %?.
   iDestruct (cfg_auth_tpool_agree with "Hauthᵢ Hi") as %?.
   destruct tpᵥ as [|? tpᵥ]; simplify_eq/=.
