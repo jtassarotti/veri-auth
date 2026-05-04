@@ -417,58 +417,40 @@ Section authenticatable_definitions.
         ser v
       {{{ RET #s; True }}}.
 
-  Definition suspend_spec (suspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
-    ∀ t' (v un_v a2 a3 : val) s m,
-      {{{ ⌜unsusp t' v un_v⌝ ∗ ▷ A v a2 a3 ∗ susp_ser_p t' v s ∗
-          lg_mapg_auth m }}}
-        suspend un_v
-      {{{ v' m', RET v'; lg_mapg_auth m' ∗
-          A v' a2 a3 ∗ susp_ser_p t v' s ∗
-          ∃ s' c', susp_ser_p_real t c' v' s' }}}.
-
-  Definition v_deser_spec (v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
-    □(∀ K tᵥ (id : nat) a1 a2 a3 (s s' : string) m d ps pn c,
+  Definition suspend_v_deser_spec
+      (suspend v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
+    □(∀ t' (a1 un_a1 a2 a3 : val) (s_def s_pred : string)
+         K tᵥ (id : nat) m d ps pn mlg,
       spec_verifier tᵥ (fill K (v_deser #id))
-      ={⊤}=∗ ∃ (v_deser_par: val),
+      ={⊤}=∗ ∃ (v_deser_par : val),
         spec_verifier tᵥ (fill K v_deser_par) ∗
-        □(A a1 a2 a3 -∗ susp_ser_p_real t c a1 s -∗
-          susp_ser_p t a1 s' -∗ visited_mapg_auth m d ps pn -∗
-          spec_verifier tᵥ (fill K (v_deser_par #s))
-          ={⊤}=∗ ∃ (a2' : val) (γl : pending_setg_type),
-            ⌜size γl = c⌝ ∗ penset_frag γl ∗
-            spec_verifier tᵥ (fill K (SOMEV a2')) ∗
-            sub_susp_count t a2' c id c a2' ∗
-            visited_map_update_pending m d ps pn γl ∗
-            ([∗ set] γ ∈ γl, ∃ susp lb,
-              lg_mapg_frag lb γ ∗ lg_mapg_frag susp γ ∗
-              ⌜p_sub_obj t a1 #lb⌝ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
-            A a1 a2' a3 ∗ ser_v_proph t id a2' s')).
-  
-  (* Definition suspend_v_deser_spec (suspend v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
-    □(∀ t' (a1 un_a1 a2 a3 : val) (s s' : string) K tᵥ (id : nat) m d ps pn,
-      spec_verifier tᵥ (fill K (v_deser #id))
-      ={⊤}=∗ ∃ (v_deser_par: val),
-        spec_verifier tᵥ (fill K v_deser_par) ∗
-        {{{ ⌜unsusp t' a1 un_a1⌝ ∗ ▷ A a1 a2 a3 ∗ susp_ser_p t' a1 s ∗
+        {{{ ⌜unsusp t' a1 un_a1⌝ ∗
+            ▷ (lrel_tern_as_lrel A) a1 a2 a3 ∗
+            susp_ser_p t' a1 s_def ∗
             visited_mapg_auth m d ps pn ∗
-            spec_verifier tᵥ (fill K (v_deser_par #s')) }}}
+            lg_mapg_auth mlg ∗
+            spec_verifier tᵥ (fill K (v_deser_par #s_pred)) }}}
           suspend un_a1
-        {{{ a1' s'' c γl, RET a1';
-            susp_ser_p_real t c a1' s'' ∗
+        {{{ a1' s_real c γl mlg', RET a1';
+            lg_mapg_auth mlg' ∗
+            susp_ser_p_real t c a1' s_real ∗
             ⌜size γl = c⌝ ∗ penset_frag γl ∗
-            ((⌜s' = s''⌝ ∗ ∃ a2',
-              A a1' a2' a3 ∗ susp_ser_p t a1' s ∗
+            ((⌜s_pred = s_real⌝ ∗ ∃ a2',
+              (lrel_tern_as_lrel A) a1' a2' a3 ∗
+              susp_ser_p t a1' s_def ∗
               spec_verifier tᵥ (fill K (SOMEV a2')) ∗
               ([∗ set] γ ∈ γl, ∃ susp lb,
                 lg_mapg_frag lb γ ∗ lg_mapg_frag susp γ ∗
-                ⌜p_sub_obj t a1' #lb⌝ ∗ ⌜v_sub_obj t a2' (InjRV #susp)⌝) ∗
-              sub_susp_count t a2' c id c a2' ∗ ser_v_proph t a2' s ∗
+                ⌜p_sub_obj t a1' #lb⌝ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
+              sub_susp_count t a2' c id c a2' ∗
+              ser_v_proph t id a2' s_def ∗
               visited_map_update_pending m d ps pn γl) ∨
-            (⌜s' ≠ s''⌝ ∗
+            (⌜s_pred ≠ s_real⌝ ∗
               (lrel_tern_bin A) a1' a3 ∗
-              [∗ set] γ ∈ γl, ∃ lb,
+              visited_mapg_auth m d ps pn ∗
+              ([∗ set] γ ∈ γl, ∃ lb,
                   visit_pending γ ∗ lg_mapg_frag lb γ ∗
-                  ⌜p_sub_obj t a1' #lb⌝)) }}}). *)
+                  ⌜p_sub_obj t a1' #lb⌝))) }}}).
 
   Definition unsuspend_spec (unsuspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
     ∀ E (a1 a2 a3 : val),
@@ -549,9 +531,9 @@ Section authenticatable_definitions.
       ⌜v1 = (p_ser_susp, p_ser_unsusp, p_susp, p_unsusp)%V⌝ ∗ ⌜v2 = (v_ser, v_deser, v_count)%V⌝ ∗
       invalid_val A ∗
       unsusp_p_ser_spec p_ser_unsusp t ∗ susp_p_ser_spec p_ser_susp t ∗
-      suspend_spec p_susp A t ∗ unsuspend_spec p_unsusp A t ∗
+      suspend_v_deser_spec p_susp v_deser A t ∗ unsuspend_spec p_unsusp A t ∗
       v_ser_spec v_ser t ∗ v_auth_ser_spec v_ser A t ∗
-      v_deser_spec v_deser A t ∗ v_count_spec v_count t)%I.
+      v_count_spec v_count t)%I.
 
   Definition lrel_bi_evidence (A : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ v1 _,
     ∃ (t : evi_type) (p_ser_susp p_ser_unsusp p_susp p_unsusp v_ser v_deser v_count : val),
