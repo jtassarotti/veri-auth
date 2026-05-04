@@ -278,7 +278,19 @@ Section authenticatable.
         iDestruct "HA" as "[#HAt [#HAb #HAu]]".
         iEval (rewrite interp_tern_prod_unfold) in "HAt".
         rewrite interp_var1_ext2 interp_var0_ext1.
-        admit.
+        (* Step prover wp through the lambda destructure to reach the Pair *)
+        wp_pures.
+        (* Step verifier's prod_deser body to evaluate match against strindex *)
+        v_pures.
+        (* Case-split on String.index 0 "_" s_pred: SOME i (parse Alen further) or NONE (malformed) *)
+        destruct (String.index 0 "_" s_pred) as [i|] eqn:Hidx.
+        * (* SOME case: well-formed, continue parsing *)
+          admit.
+        * (* NONE case: malformed s_pred *)
+          rewrite Hidx /=. v_pures.
+          (* Hv now at fill K (InjLV #()) = NONEV. Discharge prover wp via
+             HA_bin's / HB_bin's suspend_spec_bin. *)
+          admit.
       + (* tsum: contradicts pair *)
         admit.
       + (* tstring: contradicts pair *)
