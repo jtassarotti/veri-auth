@@ -118,7 +118,7 @@ Section semtypes.
     | TProd => lrel_prod'
     | TSum => lrel_sum'
     | TArrow => lrel_arr'
-    | TRef => lrel_ref'
+    (* | TRef => lrel_ref' *)
     | TRec κ => interp_rec
     | TForall κ => lrel_forall'
     | TExists κ => lrel_exists'
@@ -157,7 +157,7 @@ Section semtypes_lemmas.
     - by iDestruct 1 as "[-> ->]".
     - by iDestruct 1 as (?) "[-> ->]".
     - by iDestruct 1 as (?) "[-> ->]".
-    - by iDestruct 1 as (?? -> ->) "H".
+    (* - by iDestruct 1 as (?? -> ->) "H". *)
   Qed.
 
   Lemma eq_type_sound Θ (τ : type Θ ⋆) Δ v v':
@@ -184,6 +184,13 @@ Section semtypes_lemmas.
     |={⊤}=> ⌜v1 = w1 ↔ v2 = w2⌝.
   Proof.
     intros Hunboxed.
+    cut (EqType τ).
+    { intros Hτ.
+      rewrite !eq_type_sound //.
+      iIntros "% %". iModIntro.
+      iPureIntro. naive_solver. }
+    inversion Hunboxed; econstructor.
+    (* intros Hunboxed.
     cut (EqType τ ∨ ∃ τ', τ = t_ref τ').
     { intros [Hτ | [τ' ->]].
       - rewrite !eq_type_sound //.
@@ -202,7 +209,7 @@ Section semtypes_lemmas.
           iInv (authN.@"ref".@(r1, r2)) as (v1 v2) "(>Hr1 & >Hr2 & Hinv1)".
           iInv (authN.@"ref".@(l1, r2)) as (w1 w2) "(>Hr1' & >Hr2' & Hinv2)".
           iExFalso. by iCombine "Hr2 Hr2'" gives %[]. }
-    by apply unboxed_type_ref_or_eqtype.
+    by apply unboxed_type_ref_or_eqtype. *)
   Qed.
 
 End semtypes_lemmas.
@@ -232,9 +239,9 @@ Section semtype_unfold_lemmas.
   Lemma interp_arr_unfold τ1 τ2:
     ⟦ τ1 → τ2 ⟧ Δ ≡ (⟦ τ1 ⟧ Δ → ⟦ τ2 ⟧ Δ)%lrel.
   Proof. rewrite interp_unseal //. Qed.
-  Lemma interp_ref_unfold τ :
+  (* Lemma interp_ref_unfold τ :
     ⟦ ref τ ⟧ Δ ≡ (ref (⟦ τ ⟧ Δ))%lrel.
-  Proof. rewrite interp_unseal //. Qed.
+  Proof. rewrite interp_unseal //. Qed. *)
 
   Lemma interp_rec_star_unfold (τ : type (Θ ▹ ⋆)%kind ⋆) v1 v2 :
     ⟦ μ: ⋆; τ ⟧ Δ v1 v2 ≡ (▷ ⟦ τ ⟧ (ext Δ (⟦ μ: ⋆; τ ⟧ Δ)) v1 v2)%I.
@@ -398,7 +405,7 @@ Proof. rewrite /IntoExist. rewrite interp_exists_unfold //. Qed.
 Proof. rewrite /FromExist. rewrite interp_exists_unfold //. Qed.
 
 (** ref  *)
-#[global] Instance into_exist_interp_t_ref `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (τ : type Θ ⋆) (w1 w2 : val) name :
+(* #[global] Instance into_exist_interp_t_ref `{authG Σ} {Θ} (Δ : ctxO Σ Θ) (τ : type Θ ⋆) (w1 w2 : val) name :
   AsIdentName (λ (l1 : loc), ∃ l2 : loc, ⌜w1 = #l1⌝ ∧ ⌜w2 = #l2⌝ ∧
       inv (authN .@ "ref" .@ (l1,l2)) (∃ v1 v2, l1 ↦ v1 ∗ l2 ↦ᵢ v2 ∗ ⟦ τ ⟧ Δ v1 v2))%I name →
   IntoExist (⟦ ref τ ⟧ Δ w1 w2)
@@ -409,7 +416,7 @@ Proof. rewrite /IntoExist. rewrite interp_ref_unfold //. Qed.
   FromExist (⟦ ref τ ⟧ Δ w1 w2)
     (λ (l1 : loc), ∃ l2 : loc, ⌜w1 = #l1⌝ ∧ ⌜w2 = #l2⌝ ∧
       inv (authN .@ "ref" .@ (l1,l2)) (∃ v1 v2, l1 ↦ v1 ∗ l2 ↦ᵢ v2 ∗ ⟦ τ ⟧ Δ v1 v2))%I.
-Proof. rewrite /FromExist. rewrite interp_ref_unfold //. Qed.
+Proof. rewrite /FromExist. rewrite interp_ref_unfold //. Qed. *)
 
 (** ** Properties of the type interpretation w.r.t. the substitutions *)
 Section interp_subst.

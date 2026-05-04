@@ -88,6 +88,16 @@ Section hash_theory.
     naive_solver.
   Qed.
 
+  Lemma hashed_s_equal s1 s2 :
+    ∀ γ,
+      ⌜hash s1 = hash s2⌝ -∗ hashed γ s1 -∗ hashed γ s2 -∗ ⌜s1 = s2⌝.
+  Proof.
+    iIntros (??) "hashs1 hashs2".
+    destruct (decide (collision s1 s2)) as [|Hnc%not_collision];
+      try (iExFalso; by iApply (hashed_inj_or_coll with "hashs1 hashs2")).
+    destruct Hnc as [<-|?]; by simplify_eq.
+  Qed.
+
 End hash_theory.
 
 Lemma hash_auth_alloc `{!gset_bijG Σ string string} hs :

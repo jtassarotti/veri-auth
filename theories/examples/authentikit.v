@@ -33,12 +33,12 @@ Definition Authenticatable {Θ} : type (Θ ▹ (⋆ ⇒ ⋆) ▹ (⋆ ⇒ ⋆))%
       ((* Authenticatable.int    : *) var0 t_nat) *
 
       ((* auth   : *) ∀: ⋆, var1 var0 → var0 → var3 var0) *
-      ((* unauth : *) ∀: ⋆, var1 var0 → var3 var0 → var2 var0))%ty  .
+      ((* unauth : *) ∀: ⋆, var1 var0 → var3 var0 → var2 var0))%ty.
 
 Definition Authentikit_func {Θ} : type Θ ((⋆ ⇒ ⋆) ⇒ (⋆ ⇒ ⋆) ⇒ ⋆) :=
   (Λ: (* auth : *)
    Λ: (* authenticated_computation : *)
-
+   
      ((* return : *) ∀: ⋆, var0 → var1 var0) *
      ((* bind   : *) ∀: ⋆; ⋆, var2 var1 → (var1 → var2 var0) → var2 var0) *
      Authenticatable

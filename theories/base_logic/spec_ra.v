@@ -62,7 +62,7 @@ Section conversions.
     (at level 20, q at level 50, format "l  ↦ₛ{ q }  v") : bi_scope.
   #[local] Notation "l ↦ₛ{# q } v" := (heapS_pointsto l (DfracOwn q) v)
     (at level 20, q at level 50, format "l  ↦ₛ{# q }  v") : bi_scope.  
-  #[local] Notation "l ↦ₛ v" := (heapS_pointsto l 1 v) (at level 20) : bi_scope.
+  #[local] Notation "l ↦ₛ v" := (heapS_pointsto l (DfracOwn 1) v) (at level 20) : bi_scope.
   #[local] Notation "j ⤇ e" := (tpool_pointsto j e) (at level 20) : bi_scope.
 
   Local Open Scope nat_scope.
@@ -149,25 +149,28 @@ End to_heap.
 Section pointsto.
   Context `{!cfgSG Σ}.
 
-  #[local] Notation "l ↦ₛ{ q } v" := (heapS_pointsto l (DfracOwn q) v)
+  #[local] Notation "l ↦ₛ{ q } v" := (heapS_pointsto l q v)
     (at level 20, q at level 50, format "l  ↦ₛ{ q }  v") : bi_scope.
+  #[local] Notation "l ↦ₛ{# q } v" := (heapS_pointsto l (DfracOwn q) v)
+    (at level 20, q at level 50, format "l  ↦ₛ{# q }  v") : bi_scope.  
   #[local] Notation "l ↦ₛ v" := (heapS_pointsto l (DfracOwn 1) v) (at level 20) : bi_scope.
   #[local] Notation "j ⤇ e" := (tpool_pointsto j e) (at level 20) : bi_scope.
-
-  Global Instance pointstoS_fractional l v : Fractional (λ q, l ↦ₛ{q} v)%I.
+ 
+  Global Instance pointstoS_fractional l v : Fractional (λ q, l ↦ₛ{# q} v)%I.
   Proof.
     intros p q. rewrite heapS_pointsto_eq -own_op -auth_frag_op.
     by rewrite -!pair_op singleton_op -pair_op agree_idemp right_id.
   Qed.
   Global Instance pointstoS_as_fractional l q v :
-    AsFractional (l ↦ₛ{q} v) (λ q, l ↦ₛ{q} v)%I q.
+    AsFractional (l ↦ₛ{# q} v) (λ q, l ↦ₛ{# q} v)%I q.
   Proof. split. done. apply _. Qed.
   Global Instance frame_pointstoS p l v q1 q2 q :
     FrameFractionalQp q1 q2 q →
-    Frame p (l ↦ₛ{q1} v) (l ↦ₛ{q2} v) (l ↦ₛ{q} v) | 5.
+    Frame p (l ↦ₛ{# q1} v) (l ↦ₛ{# q2} v) (l ↦ₛ{# q} v) | 5.
   Proof. apply: frame_fractional. Qed.
 
-  Lemma pointstoS_agree l q1 q2 v1 v2 : l ↦ₛ{q1} v1 -∗ l ↦ₛ{q2} v2 -∗ ⌜v1 = v2⌝.
+  
+  Lemma pointstoS_agree l dq1 dq2 v1 v2 : l ↦ₛ{dq1} v1 -∗ l ↦ₛ{dq2} v2 -∗ ⌜✓ (dq1 ⋅ dq2) ∧ v1 = v2⌝.
   Proof.
     apply bi.entails_wand, bi.wand_intro_r.
     rewrite heapS_pointsto_eq -own_op -auth_frag_op own_valid uPred.discrete_valid.
@@ -176,7 +179,8 @@ Section pointsto.
     rewrite auth_frag_valid.
     intros [_ Hv]. move:Hv => /=.
     rewrite singleton_valid.
-    by move=> [_] /to_agree_op_inv_L [->].
+    rewrite pair_valid.
+    by move=> [? -] /to_agree_op_inv_L [->].
   Qed.
 
   Lemma pointstoS_valid l q v : l ↦ₛ{q} v -∗ ✓ q.
@@ -187,26 +191,23 @@ Section pointsto.
     by intros [? _].
   Qed.
 
-  Lemma pointstoS_valid_2 l q1 q2 v1 v2 : l ↦ₛ{q1} v1 -∗ l ↦ₛ{q2} v2 -∗ ✓ (q1 + q2)%Qp.
-  Proof.
-    iIntros "H1 H2". iDestruct (pointstoS_agree with "H1 H2") as %->.
-    iApply pointstoS_valid. iFrame.
-  Qed.
+  Lemma pointstoS_valid_2 l q1 q2 v1 v2 : l ↦ₛ{q1} v1 -∗ l ↦ₛ{q2} v2 -∗ ✓ (q1 ⋅ q2).
+  Proof. iIntros "H1 H2". by iDestruct (pointstoS_agree with "H1 H2") as "[% %]". Qed. 
 
   Global Instance pointstoS_combine_sep_gives l dq1 dq2 v1 v2 :
     CombineSepGives (l ↦ₛ{dq1} v1) (l ↦ₛ{dq2} v2) ⌜✓ (dq1 ⋅ dq2) ∧ v1 = v2⌝.
   Proof.
     rewrite /CombineSepGives. iIntros "[H1 H2]". iSplit.
     - iDestruct (pointstoS_valid_2 with "H1 H2") as %?; auto.
-    - iDestruct (pointstoS_agree with "H1 H2") as %?; auto.
+    - iDestruct (pointstoS_agree with "H1 H2") as %[? ?]; auto.
   Qed.
 
   Lemma pointstoS_half_combine l v1 v2 :
-    l ↦ₛ{1/2} v1 -∗ l ↦ₛ{1/2} v2 -∗ ⌜v1 = v2⌝ ∗ l ↦ₛ v1.
+    l ↦ₛ{#1/2} v1 -∗ l ↦ₛ{#1/2} v2 -∗ ⌜v1 = v2⌝ ∗ l ↦ₛ v1.
   Proof.
     iIntros "Hl1 Hl2".
-    iDestruct (pointstoS_agree with "Hl1 Hl2") as %?. simplify_eq.
-    iSplit; eauto. iCombine "Hl1 Hl2" as "?". done.
+    iDestruct (pointstoS_agree with "Hl1 Hl2") as %[? ->]. 
+    by iCombine "Hl1 Hl2" as "$".
   Qed.
 
 End pointsto.

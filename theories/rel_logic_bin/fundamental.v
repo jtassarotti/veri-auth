@@ -113,7 +113,7 @@ Section fundamental.
       by iApply ("Ht" with "[$]").
   Qed.
 
-  Lemma bin_log_related_fork Θ Δ Γ e e' :
+  (* Lemma bin_log_related_fork Θ Δ Γ e e' :
     ({Θ;Δ;Γ} ⊨ e ≤log≤ e' : ()) -∗
     {Θ;Δ;Γ} ⊨ Fork e ≤log≤ Fork e' : ().
   Proof.
@@ -123,7 +123,7 @@ Section fundamental.
     setoid_rewrite interp_unit_unfold.
     iApply refines_fork.
     by iApply "IH".
-  Qed.
+  Qed. *)
 
   Lemma bin_log_related_tlam Θ (Δ : ctxO Σ Θ) Γ κ (e e' : expr) τ :
     (∀ (A : kindO Σ κ),
@@ -245,7 +245,7 @@ Section fundamental.
     - by iApply ("IH3" with "[$] [$]") .
   Qed.
 
-  Lemma bin_log_related_load Θ Δ Γ e e' τ :
+  (* Lemma bin_log_related_load Θ Δ Γ e e' τ :
     ({Θ;Δ;Γ} ⊨ e ≤log≤ e' : ref τ) -∗
     {Θ;Δ;Γ} ⊨ Load e ≤log≤ Load e' : τ.
   Proof.
@@ -368,7 +368,7 @@ Section fundamental.
     iMod (inv_alloc (authN .@ "ref" .@ (l,li)) _ (∃ w1 w2,
             l ↦ w1 ∗ li ↦ᵢ w2 ∗ interp τ Δ w1 w2)%I with "[$Hl $Hli $IH]") as "HN".
     iFrame. iExists _. by iFrame.
-  Qed.
+  Qed. *)
 
   Lemma bin_log_related_unboxed_eq Θ Δ Γ e1 e2 e1' e2' τ :
     UnboxedType τ →
@@ -659,7 +659,7 @@ Section fundamental.
       + iApply bin_log_related_pack'; by iApply fundamental.
       + iApply bin_log_related_unpack; try by iApply fundamental.
         iIntros (A). by iApply fundamental.
-      + iApply bin_log_related_fork; by iApply fundamental.
+      (* + iApply bin_log_related_fork; by iApply fundamental.
       + iApply bin_log_related_alloc; by iApply fundamental.
       + iApply bin_log_related_load; by iApply fundamental.
       + iApply bin_log_related_store; by iApply fundamental.
@@ -667,7 +667,7 @@ Section fundamental.
       + iApply bin_log_related_FAA; eauto;
           by iApply fundamental.
       + iApply bin_log_related_CmpXchg; eauto;
-          by iApply fundamental.
+          by iApply fundamental. *)
       + iApply bin_log_related_hash; by iApply fundamental.
       + iApply bin_log_related_tequiv; [done|]. by iApply fundamental.
     - intros Hv. destruct Hv; simpl.

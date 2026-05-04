@@ -57,6 +57,13 @@ Definition map_forall : val :=
       ("f" (Fst "p") (Snd "p")) && "map_forall" "f" "m"
   end.
 
+Definition map_is_empty : val :=
+  λ: "m",
+    match: "m" with
+      NONE => #true
+    | SOME "x" => #false
+    end.
+
 End map_code.
 
 Section map_specs.
@@ -70,6 +77,21 @@ Section map_specs.
   Definition is_map (d : val) (m : gmap K V) : Prop :=
     ∃ l, m = list_to_map l ∧ d = $l ∧ NoDup (fst <$> l).
 
+  Definition map_length (m : gmap K V) : nat := size m.
+
+  Lemma gwp_map_is_empty s E d m:
+    G{{{ ⌜is_map d m⌝ }}}
+      map_is_empty (Val d) @ s; E
+    {{{ v, RET #v; ⌜v = Nat.eqb 0 (map_length m)⌝ }}} ? gwp_laters g.
+  Proof.
+    iIntros (Φ (l & -> & -> & Hdup)) "HΦ".
+    rewrite /map_is_empty /map_length.
+    destruct l; gwp_pures; iModIntro; iApply "HΦ";
+      iPureIntro; simpl.
+    - by rewrite map_size_empty.
+    - by rewrite (map_size_list_to_map _ Hdup).
+  Qed.
+      
   Lemma gwp_map_empty s E :
     G{{{ True }}}
       map_empty #() @ s; E

@@ -42,6 +42,8 @@ _opam
 .DS_Store
 *.zip
 
+*.claude/
+
 # Emacs
 *~
 \#*\#

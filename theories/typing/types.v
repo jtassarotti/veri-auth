@@ -27,7 +27,7 @@ Inductive tconstr : kind → Type :=
 | TProd : tconstr (⋆ ⇒ ⋆ ⇒ ⋆)
 | TSum : tconstr (⋆ ⇒ ⋆ ⇒ ⋆)
 | TArrow : tconstr (⋆ ⇒ ⋆ ⇒ ⋆)
-| TRef : tconstr (⋆ ⇒ ⋆)
+(* | TRef : tconstr (⋆ ⇒ ⋆) *)
 | TForall κ : tconstr ((κ ⇒ ⋆) ⇒ ⋆)
 | TExists κ : tconstr ((κ ⇒ ⋆) ⇒ ⋆)
 | TRec κ : tconstr ((κ ⇒ κ) ⇒ κ).
@@ -145,7 +145,7 @@ Definition t_prod {Θ} (τ1 τ2 : type Θ ⋆) := TApp (TApp (TConstr TProd) τ1
 Definition t_sum {Θ} (τ1 τ2 : type Θ ⋆) := TApp (TApp (TConstr TSum) τ1) τ2.
 Definition t_option {Θ} (τ : type Θ ⋆) := t_sum t_unit τ.
 Definition t_arr {Θ} (τ1 τ2 : type Θ ⋆) := TApp (TApp (TConstr TArrow) τ1) τ2.
-Definition t_ref {Θ} (τ : type Θ ⋆) := TApp (TConstr TRef) τ.
+(* Definition t_ref {Θ} (τ : type Θ ⋆) := TApp (TConstr TRef) τ. *)
 Definition t_rec {Θ} (κ : kind) (τ : type (Θ ▹ κ)%kind κ) : type Θ κ := TApp (TConstr (TRec κ)) (TLam τ).
 Definition t_forall {Θ} (κ : kind) (τ : type (Θ ▹ κ) ⋆) : type Θ ⋆ := TApp (TConstr (TForall κ)) (TLam τ).
 Definition t_exists {Θ} (κ : kind) (τ : type (Θ ▹ κ) ⋆) : type Θ ⋆ := TApp (TConstr (TExists κ)) (TLam τ).
@@ -172,7 +172,7 @@ Notation "∃: x ; .. ; y , τ" := (t_exists x%kind .. (t_exists y%kind τ%ty) .
   (at level 10, τ at level 200,
   format "'[  ' '[  ' ∃:  x ;  .. ;  y ']' ,  '/' τ ']'") : FType_scope.
 
-Notation "'ref' τ" := (t_ref τ%ty) (at level 10, τ at next level, right associativity): FType_scope.
+(* Notation "'ref' τ" := (t_ref τ%ty) (at level 10, τ at next level, right associativity): FType_scope. *)
 
 Notation "Λ: τ" := (TLam τ)%ty (at level 200) : FType_scope.
 #[warning="-uniform-inheritance"]
@@ -292,7 +292,7 @@ Ltac tequiv_beta_l :=
     | |- tequiv _ _ (t_prod _ _) _ => eapply TEquiv_app
     | |- tequiv _ _ (t_sum _ _) _ => eapply TEquiv_app
     | |- tequiv _ _ (t_arr _ _) _ => eapply TEquiv_app
-    | |- tequiv _ _ (t_ref _) _ => eapply TEquiv_app
+(*    | |- tequiv _ _ (t_ref _) _ => eapply TEquiv_app *)
     | |- tequiv _ _ (t_forall _ _) _ => eapply TEquiv_app
     | |- tequiv _ _ (t_exists _ _) _ => eapply TEquiv_app
     | |- tequiv _ _ (t_rec _) _ => eapply TEquiv_app
