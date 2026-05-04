@@ -621,7 +621,24 @@ Section authenticatable.
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
     - (* 3. suspend_v_deser_spec (combined) *)
-      admit.
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m d ps pn mlg) "Hv".
+      v_pures.
+      iModIntro. iExists string_deser. iFrame "Hv".
+      iIntros (Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hv) HΨ".
+      iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
+      iDestruct "HAt" as %(s0 & -> & -> & ->).
+      destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp; try done.
+      + destruct Hunsusp as (? & ? & ? & ? & Heq & _); discriminate.
+      + destruct Hunsusp as [(? & ? & Heq & _ & _) | (? & ? & Heq & _ & _)]; discriminate.
+      + (* tstring *) subst un_a1.
+        rewrite /id. wp_pures.
+        iDestruct "Hser" as %(? & Heq & ->). injection Heq as ->.
+        (* TODO: step verifier through string_deser #s_pred,
+           branch on s_pred = s_real (= string_ser_str s0). *)
+        admit.
+      + (* tint: contradicts string serialization *)
+        iDestruct "Hser" as %(? & Heq & _); done.
+      + destruct Hunsusp as (? & ? & ? & ? & ? & Heq & _); discriminate.
     - (* 4. unsuspend_spec *)
       iIntros (E a1 a2 a3 HE Ψ) "!# (HA & Htok & Hintr) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
