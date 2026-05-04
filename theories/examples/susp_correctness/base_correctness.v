@@ -272,8 +272,8 @@ Section authenticatable.
       + (* tprod — the actual case *)
         destruct Hunsusp as (a1A & a1B & un_a1A & un_a1B & -> & -> & HunsuspA & HunsuspB).
         iEval (rewrite /susp_ser_p -/susp_ser_p /=) in "Hser".
-        iDestruct "Hser" as (a1A' a1B' s_def_A s_def_B [Heq ->]) "[#HserA #HserB]".
-        injection Heq as -> ->.
+        iDestruct "Hser" as (xa xb s_def_A s_def_B [Heq ->]) "[#HserA #HserB]".
+        injection Heq as <- <-.
         (* Destructure HA into tern/bin/un parts (all under ▷) *)
         iDestruct "HA" as "[#HAt [#HAb #HAu]]".
         iEval (rewrite interp_tern_prod_unfold) in "HAt".
@@ -290,6 +290,35 @@ Section authenticatable.
           rewrite Hidx /=. v_pures.
           (* Hv now at fill K (InjLV #()) = NONEV. Discharge prover wp via
              HA_bin's / HB_bin's suspend_spec_bin. *)
+          iEval (rewrite /lrel_evidence' /lrel_bi_evidence /=) in "HA_bin".
+          iDestruct "HA_bin" as (tA' p_ssA0 p_usA0 p_spA0 p_uspA0 v_sA0 v_dA0 v_cA0)
+            "(%Heq_A & _ & _ & #HsuspbinA & _)".
+          injection Heq_A as <- <- <- <-.
+          iEval (rewrite /lrel_evidence' /lrel_bi_evidence /=) in "HB_bin".
+          iDestruct "HB_bin" as (tB' p_ssB0 p_usB0 p_spB0 p_uspB0 v_sB0 v_dB0 v_cB0)
+            "(%Heq_B & _ & _ & #HsuspbinB & _)".
+          injection Heq_B as <- <- <- <-.
+          (* HAb destruct: a3 = (a3A, a3B), lrel_tern_bin A a1A a3A, etc. *)
+          iEval (rewrite interp_bin_prod_unfold) in "HAb".
+          rewrite interp_var1_ext2 interp_var0_ext1.
+          iDestruct "HAb" as (a3A_x a3B_x a3A a3B) "(%Heq_pa & %Heq_a3 & #HAbA & #HAbB)".
+          injection Heq_pa as -> ->. subst a3.
+          (* Run prover suspend_B first (right-first eval), then suspend_A *)
+          wp_bind (p_spB un_a1B).
+          wp_apply ("HsuspbinB" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbB"].
+          iIntros (a1B' s_real_B c_B) "[#HBbin #HserprealB]".
+          wp_bind (p_spA un_a1A).
+          wp_apply ("HsuspbinA" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbA"].
+          iIntros (a1A' s_real_A c_A) "[#HAbin #HserprealA]".
+          wp_pures.
+          (* SPEC DESIGN ISSUE: HserprealA gives susp_ser_p_real tA' (binary's tA),
+             but the outer post wants susp_ser_p_real tA (ternary's tA). These are
+             independent existentials in lrel_evidence (lrel_tern_evidence has its
+             own t, lrel_bi_evidence has its own t). To bridge we'd need either
+             (1) refactor lrel_evidence so tern/bin/un share t, or
+             (2) use HsuspvdeserA (ternary) instead of HsuspbinA — but HsuspvdeserA's
+                 inner Hoare needs spec_verifier in a specific form which we don't
+                 have here (we already consumed Hv to NONEV). *)
           admit.
       + (* tsum: contradicts pair *)
         admit.
