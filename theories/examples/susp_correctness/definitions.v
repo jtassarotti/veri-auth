@@ -230,8 +230,9 @@ Section authenticatable_definitions.
     ∃ (h : string), ⌜s = filled_string h ∧ v = InjLV #h⌝.
 
   Definition auth_susp_fill_v (v : val) (s : string) : iProp Σ :=
-    ∃ (h : string) (susp : loc), 
-      ⌜s = filled_string h ∧ v = InjRV #susp⌝ ∗ susp ↦ᵥ{#(3/4)} InjRV #h.
+    ∃ (h : string) (susp : loc) γ id, 
+      ⌜s = filled_string h ∧ v = InjRV #susp⌝ ∗ susp ↦ᵥ{#(3/4)} InjRV #h ∗
+      lg_mapg_frag susp γ ∗ visit_finished γ id.
 
   (* Definition auth_susp_emp_v (v : val) (s : string) : iProp Σ :=
     ∃ (h : string) (susp : loc) (pid: nat) (p : proph_id),
@@ -579,7 +580,7 @@ Section authenticatable_definitions.
         seq_inv (prover_susp_n N v) (susp_p_unfill_inv ps lb lr)).
 
   Definition auth_v (v : val) (s : string) (id : nat) : iProp Σ :=
-    (⌜v = InjLV #(hash s)⌝) ∨
+    (⌜v = InjLV #(hash s)⌝  ∗ id_token id) ∨
       (∃ (s' : string) (susp : loc) pid γ,
         ⌜v = InjRV #susp⌝ ∗ lg_mapg_frag susp γ ∗
         visit_reached_done γ id ∗ ⌜id > pid⌝ ∗
