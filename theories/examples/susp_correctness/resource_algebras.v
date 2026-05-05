@@ -567,6 +567,71 @@ Section visited_map_res.
     iIntros "[Hs #Hr]". iFrame "Hs Hr Hr".
   Qed.
 
+  (** [visit_done_lookup] reads off [m !! γ = Some (done_val n)] from the
+      auth and a [visit_done γ n] fragment. The token-side fragment is
+      exclusive at γ ([Cinl (Excl _)]), so singleton inclusion collapses to
+      a pointwise equiv, and Leibniz on [optionO natO] turns equiv into
+      equality. The auth and fragment are returned unchanged. *)
+  Lemma visit_done_lookup γ n m d ps pn ctr gm :
+    visited_mapg_auth m d ps pn ctr gm -∗ visit_done γ n -∗
+      ⌜m !! γ = Some (done_val n)⌝ ∗
+      visited_mapg_auth m d ps pn ctr gm ∗ visit_done γ n.
+  Proof.
+    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & %Hdom & %Hgmm & %Hdid & %Hpcoh) [Hf #Hr]".
+    iDestruct (own_valid_2 with "Hms Hf") as %Hv.
+    apply auth_both_valid_discrete in Hv as [Hincl Hvalid].
+    apply (singleton_included_exclusive_l m γ (done_val n)) in Hincl;
+      [|apply _|exact Hvalid].
+    iFrame "∗ # %". iPureIntro. by apply some_done_val_equiv_eq.
+  Qed.
+
+  (** [visit_finished_lookup] reads off [m !! γ = Some (finished_val n)]
+      from the auth and a [visit_finished γ n] fragment. The fragment's
+      [Cinr (to_agree n)] side at [visited_state_name] is not exclusive,
+      so equiv-to-eq cannot be bridged at that resource alone. Instead we
+      route through [done_id_coherent]: the persistent [visit_reached_done]
+      half gives [d !! γ ≡ Some (to_agree n)], which under
+      [done_id_coherent] forces [m !! γ] to be one of [done_val n] /
+      [finished_val n] (with Leibniz =). The [done_val n] alternative is
+      then ruled out using the state-map fragment, which would require
+      [Cinr (to_agree n) ≼ Cinl (Excl (Some n))] — impossible on a csum. *)
+  Lemma visit_finished_lookup γ n m d ps pn ctr gm :
+    visited_mapg_auth m d ps pn ctr gm -∗ visit_finished γ n -∗
+      ⌜m !! γ = Some (finished_val n)⌝ ∗
+      visited_mapg_auth m d ps pn ctr gm ∗ visit_finished γ n.
+  Proof.
+    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & %Hdom & %Hgmm & %Hdid & %Hpcoh)
+            [Hf #Hr]".
+    iDestruct "Hr" as "[#Hrd #Hid_alloc]".
+    (* d !! γ ≡ Some (to_agree n) via auth+frag at visited_done_name. *)
+    iDestruct (own_valid_2 with "Hd Hrd") as %Hvd.
+    apply auth_both_valid_discrete in Hvd as [Hincl_d Hvalid_d].
+    apply singleton_included_l in Hincl_d as (xd & Hxd & Hle_d).
+    assert (✓ xd) as Hvxd
+      by (eapply lookup_valid_Some; [exact Hvalid_d|exact Hxd]).
+    assert (d !! γ ≡ Some (to_agree n)) as Hdg_eq.
+    { rewrite Hxd. f_equiv.
+      apply Some_included in Hle_d as [|Hinc]; [by symmetry|].
+      symmetry. by apply (agree_valid_included _ _ Hvxd). }
+    pose proof (Hdid γ n Hdg_eq) as Hmγ.
+    (* Rule out the done_val n alternative using the state-map fragment. *)
+    iDestruct (own_valid_2 with "Hms Hf") as %Hvm.
+    apply auth_both_valid_discrete in Hvm as [Hincl_m _].
+    apply singleton_included_l in Hincl_m as (ym & Hym & Hle_m).
+    iFrame "∗ # %". iPureIntro.
+    destruct Hmγ as [Hmγ | Hmγ]; [exfalso|exact Hmγ].
+    rewrite Hmγ in Hym. apply Some_equiv_inj in Hym. symmetry in Hym.
+    apply done_val_equiv_eq in Hym. subst ym.
+    apply Some_included in Hle_m as [Heq | Hle].
+    - rewrite /finished_val /done_val in Heq. by inversion Heq.
+    - rewrite /finished_val /done_val in Hle.
+      apply csum_included in Hle as
+        [Hbot | [(?&?& Heq1 & _ & _) | (?&?& _ & Heq2 & _)]].
+      + by inversion Hbot.
+      + by inversion Heq1.
+      + by inversion Heq2.
+  Qed.
+
   Lemma visited_invalid_1 γ n :
     visit_pending γ ∗ visit_done γ n -∗ False.
   Proof.
