@@ -154,16 +154,16 @@ Section authentikit_helpers.
   Qed.
 
   Lemma sub_susp_count_eats_susp (id : nat) t (c pid Nc : nat) γ
-      (susp : loc) (p : proph_id) (v_outer : val) m d ps pn B :
+      (susp : loc) (p : proph_id) (v_outer : val) m d ps pn ctr gm :
     d !! γ = None →
     id > pid →
-    visited_mapg_auth m d ps pn B -∗
+    visited_mapg_auth m d ps pn ctr gm -∗
     id_token id -∗
     lg_mapg_frag susp γ -∗
     susp ↦ᵥ{#3/4} InjLV (#pid, #p) -∗
     sub_susp_count t (InjRV (InjRV #susp)) c pid Nc v_outer
     ==∗
-      visited_map_update_done m d ps pn γ id B ∗
+      visited_map_update_done m d ps pn γ id ctr gm ∗
       visit_reached_done γ id ∗
       sub_susp_count t (InjRV (InjRV #susp)) c pid Nc v_outer ∗
       susp ↦ᵥ{#3/4} InjLV (#pid, #p).
@@ -194,7 +194,7 @@ Section authentikit_helpers.
           iDestruct (pointstoS_agree with "Hsusp Hsusp_s") as %[_ Heqvals].
           assert (p = p') as <- by congruence.
           iDestruct "Hdisj" as "[Hpen|Hdone]".
-          -- iMod (visited_transition_done m d ps pn B γ id with "Hauth Hpen Htok")
+          -- iMod (visited_transition_done m d ps pn ctr gm γ id with "Hauth Hpen Htok")
                as "(Hauth' & Hdone)"; [done|].
              iDestruct (visit_done_keep with "Hdone") as "[Hdone #Hreached]".
              iModIntro.
@@ -210,40 +210,41 @@ Section authentikit_helpers.
              iExact "Hdone".
           -- iDestruct "Hdone" as (n Hn) "Hd".
              iDestruct "Hd" as "[_ #Hreached]".
+             iDestruct "Hreached" as "[#Hrd _]".
              iDestruct "Hauth" as "(Hms & Hd & Hrest)".
-             iDestruct (own_valid_2 with "Hd Hreached") as %Hvd.
+             iDestruct (own_valid_2 with "Hd Hrd") as %Hvd.
              apply auth_both_valid_discrete in Hvd as [Hincl _].
              apply singleton_included_l in Hincl as (xd & Hxd & _).
              exfalso. rewrite Hfresh in Hxd. inversion Hxd.
   Qed.
 
   Lemma visited_update_done (id : nat) :
-    ∀ t t' v (c pid Nc : nat) (susp : loc) (p : proph_id) γ m d ps pn B,
+    ∀ t t' v (c pid Nc : nat) (susp : loc) (p : proph_id) γ m d ps pn ctr gm,
       d !! γ = None →
       id > pid →
       v_sub_obj t' v #susp →
-      visited_mapg_auth m d ps pn B -∗
+      visited_mapg_auth m d ps pn ctr gm -∗
       id_token id -∗
       lg_mapg_frag susp γ -∗
       susp ↦ᵥ{#3/4} InjLV (#pid, #p) -∗
       sub_susp_count_frags t v c pid Nc
       ==∗
         visit_reached_done γ id ∗
-        visited_map_update_done m d ps pn γ id B ∗
+        visited_map_update_done m d ps pn γ id ctr gm ∗
         sub_susp_count_frags t v c pid Nc ∗
         susp ↦ᵥ{#3/4} InjLV (#pid, #p).
   Proof.
-    iIntros (t t' v c pid Nc susp p γ m d ps pn B Hfresh Hid Hsub)
+    iIntros (t t' v c pid Nc susp p γ m d ps pn ctr gm Hfresh Hid Hsub)
       "Hauth Htok #Hlg Hsusp (#Hcap & %Hle & Hinner & Hagg)".
     iAssert (∀ v_outer (tind : evi_type) (vind : val) (cind : nat) (tind' : evi_type),
                ⌜v_sub_obj tind' vind #susp⌝ -∗
-               visited_mapg_auth m d ps pn B -∗
+               visited_mapg_auth m d ps pn ctr gm -∗
                id_token id -∗
                lg_mapg_frag susp γ -∗
                susp ↦ᵥ{#3/4} InjLV (#pid, #p) -∗
                sub_susp_count tind vind cind pid Nc v_outer ==∗
                visit_reached_done γ id ∗
-               visited_map_update_done m d ps pn γ id B ∗
+               visited_map_update_done m d ps pn γ id ctr gm ∗
                sub_susp_count tind vind cind pid Nc v_outer ∗
                susp ↦ᵥ{#3/4} InjLV (#pid, #p))%I
       with "[]" as "Hlem".
@@ -315,7 +316,7 @@ Section authentikit_helpers.
             -- iDestruct "H" as (h) "%Heq'". destruct Heq' as [Heq' _]. discriminate.
             -- iDestruct "H" as (susp') "[%Heq' _]". discriminate.
           * subst vind.
-            iMod (sub_susp_count_eats_susp id _ cind pid Nc γ susp p v_outer m d ps pn B
+            iMod (sub_susp_count_eats_susp id _ cind pid Nc γ susp p v_outer m d ps pn ctr gm
               with "Hauth Htok Hlg Hsusp Hinner")
               as "(Hauth' & #Hreached & Hinner' & Hsusp')"; [done|done|].
             iModIntro. by iFrame. }
@@ -328,8 +329,8 @@ Section authentikit_helpers.
      external [susp] matches a B2 leaf. Consumes [c = 1] for the leaf,
      transitions [visit_done] -> [visit_finished] using the visited map auth,
      releases the [1/Nc] fragment, steps the verifier store. *)
-  Lemma count_update_eats_susp K tᵥ v' t (susp : loc) (c pid Nc : nat) (h : string) (v_outer : val) γ (n : nat) m d ps pn B :
-    visited_mapg_auth m d ps pn B -∗
+  Lemma count_update_eats_susp K tᵥ v' t (susp : loc) (c pid Nc : nat) (h : string) (v_outer : val) γ (n : nat) m d ps pn ctr gm :
+    visited_mapg_auth m d ps pn ctr gm -∗
     lg_mapg_frag susp γ -∗
     visit_reached_done γ n -∗
     sub_susp_count t (InjRV (InjRV #susp)) c pid Nc v_outer -∗
@@ -337,7 +338,7 @@ Section authentikit_helpers.
     spec_verifier tᵥ (fill K (#susp <- InjRV #h))
     ={⊤}=∗
       ⌜c = 1⌝ ∗
-      visited_map_update_finished m d ps pn γ n B ∗
+      visited_map_update_finished m d ps pn γ n ctr gm ∗
       visit_finished γ n ∗
       sub_susp_count t (InjRV (InjRV #susp)) (c-1) pid Nc v_outer ∗
       susp ↦ᵥ{#(3/4)} InjRV #h ∗
@@ -391,31 +392,31 @@ Section authentikit_helpers.
   Qed.
 
   Lemma count_update :
-    ∀ K tᵥ v v' (t t' : evi_type) (susp : loc) (c pid Nc : nat) (h : string) γ (n : nat) m d ps pn B,
+    ∀ K tᵥ v v' (t t' : evi_type) (susp : loc) (c pid Nc : nat) (h : string) γ (n : nat) m d ps pn ctr gm,
       ⌜v_sub_obj t' v #susp⌝ -∗
-      visited_mapg_auth m d ps pn B -∗
+      visited_mapg_auth m d ps pn ctr gm -∗
       lg_mapg_frag susp γ -∗
       visit_reached_done γ n -∗
       sub_susp_count_frags t v c pid Nc -∗
       susp ↦ᵥ{#(3/4)} InjLV (#pid, v') -∗
       spec_verifier tᵥ (fill K (#susp <- InjRV #h))
       ={⊤}=∗
-        visited_map_update_finished m d ps pn γ n B ∗
+        visited_map_update_finished m d ps pn γ n ctr gm ∗
         visit_finished γ n ∗
         sub_susp_count_frags t v (c-1) pid Nc ∗
         susp ↦ᵥ{#(3/4)} InjRV #h ∗
         spec_verifier tᵥ (fill K (#())).
   Proof.
-    iIntros (K tᵥ v v' t t' susp c pid Nc h γ n m d ps pn B)
+    iIntros (K tᵥ v v' t t' susp c pid Nc h γ n m d ps pn ctr gm)
       "%Hsub Hauth #Hlg #Hreached (#Hcap & %Hle & Hinner & Hagg) Hsusp Hspec".
     iAssert (∀ v_outer (t : evi_type) (v : val) (c : nat) (t' : evi_type),
                ⌜v_sub_obj t' v #susp⌝ -∗
-               visited_mapg_auth m d ps pn B -∗
+               visited_mapg_auth m d ps pn ctr gm -∗
                sub_susp_count t v c pid Nc v_outer -∗
                susp ↦ᵥ{#3/4} InjLV (#pid, v') -∗
                spec_verifier tᵥ (fill K (#susp <- InjRV #h)) ={⊤}=∗
                ⌜1 ≤ c⌝ ∗
-               visited_map_update_finished m d ps pn γ n B ∗
+               visited_map_update_finished m d ps pn γ n ctr gm ∗
                visit_finished γ n ∗
                sub_susp_count t v (c - 1) pid Nc v_outer ∗
                susp ↦ᵥ{#3/4} InjRV #h ∗

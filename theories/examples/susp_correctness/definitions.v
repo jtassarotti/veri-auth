@@ -440,7 +440,7 @@ Section authenticatable_definitions.
   Definition suspend_v_deser_spec
       (ser suspend v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
     □(∀ t' (a1 un_a1 a2 a3 : val) (s_def s_pred : string)
-         K tᵥ (id : nat) m d ps pn B mlg,
+         K tᵥ (id : nat) m d ps pn ctr gm mlg,
       spec_verifier tᵥ (fill K (v_deser #id))
       ={⊤}=∗ ∃ (v_deser_par : val),
         spec_verifier tᵥ (fill K v_deser_par) ∗
@@ -448,7 +448,7 @@ Section authenticatable_definitions.
           {{{ ⌜unsusp t' a1 un_a1⌝ ∗
               ▷ (lrel_tern_as_lrel A) a1 a2 a3 ∗
               susp_ser_p t' a1 s_def ∗
-              visited_mapg_auth m d ps pn B ∗
+              visited_mapg_auth m d ps pn ctr gm ∗
               lg_mapg_auth mlg ∗
               spec_verifier tᵥ' (fill K' (v_deser_par #s_pred)) }}}
             suspend un_a1
@@ -465,7 +465,7 @@ Section authenticatable_definitions.
                   ⌜p_sub_obj t a1' #lb⌝ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
                 sub_susp_count t a2' c id c a2' ∗
                 ser_v_proph t id a2' s_def ∗
-                visited_map_update_pending m d ps pn γl B) ∨
+                visited_map_update_pending m d ps pn γl ctr gm) ∨
               (⌜s_pred ≠ s_real⌝ ∗ (lrel_tern_bin A) a1' a3)) }}})).
 
   Definition unsuspend_spec (unsuspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
