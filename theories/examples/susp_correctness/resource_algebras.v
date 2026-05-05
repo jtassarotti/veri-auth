@@ -60,6 +60,14 @@ Section visited_map_res.
     ∀ γ, d !! γ ≠ None →
       ∃ n, m !! γ = Some (done_val n) ∨ m !! γ = Some (finished_val n).
 
+  (** [done_id_coherent m d] strengthens [visited_coherent] by linking the
+      id-tag in [d] to the id-tag in [m]. Used in
+      [id_token_visit_reached_done_invalid] to derive the matching id from
+      a [visit_reached_done γ id] fragment. *)
+  Definition done_id_coherent (m : state_mapg_type) (d : done_mapg_type) : Prop :=
+    ∀ γ n, d !! γ ≡ Some (to_agree n) →
+      m !! γ = Some (done_val n) ∨ m !! γ = Some (finished_val n).
+
   Definition pending_coherent (m : state_mapg_type) (ps : pending_setg_type) (pending_n : nat) : Prop :=
     pending_n = size ps ∧
       ∀ γ, m !! γ = Some pending_val → γ ∈ ps.
@@ -75,6 +83,7 @@ Section visited_map_res.
     own pending_set_name (● GSet ps) ∗ pencount_frag pending_n ∗
     own pending_id_name (◯ GSet B) ∗
     ⌜∀ γ n, m !! γ = Some (done_val n) ∨ m !! γ = Some (finished_val n) → n ∈ B⌝ ∗
+    ⌜done_id_coherent m d⌝ ∗
     ⌜visited_coherent m d⌝ ∗ ⌜pending_coherent m ps pending_n⌝.
 
   Definition visited_map_update_pending
@@ -86,6 +95,7 @@ Section visited_map_res.
     own pending_set_name (● GSet ps') ∗ pencount_frag (pn + size γs) ∗
     own pending_id_name (◯ GSet B) ∗
     ⌜∀ γ n, m' !! γ = Some (done_val n) ∨ m' !! γ = Some (finished_val n) → n ∈ B⌝ ∗
+    ⌜done_id_coherent m' d⌝ ∗
     ⌜visited_coherent m' d⌝ ∗
     ⌜pending_coherent m' ps' (pn + size γs)⌝.
 
@@ -96,6 +106,7 @@ Section visited_map_res.
     own pending_set_name (● GSet ps) ∗ pencount_frag pn ∗
     own pending_id_name (◯ GSet (B ∪ {[n]})) ∗
     ⌜∀ γ' n', <[ γ := done_val n ]>m !! γ' = Some (done_val n') ∨ <[ γ := done_val n ]>m !! γ' = Some (finished_val n') → n' ∈ B ∪ {[n]}⌝ ∗
+    ⌜done_id_coherent (<[ γ := done_val n ]>m) (<[ γ := to_agree n ]>d)⌝ ∗
     ⌜visited_coherent (<[ γ := done_val n ]>m) (<[ γ := to_agree n ]>d)⌝ ∗
     ⌜pending_coherent (<[ γ := done_val n ]>m) ps pn⌝.
 
@@ -106,6 +117,7 @@ Section visited_map_res.
     own pending_set_name (● GSet ps) ∗ pencount_frag pn ∗
     own pending_id_name (◯ GSet B) ∗
     ⌜∀ γ' n', <[ γ := finished_val n ]>m !! γ' = Some (done_val n') ∨ <[ γ := finished_val n ]>m !! γ' = Some (finished_val n') → n' ∈ B⌝ ∗
+    ⌜done_id_coherent (<[ γ := finished_val n ]>m) d⌝ ∗
     ⌜visited_coherent (<[ γ := finished_val n ]>m) d⌝ ∗
     ⌜pending_coherent (<[ γ := finished_val n ]>m) ps pn⌝.
 
@@ -114,6 +126,7 @@ Section visited_map_res.
     own pending_set_name (● GSet (ps ∖ γs)) ∗ pencount_frag (pending_n - size γs) ∗
     own pending_id_name (◯ GSet B) ∗
     ⌜∀ γ n, m !! γ = Some (done_val n) ∨ m !! γ = Some (finished_val n) → n ∈ B⌝ ∗
+    ⌜done_id_coherent m d⌝ ∗
     ⌜visited_coherent m d⌝ ∗
     ⌜pending_coherent m (ps ∖ γs) (pending_n - size γs)⌝.
 
@@ -275,7 +288,7 @@ Section visited_map_res.
         visited_map_update_pending m d ps pn {[γ]} B ∗ pencount_frag (pn+1) ∗
           visit_pending γ ∗ penset_frag {[γ]}.
   Proof.
-    iIntros "((Hms & Hd & Hps & Hpn1 & Hbag & %HBcoh & %Hcoh & %Hpcoh) & Hpn2)".
+    iIntros "((Hms & Hd & Hps & Hpn1 & Hbag & %HBcoh & %Hdid & %Hcoh & %Hpcoh) & Hpn2)".
     set (γ := fresh (dom m ∪ ps)).
     assert (γ ∉ (dom m ∪ ps : gset gname)) as Hfr by apply is_fresh.
     rewrite not_elem_of_union in Hfr.
@@ -291,7 +304,7 @@ Section visited_map_res.
     rewrite /visited_map_update_pending /visit_pending /penset_frag.
     rewrite set_fold_singleton size_singleton (union_comm_L ps {[γ]}) /=.
     iFrame "Hms' Hd Hps' Hpn1 Hp Hpsf Hpn2 Hbag".
-    iPureIntro. split; last split.
+    iPureIntro. split; last split; last split.
     - intros γ' n' Hmγ'.
       destruct Hmγ' as [Hmγ' | Hmγ'];
         apply lookup_insert_Some in Hmγ' as [[<- Heq]|[Hne Hm']].
@@ -299,6 +312,11 @@ Section visited_map_res.
       + apply (HBcoh γ' n'). by left.
       + by inversion Heq.
       + apply (HBcoh γ' n'). by right.
+    - intros γ' n' Hdγ'. destruct (decide (γ' = γ)) as [-> | Hne].
+      + exfalso. specialize (Hdid γ n' Hdγ').
+        destruct Hdid as [Hmγ | Hmγ]; rewrite Hfm in Hmγ; discriminate.
+      + destruct (Hdid γ' n' Hdγ') as [Hmγ | Hmγ];
+          [left|right]; rewrite lookup_insert_ne; done.
     - intros γ' Hdγ'. destruct (decide (γ' = γ)) as [-> | Hne].
       + destruct (Hcoh γ Hdγ') as (n & [Heq | Heq]); rewrite Hfm in Heq; discriminate.
       + rewrite lookup_insert_ne; [|done]. by apply Hcoh.
@@ -315,7 +333,7 @@ Section visited_map_res.
     visited_mapg_auth m d ps pn B -∗ visit_pending γ -∗ id_token n
     ==∗ visited_map_update_done m d ps pn γ n B ∗ visit_done γ n.
   Proof.
-    iIntros (Hdγ) "(Hms & Hd & Hps & Hpn & Hbag & %HBcoh & %Hcoh & %Hpcoh) H1 Htok".
+    iIntros (Hdγ) "(Hms & Hd & Hps & Hpn & Hbag & %HBcoh & %Hdid & %Hcoh & %Hpcoh) H1 Htok".
     rewrite /visited_map_update_done /visit_done /visit_reached_done /id_token.
     iMod (own_update_2 _ _ _
       (● <[γ := done_val n]>m ⋅ ◯ {[γ := done_val n]})
@@ -333,7 +351,7 @@ Section visited_map_res.
     iAssert (own pending_id_name (◯ GSet (B ∪ {[n]})))%I with "[Hbag Htok]" as "Hbag'".
     { rewrite -gset_disj_union // auth_frag_op own_op. iFrame. }
     iModIntro.
-    iFrame "Hps Hpn Hf Hbag'". iPureIntro. split; last split.
+    iFrame "Hps Hpn Hf Hbag'". iPureIntro. split; last split; last split.
     - intros γ' n' Hmγ'.
       destruct Hmγ' as [Hmγ' | Hmγ'];
         apply lookup_insert_Some in Hmγ' as [[<- Heq]|[Hne Hm']].
@@ -341,6 +359,14 @@ Section visited_map_res.
       + specialize (HBcoh γ' n' (or_introl Hm')). set_solver.
       + by inversion Heq.
       + specialize (HBcoh γ' n' (or_intror Hm')). set_solver.
+    - intros γ' n' Hdγ'.
+      destruct (decide (γ' = γ)) as [-> | Hne].
+      + rewrite lookup_insert in Hdγ'.
+        apply Some_equiv_inj, (inj to_agree) in Hdγ'.
+        fold_leibniz. subst n'. left. by rewrite lookup_insert.
+      + rewrite lookup_insert_ne in Hdγ'; [|done].
+        destruct (Hdid γ' n' Hdγ') as [Hmγ | Hmγ];
+          [left|right]; rewrite lookup_insert_ne; done.
     - intros γ' Hdγ'. destruct (decide (γ' = γ)) as [-> | Hne].
       + exists n. left. by rewrite lookup_insert.
       + rewrite lookup_insert_ne; [|done]. apply Hcoh.
@@ -357,7 +383,7 @@ Section visited_map_res.
     visited_mapg_auth m d ps pn B -∗ visit_done γ n
     ==∗ visited_map_update_finished m d ps pn γ n B ∗ visit_finished γ n.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hbag & %HBcoh & %Hcoh & %Hpcoh) [Hsfrag #Hreached]".
+    iIntros "(Hms & Hd & Hps & Hpn & Hbag & %HBcoh & %Hdid & %Hcoh & %Hpcoh) [Hsfrag #Hreached]".
     rewrite /visited_map_update_finished /visit_finished /visit_reached_done.
     (* Derive m !! γ = Some (done_val n) from Hms ⋅ Hsfrag, using exclusivity of done_val. *)
     iDestruct (own_valid_2 with "Hms Hsfrag") as %Hvm.
@@ -378,7 +404,7 @@ Section visited_map_res.
       apply (exclusive_local_update _ (finished_val n)). done. }
     iFrame "Hd Hps Hpn Hreached Hbag". iPureIntro.
     assert (n ∈ B) as HnB by (apply (HBcoh γ n); by left).
-    split; last split.
+    split; last split; last split.
     - intros γ' n' Hmγ'.
       destruct Hmγ' as [Hmγ' | Hmγ'];
         apply lookup_insert_Some in Hmγ' as [[<- Heq]|[Hne Hm']].
@@ -386,6 +412,17 @@ Section visited_map_res.
       + specialize (HBcoh γ' n' (or_introl Hm')). exact HBcoh.
       + inversion Heq. by subst.
       + specialize (HBcoh γ' n' (or_intror Hm')). exact HBcoh.
+    - intros γ' n' Hdγ'.
+      destruct (decide (γ' = γ)) as [-> | Hne].
+      + (* d unchanged at γ. m'[γ] = finished_val n. Need m[γ] = done_val n_old where
+           Hdγ' : d[γ] ≡ Some (to_agree n'). Old Hdid γ n' gives m[γ] is done/finished n'.
+           We also know m[γ] = done_val n (from Hinclm). So done_val n is either
+           done_val n' or finished_val n', the latter impossible. Hence n = n'. *)
+        specialize (Hdid γ n' Hdγ').
+        rewrite Hinclm in Hdid. destruct Hdid as [Heq | Heq]; inversion Heq as [Heqn].
+        subst n. right. by rewrite lookup_insert.
+      + rewrite lookup_insert_ne; [|done].
+        destruct (Hdid γ' n' Hdγ') as [Hmγ | Hmγ]; [by left|by right].
     - intros γ' Hdγ'. destruct (decide (γ' = γ)) as [-> | Hne].
       + exists n. right. by rewrite lookup_insert.
       + rewrite lookup_insert_ne; [|done]. by apply Hcoh.
@@ -454,7 +491,7 @@ Section visited_map_res.
     d !! γ = Some (to_agree n) →
     visited_mapg_auth m d ps pn B ==∗ visited_mapg_auth m d ps pn B ∗ visit_reached_done γ n.
   Proof.
-    iIntros (Hd) "(Hms & Hd & Hps & Hpn & Hbag & %HBcoh & %Hcoh & %Hpcoh)".
+    iIntros (Hd) "(Hms & Hd & Hps & Hpn & Hbag & %HBcoh & %Hdid & %Hcoh & %Hpcoh)".
     rewrite /visit_reached_done.
     iMod (own_update _ _ (● d ⋅ ◯ {[γ := to_agree n]}) with "Hd") as "[Hd #Hr]".
     { apply auth_update_dfrac_alloc; [apply _|].
@@ -466,7 +503,7 @@ Section visited_map_res.
   Lemma visited_reached_done_invalid γ n m d ps pn B :
     visited_mapg_auth m d ps pn B -∗ visit_reached_done γ n -∗ visit_pending γ -∗ False.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hbag & %HBcoh & %Hcoh & %Hpcoh) Hreached Hpending".
+    iIntros "(Hms & Hd & Hps & Hpn & Hbag & %HBcoh & %Hdid & %Hcoh & %Hpcoh) Hreached Hpending".
     rewrite /visit_reached_done /visit_pending.
     iDestruct (own_valid_2 with "Hd Hreached") as %Hvd.
     apply auth_both_valid_discrete in Hvd as [Hincl_d _].
@@ -528,7 +565,7 @@ Section visited_map_res.
     ([∗ set] γ ∈ γs, ∃ n, visit_reached_done γ n) ==∗
     visited_mapg_pending_removed m d ps pn γs B ∗ pencount_frag (pn - size γs).
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn1 & Hbag & %HBcoh & %Hcoh & %Hpcoh) Hpn2 Hfrag #Hreached".
+    iIntros "(Hms & Hd & Hps & Hpn1 & Hbag & %HBcoh & %Hdid & %Hcoh & %Hpcoh) Hpn2 Hfrag #Hreached".
     iAssert (⌜∀ γ, γ ∈ γs → d !! γ ≠ None⌝)%I as %Hdγs.
     { iIntros (γ Hin).
       iDestruct (big_sepS_elem_of with "Hreached") as (n) "Hr"; first done.
@@ -544,7 +581,7 @@ Section visited_map_res.
     { apply auth_update_dealloc, gset_disj_dealloc_local_update. }
     iMod (pn_update pn (pn - size γs) with "Hpn1 Hpn2") as "[Hpn1 Hpn2]".
     iModIntro. iFrame "Hms Hd Hps' Hpn1 Hpn2 Hbag". iPureIntro.
-    split; [exact HBcoh|]. split; first done.
+    split; [exact HBcoh|]. split; [exact Hdid|]. split; first done.
     destruct Hpcoh as [Hsz Hpcoh].
     split.
     - rewrite (size_difference _ _ Hincl) -Hsz //.
@@ -566,13 +603,44 @@ Section visited_map_res.
           m !! γ ≠ Some (finished_val id)⌝ ∗
       visited_mapg_auth m d ps pn B ∗ id_token id.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hbag & %HBcoh & %Hcoh & %Hpcoh) Htok".
+    iIntros "(Hms & Hd & Hps & Hpn & Hbag & %HBcoh & %Hdid & %Hcoh & %Hpcoh) Htok".
     iAssert (⌜id ∉ B⌝)%I as %HnotB.
     { rewrite /id_token. iDestruct (own_valid_2 with "Hbag Htok") as %Hv.
       rewrite auth_frag_op_valid gset_disj_valid_op in Hv. iPureIntro. set_solver. }
     iFrame "∗ %". iPureIntro. intros γ. split.
     - intros Hmγ. specialize (HBcoh γ id (or_introl Hmγ)). done.
     - intros Hmγ. specialize (HBcoh γ id (or_intror Hmγ)). done.
+  Qed.
+
+  (** Direct corollary: holding [id_token id] and [visit_reached_done γ id]
+      together is inconsistent under any [visited_mapg_auth]. *)
+  Lemma id_token_visit_reached_done_invalid m d ps pn B γ id :
+    visited_mapg_auth m d ps pn B -∗ id_token id -∗ visit_reached_done γ id -∗ False.
+  Proof.
+    iIntros "Hauth Htok Hreached".
+    iDestruct "Hauth" as
+      "(Hms & Hd & Hps & Hpn & Hbag & %HBcoh & %Hdid & %Hcoh & %Hpcoh)".
+    rewrite /id_token /visit_reached_done.
+    (* id ∉ B *)
+    iDestruct (own_valid_2 with "Hbag Htok") as %Hv.
+    rewrite auth_frag_op_valid gset_disj_valid_op in Hv.
+    assert (id ∉ B) as HnotB by set_solver.
+    (* d !! γ ≡ Some (to_agree id) via auth validity + agree_valid_included *)
+    iDestruct (own_valid_2 with "Hd Hreached") as %Hvd.
+    apply auth_both_valid_discrete in Hvd as [Hincl_d Hvalid_d].
+    apply singleton_included_l in Hincl_d as (xd & Hxd & Hle).
+    assert (✓ xd) as Hvxd
+      by (eapply lookup_valid_Some; [exact Hvalid_d|exact Hxd]).
+    assert (xd ≡ to_agree id) as Hxd_eq.
+    { apply Some_included in Hle as [Heq | Hinc].
+      - by symmetry.
+      - symmetry. by apply (agree_valid_included _ _ Hvxd). }
+    assert (d !! γ ≡ Some (to_agree id)) as Hdg_eq.
+    { rewrite Hxd. by f_equiv. }
+    (* Apply Hdid + HBcoh; contradicts id ∉ B *)
+    specialize (Hdid γ id Hdg_eq).
+    specialize (HBcoh γ id Hdid).
+    iPureIntro. set_solver.
   Qed.
 
 End visited_map_res.
