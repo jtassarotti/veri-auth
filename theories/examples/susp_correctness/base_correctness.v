@@ -501,8 +501,17 @@ Section authenticatable.
           iMod (own_unit pending_setUR pending_set_name) as "Hpe".
           iApply ("HΨ" $! #s0 (string_ser_str s0) 0%nat).
           iModIntro.
-          iSplitL "";
-            [iSplit; [iPureIntro; by exists s0|iPureIntro; eauto]|].
+          iSplitL "".
+          { iExists tstring.
+            iIntros (E q HE Ψ').
+            iModIntro. iIntros "[Htok Hintr] HΨ'".
+            rewrite /string_ser. wp_pures.
+            iApply "HΨ'". iModIntro. iFrame "Htok".
+            iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+            iDestruct "Hintr" as "[$ _]".
+            iIntros (γl) "Hg Hpen %Hsz Hbig".
+            apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+            iFrame "Hg Hpen". by rewrite big_sepS_empty. }
           iLeft. iSplit; [done|]. iExists ∅, mlg, #s0.
           iFrame "Hauth".
           iSplit; [iPureIntro; rewrite size_empty; lia|].
@@ -523,8 +532,17 @@ Section authenticatable.
         * (* Mismatch branch *)
           iApply ("HΨ" $! #s0 (string_ser_str s0) 0%nat).
           iModIntro.
-          iSplitL "";
-            [iSplit; [iPureIntro; by exists s0|iPureIntro; eauto]|].
+          iSplitL "".
+          { iExists tstring.
+            iIntros (E q HE Ψ').
+            iModIntro. iIntros "[Htok Hintr] HΨ'".
+            rewrite /string_ser. wp_pures.
+            iApply "HΨ'". iModIntro. iFrame "Htok".
+            iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+            iDestruct "Hintr" as "[$ _]".
+            iIntros (γl) "Hg Hpen %Hsz Hbig".
+            apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+            iFrame "Hg Hpen". by rewrite big_sepS_empty. }
           iRight. iSplit; [iPureIntro; auto|].
           iExists s0. done.
       + (* tint: contradicts string serialization *)
@@ -603,8 +621,17 @@ Section authenticatable.
           iMod (own_unit pending_setUR pending_set_name) as "Hpe".
           iApply ("HΨ" $! #z0 (int_ser_str z0) 0%nat).
           iModIntro.
-          iSplitL "";
-            [iSplit; [iPureIntro; by exists z0|iPureIntro; eauto]|].
+          iSplitL "".
+          { iExists tint.
+            iIntros (E q HE Ψ').
+            iModIntro. iIntros "[Htok Hintr] HΨ'".
+            rewrite /int_ser. wp_pures.
+            iApply "HΨ'". iModIntro. iFrame "Htok".
+            iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+            iDestruct "Hintr" as "[$ _]".
+            iIntros (γl) "Hg Hpen %Hsz Hbig".
+            apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+            iFrame "Hg Hpen". by rewrite big_sepS_empty. }
           iLeft. iSplit; [done|]. iExists ∅, mlg, #z0.
           iFrame "Hauth".
           iSplit; [iPureIntro; rewrite size_empty; lia|].
@@ -625,8 +652,17 @@ Section authenticatable.
         * (* Mismatch branch *)
           iApply ("HΨ" $! #z0 (int_ser_str z0) 0%nat).
           iModIntro.
-          iSplitL "";
-            [iSplit; [iPureIntro; by exists z0|iPureIntro; eauto]|].
+          iSplitL "".
+          { iExists tint.
+            iIntros (E q HE Ψ').
+            iModIntro. iIntros "[Htok Hintr] HΨ'".
+            rewrite /int_ser. wp_pures.
+            iApply "HΨ'". iModIntro. iFrame "Htok".
+            iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+            iDestruct "Hintr" as "[$ _]".
+            iIntros (γl) "Hg Hpen %Hsz Hbig".
+            apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+            iFrame "Hg Hpen". by rewrite big_sepS_empty. }
           iRight. iSplit; [iPureIntro; auto|].
           iExists z0. done.
       + destruct Hunsusp as (? & ? & ? & ? & ? & Heq & _); discriminate.
