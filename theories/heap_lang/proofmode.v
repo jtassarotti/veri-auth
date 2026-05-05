@@ -321,6 +321,28 @@ Proof.
   rewrite envs_app_sound //; simpl.
   apply wand_intro_l. by rewrite (sep_elim_l (l ↦ v)%I) right_id wand_elim_r.
 Qed.
+
+(** [tac_wp_alloc_meta] is the [meta_token]-preserving analogue of
+    [tac_wp_alloc]. The user's intro pattern receives the bundle
+    [(l ↦ v ∗ meta_token l ⊤)] and can destructure it as [Hl Hmeta]. *)
+Lemma tac_wp_alloc_meta Δ Δ' s E j K v Φ :
+  MaybeIntoLaterNEnvs 1 Δ Δ' →
+  (∀ l,
+    match envs_app false (Esnoc Enil j (l ↦ v ∗ meta_token l ⊤)%I) Δ' with
+    | Some Δ'' =>
+       envs_entails Δ'' (WP fill K (Val $ LitV l) @ s; E {{ Φ }})
+    | None => False
+    end) →
+  envs_entails Δ (WP fill K (Alloc (Val v)) @ s; E {{ Φ }}).
+Proof.
+  rewrite envs_entails_unseal=> ? HΔ.
+  rewrite -wp_bind. eapply wand_apply; first by apply wand_entails, wp_alloc.
+  rewrite left_id into_laterN_env_sound; apply later_mono, forall_intro=> l.
+  specialize (HΔ l).
+  destruct (envs_app _ _ _) as [Δ''|] eqn:HΔ'; [ | contradiction ].
+  rewrite envs_app_sound //; simpl.
+  apply wand_intro_l. by rewrite right_id wand_elim_r.
+Qed.
 Lemma tac_twp_alloc Δ s E j K v Φ :
   (∀ l,
     match envs_app false (Esnoc Enil j (l ↦ v)) Δ with
@@ -796,6 +818,33 @@ Tactic Notation "wp_alloc" ident(l) "as" constr(H) :=
 
 Tactic Notation "wp_alloc" ident(l) :=
   wp_alloc l as "?".
+
+(** [wp_alloc_meta l as H] introduces [l ↦ v ∗ meta_token l ⊤] as a
+    single hypothesis named by intro pattern [H]; typically used as
+    [wp_alloc_meta l as "[Hl Hmeta]"]. Single-loc only — for arrays use
+    [wp_alloc] and re-derive [meta_token]s from [heap_array_to_seq_meta]. *)
+Tactic Notation "wp_alloc_meta" ident(l) "as" constr(H) :=
+  let Htmp := iFresh in
+  let finish _ :=
+    first [intros l | fail 1 "wp_alloc_meta:" l "not fresh"];
+    pm_reduce;
+    lazymatch goal with
+    | |- False => fail 1 "wp_alloc_meta:" H "not fresh"
+    | _ => iDestructHyp Htmp as H; wp_finish
+    end in
+  wp_pures;
+  lazymatch goal with
+  | |- envs_entails _ (wp ?s ?E ?e ?Q) =>
+    first
+      [reshape_expr e ltac:(fun K e' => eapply (tac_wp_alloc_meta _ _ _ _ Htmp K))
+      |fail 1 "wp_alloc_meta: cannot find 'Alloc' in" e];
+    [tc_solve
+    |finish ()]
+  | _ => fail "wp_alloc_meta: not a 'wp'"
+  end.
+
+Tactic Notation "wp_alloc_meta" ident(l) :=
+  wp_alloc_meta l as "?".
 
 Tactic Notation "wp_free" :=
   let solve_pointsto _ :=
