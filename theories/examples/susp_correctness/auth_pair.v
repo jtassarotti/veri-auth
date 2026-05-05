@@ -268,12 +268,132 @@ Section authenticatable.
           iModIntro. iSplitL "".
           { (* (∃ t_real, susp_p_ser_spec_at (prod_ser p_ssA p_ssB) t_real
                                             (c_A+c_B) (a1A',a1B')
-                                            (prod_ser_str s_real_A s_real_B)). *)
+                                            (prod_ser_str s_real_A s_real_B)).
+               Inline tprod susp_p_ser_spec proof (mirrors case 2 of refines_Auth_pair). *)
             iExists (tprod tA' tB').
-            (* TODO: inline tprod susp_p_ser_spec proof; it mirrors case-2 of
-               refines_Auth_pair (using HsspecA, HsspecB, HserprealA, HserprealB).
-               Admitted for now. *)
-            admit. }
+            iIntros (E q HE Ψ').
+            iModIntro. iIntros "[Htok Hintr] HΨ'".
+            rewrite /prod_ser. wp_pures.
+            iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+            iDestruct "Hintr" as "[HintrA HintrB]".
+            wp_apply ("HsspecA" $! _ _ _ c_A (q/2)%Qp with "[//] [$HserprealA $Htok $HintrA]").
+            iIntros "(Htok & HintrA' & HreachA)". wp_pures.
+            wp_apply ("HsspecB" $! _ _ _ c_B (q/2)%Qp with "[//] [$HserprealB $Htok $HintrB]").
+            iIntros "(Htok & HintrB' & HreachB)". wp_pures.
+            unfold prod_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok".
+            iCombine "HintrA' HintrB'" as "Hcomb".
+            replace ((q/2)/2 + (q/2)/2)%Qp with (q/2)%Qp by (symmetry; apply Qp.div_2).
+            iFrame "Hcomb".
+            iIntros (γl) "Hg Hpen %Hsz Hbig".
+            iAssert (⌜∀ lb : loc, a1A' ≠ #lb⌝)%I as %Ha1A_not_loc.
+            { iIntros (lb).
+              destruct tA'; simpl.
+              - iDestruct "HserprealA" as (??) "[_ HserprealA']".
+                iDestruct "HserprealA'" as (????) "[%Hp _]".
+                iPureIntro. intros Heq. by destruct Hp as [-> _].
+              - iDestruct "HserprealA" as (??) "[H|H]".
+                + iDestruct "H" as "[_ %Hp]".
+                  iPureIntro. intros Heq. by destruct Hp as [-> _].
+                + iDestruct "H" as "[_ %Hp]".
+                  iPureIntro. intros Heq. by destruct Hp as [-> _].
+              - iDestruct "HserprealA" as "[%Hp _]".
+                iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
+              - iDestruct "HserprealA" as "[%Hp _]".
+                iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
+              - iDestruct "HserprealA" as "[[Hf _]|[He _]]".
+                + iDestruct "Hf" as (??????) "[%Hp _]".
+                  iPureIntro. intros Heq. by destruct Hp as [-> _].
+                + iDestruct "He" as (??????) "[%Hp _]".
+                  iPureIntro. intros Heq. by destruct Hp as [-> _]. }
+            iAssert (⌜∀ lb : loc, a1B' ≠ #lb⌝)%I as %Ha1B_not_loc.
+            { iIntros (lb).
+              destruct tB'; simpl.
+              - iDestruct "HserprealB" as (??) "[_ HserprealB']".
+                iDestruct "HserprealB'" as (????) "[%Hp _]".
+                iPureIntro. intros Heq. by destruct Hp as [-> _].
+              - iDestruct "HserprealB" as (??) "[H|H]".
+                + iDestruct "H" as "[_ %Hp]".
+                  iPureIntro. intros Heq. by destruct Hp as [-> _].
+                + iDestruct "H" as "[_ %Hp]".
+                  iPureIntro. intros Heq. by destruct Hp as [-> _].
+              - iDestruct "HserprealB" as "[%Hp _]".
+                iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
+              - iDestruct "HserprealB" as "[%Hp _]".
+                iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
+              - iDestruct "HserprealB" as "[[Hf _]|[He _]]".
+                + iDestruct "Hf" as (??????) "[%Hp _]".
+                  iPureIntro. intros Heq. by destruct Hp as [-> _].
+                + iDestruct "He" as (??????) "[%Hp _]".
+                  iPureIntro. intros Heq. by destruct Hp as [-> _]. }
+            assert (size γl = c_A + c_B)%nat as Hsz_keep by exact Hsz. clear Hsz.
+            iAssert (∃ γlA γlB : gset gname,
+                       ⌜γlA ## γlB ∧ γl = γlA ∪ γlB⌝ ∗
+                       ([∗ set] γ ∈ γlA, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj tA' a1A' #lb⌝) ∗
+                       ([∗ set] γ ∈ γlB, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj tB' a1B' #lb⌝))%I
+              with "[Hbig]"
+              as "(%γlA & %γlB & [%HdisjAB %HsplitAB] & HbigA & HbigB)".
+            { clear Hsz_keep.
+              iRevert "Hbig".
+              iInduction γl as [|γ γl' Hnotin] "IHγl" using set_ind_L.
+              - iIntros "_". iExists ∅, ∅. rewrite !big_sepS_empty.
+                iSplit; [iPureIntro; set_solver|]. by iSplit.
+              - iIntros "Hbig".
+                iEval (rewrite big_sepS_insert; [|done]) in "Hbig".
+                iDestruct "Hbig" as "[(%lb_γ & #Hfrag_γ & %Hsub_γ) Hbig']".
+                iDestruct ("IHγl" with "Hbig'")
+                  as "(%γlA' & %γlB' & [%Hdisj' %Hsplit'] & HA' & HB')".
+                destruct Hsub_γ as (x & y & Heq & Hdisj_p).
+                injection Heq as -> ->.
+                destruct Hdisj_p as [Heq | [Heq | [Hsub | Hsub]]].
+                + exfalso. by apply (Ha1A_not_loc lb_γ).
+                + exfalso. by apply (Ha1B_not_loc lb_γ).
+                + iExists ({[γ]} ∪ γlA'), γlB'.
+                  iSplit; [iPureIntro; split; [|set_solver]|].
+                  { assert (γ ∉ γlA') by set_solver. set_solver. }
+                  iSplitL "HA'".
+                  * rewrite big_sepS_insert; [|set_solver].
+                    iSplitL ""; [iExists lb_γ; by iFrame "Hfrag_γ"|done].
+                  * done.
+                + iExists γlA', ({[γ]} ∪ γlB').
+                  iSplit; [iPureIntro; split; [|set_solver]|].
+                  { assert (γ ∉ γlB') by set_solver. set_solver. }
+                  iSplitL "HA'"; [done|].
+                  rewrite big_sepS_insert; [|set_solver].
+                  iSplitL ""; [iExists lb_γ; by iFrame "Hfrag_γ"|done]. }
+            iDestruct (susp_ser_p_real_γl_card_le with "HserprealA HbigA") as %HszA_le.
+            iDestruct (susp_ser_p_real_γl_card_le with "HserprealB HbigB") as %HszB_le.
+            assert (size γlA + size γlB = c_A + c_B) as Hsz_sum.
+            { rewrite HsplitAB in Hsz_keep.
+              by rewrite (size_union _ _ HdisjAB) in Hsz_keep. }
+            assert (size γlA = c_A) as HszA by lia.
+            assert (size γlB = c_B) as HszB by lia.
+            iAssert (penset_frag γlA ∗ penset_frag γlB)%I with "[Hpen]" as "[HpenA HpenB]".
+            { rewrite /penset_frag.
+              replace (◯ GSet γl) with (◯ GSet γlA ⋅ ◯ GSet γlB).
+              - rewrite own_op. by iDestruct "Hpen" as "[$ $]".
+              - rewrite -auth_frag_op gset_disj_union //. by rewrite -HsplitAB. }
+            iSpecialize ("HreachA" $! γlA with "Hg HpenA [//] HbigA").
+            iDestruct "HreachA" as "(Hg & HpenA & HbigA')".
+            iSpecialize ("HreachB" $! γlB with "Hg HpenB [//] HbigB").
+            iDestruct "HreachB" as "(Hg & HpenB & HbigB')".
+            iFrame "Hg".
+            iAssert (penset_frag (γlA ∪ γlB)) with "[HpenA HpenB]" as "Hpen".
+            { rewrite /penset_frag -gset_disj_union //.
+              rewrite auth_frag_op own_op. iSplitL "HpenA"; [iExact "HpenA"|iExact "HpenB"]. }
+            rewrite -HsplitAB. iFrame "Hpen".
+            rewrite HsplitAB.
+            rewrite (big_sepS_union _ _ _ HdisjAB).
+            iSplitL "HbigA'".
+            { iApply (big_sepS_mono with "HbigA'").
+              iIntros (γ' ?) "[Hreach Hlb]". iFrame "Hreach".
+              iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
+              iPureIntro. simpl. exists a1A', a1B'. split; [done|].
+              right. right. left. done. }
+            iApply (big_sepS_mono with "HbigB'").
+            iIntros (γ' ?) "[Hreach Hlb]". iFrame "Hreach".
+            iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
+            iPureIntro. simpl. exists a1A', a1B'. split; [done|].
+            right. right. right. done. }
           iRight. iSplit.
           { iPureIntro. intros Heq.
             (* s_real = prod_ser_str s_real_A s_real_B contains "_"; s_pred lacks
