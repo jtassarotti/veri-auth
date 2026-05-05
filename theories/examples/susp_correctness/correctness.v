@@ -15,8 +15,8 @@ Definition i_Authentikit : expr := (i_return, i_bind, i_Authenticable).
 
 (** * Correctness proof *)
 Section proof.
-  Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, 
-      !mapG Σ, !capG Σ, !idcntrG Σ, !intransitG Σ, !stateG Σ, !stateTokG Σ}.
+  Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ,
+      !mapG Σ, !capG Σ, !intransitG Σ, !stateG Σ, !stateTokG Σ}.
 
   Definition authBaseN : namespace := nroot .@ "susp_sec".
   Definition tableN : namespace := authBaseN .@ "table".
@@ -72,10 +72,10 @@ Section proof.
 
   Definition is_v_susp_table (l : loc) : iProp Σ :=
     ∃ (d : val) (m : gmap val val) (m' : mapg_type) (vm : state_mapg_type)
-        (dm : done_mapg_type) (ps : pending_setg_type) (ctr pn : nat) 
-        (keyset : gset nat),
+        (dm : done_mapg_type) (ps : pending_setg_type) (ctr pn : nat)
+        (B : gset nat) (keyset : gset nat),
       l ↦ᵥ d ∗ ⌜is_map d m⌝ ∗ v_susp_big_sep m m' ∗ mapg_auth m' ∗
-      ⌜size m' = size m⌝ ∗ id_frag ctr ∗ visited_mapg_auth vm dm ps pn ∗
+      ⌜size m' = size m⌝ ∗ id_ctr_frag ctr ∗ visited_mapg_auth vm dm ps pn B ∗
       ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ child_inv m ∗ valid_keyset keyset m.
 
   Definition inv_v_susp_table (l: loc) := seq_inv tableN (is_v_susp_table l).
@@ -297,18 +297,18 @@ Section proof.
       {{{ seq_tok E ∗ intransit q ∗ proph_proof pr_s ls ∗
           susp_p_ser_spec ser t ∗ susp_ser_p_real t c a s }}}
           finish #pr_s
-      {{{ ls', RET #s; 
-            seq_tok E ∗ proph_proof pr_s ls' ∗ 
+      {{{ ls', RET #s;
+            seq_tok E ∗ proph_proof pr_s ls' ∗
             ⌜ls = s :: ls'⌝ ∗
-            (∀ m d ps pn (γl : pending_setg_type),
+            (∀ m d ps pn B (γl : pending_setg_type),
               good_state -∗ penset_frag γl -∗
               pencount_frag pn -∗
-              visited_mapg_auth m d ps pn -∗ 
+              visited_mapg_auth m d ps pn B -∗
               ⌜size γl = c⌝ -∗
               ([∗ set] γ ∈ γl, ∃ lb,
-                lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) ==∗ 
+                lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) ==∗
               good_state ∗ pencount_frag (pn - size γl) ∗
-              visited_mapg_pending_removed m d ps pn γl) }}}.
+              visited_mapg_pending_removed m d ps pn γl B) }}}.
 
   Lemma p_finish_spec' :
     ∀ ser a sprf pn,
@@ -335,7 +335,7 @@ Section proof.
 
     iApply "HΦ". iFrame.
     iModIntro. repeat (iSplit; eauto).
-    iIntros (?????) "Hst Hpset Hpc Hvm % #HbigL".
+    iIntros (??????) "Hst Hpset Hpc Hvm % #HbigL".
     
     iPoseProof ("Hgood" with "Hst Hpset [//] HbigL") as "($ & Hpset & #HbigL')".
     iPoseProof (big_sepS_sep
@@ -382,10 +382,10 @@ Section proof.
           ⌜ps_proph = ps_proph' ++ x⌝ ∗ ⌜ps_proph' = ps_real⌝ ∗
           ⌜is_proof prf' ps'⌝ ∗ ⌜ps' = reverse ps_proph' ++ ps⌝ ∗
           proph_proof p x ∗ seq_tok ⊤ ∗
-          (∀ m d pset, 
-            good_state -∗ visited_mapg_auth m d pset pn -∗
+          (∀ m d pset B,
+            good_state -∗ visited_mapg_auth m d pset pn B -∗
             pencount_frag pn ==∗
-            good_state ∗ visited_mapg_auth m d ∅ 0 ∗
+            good_state ∗ visited_mapg_auth m d ∅ 0 B ∗
             pencount_frag 0) }}}.
   Proof.
     iIntros (?????????? ?) 
@@ -466,7 +466,7 @@ Section proof.
 
   Definition v_proof_state (v : val) (ps : list string) : iProp Σ :=
     ∃ (prf : val) (cntr : nat),
-      ⌜v = (prf, #cntr)%V ∧ is_proof prf ps⌝ ∗ id_frag cntr.
+      ⌜v = (prf, #cntr)%V ∧ is_proof prf ps⌝ ∗ id_ctr_frag cntr.
 
   Definition lastn {A} (n : nat) (l : list A) : list A :=
     List.skipn (length l - n) l.
@@ -1064,8 +1064,8 @@ Section proof.
         iMod (lc_fupd_elim_later with "Hlctab Htabo") as "Htabo".
         iDestruct "Htabo" as "(%&%&%&% & Hl & %Hm & Hbigsep & Hmauth & Hid' & %Hidinv)".
 
-        iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-        iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
+        iPoseProof (id_ctr_frag_agree with "Hid Hid'") as (->) "[Hid Hid']".
+        iMod (id_ctr_frag_alloc ctr with "Hid Hid'") as "(Hid & Hid' & Hidtok)".
 
         v_bind (v_deser _). subst s0.
         iMod ("Hvdeserspec" with "Hv") as (?) "(Hv & Hvdeserparspec) /=".
@@ -1249,8 +1249,8 @@ Section proof.
           iMod (lc_fupd_elim_later with "Hlctab Htabo") as "Htabo".
           iDestruct "Htabo" as "(%&%&%&% & Hl & %Hm & Hbigsep & Hmauth & Hid' & %Hidinv)".
 
-          iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-          iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
+          iPoseProof (id_ctr_frag_agree with "Hid Hid'") as (->) "[Hid Hid']".
+          iMod (id_ctr_frag_alloc ctr with "Hid Hid'") as "(Hid & Hid' & Hidtok)".
 
           v_bind (v_deser _). subst s0.
           iMod ("Hvdeserspec" with "Hv") as (?) "(Hv & Hvdeserparspec) /=".
@@ -1429,8 +1429,8 @@ Section proof.
           iMod (lc_fupd_elim_later with "Hlctab Htabo") as "Htabo".
           iDestruct "Htabo" as "(%&%&%&% & Hl & %Hm & Hbigsep & Hmauth & Hid' & %Hidinv)".
 
-          iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-          iMod (id_update ctr (ctr+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
+          iPoseProof (id_ctr_frag_agree with "Hid Hid'") as (->) "[Hid Hid']".
+          iMod (id_ctr_frag_alloc ctr with "Hid Hid'") as "(Hid & Hid' & Hidtok)".
 
           v_bind (v_deser _). subst s0.
           iMod ("Hvdeserspec" with "Hv") as (?) "(Hv & Hvdeserparspec) /=".
@@ -1576,7 +1576,7 @@ Section proof.
         iDestruct "Hms" as (??????????[Hcgt [Hin' [? ?]]]) "(Hlc & Hxser & Hxserspec & #Hauthv & Hxc & Hxfin)".
         simplify_eq. assert (pv = x0) as <- by admit.
 
-        iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
+        iPoseProof (id_ctr_frag_agree with "Hid Hid'") as (->) "[Hid Hid']".
 
         iMod (oneshot_update authBaseN ctr with "[] [//] Hmfragsusp Hsusp Hxc Hone") 
             as "(Hone & Hxc & Hsusp)".
@@ -1651,8 +1651,8 @@ Section proof.
         iMod (lc_fupd_elim_later with "Hlctab Htabo") as "Htabo". clear Hm Hidinv.
         iDestruct "Htabo" as "(%&%&%&% & Hl & %Hm & Hbigsep & Hmauth & Hid' & %Hidinv)".
 
-        iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
-        iMod (id_update ctr1 (ctr1+1) (ltac:(lia)) with "Hid Hid'") as "[Hid Hid']".
+        iPoseProof (id_ctr_frag_agree with "Hid Hid'") as (->) "[Hid Hid']".
+        iMod (id_ctr_frag_alloc ctr1 with "Hid Hid'") as "(Hid & Hid' & Hidtok)".
 
         v_bind (v_deser _). subst s1.
         iMod ("Hvdeserspec" with "Hv") as (?) "(Hv & Hvdeserparspec) /=".
@@ -1862,11 +1862,11 @@ Section proof.
     apply is_list_inject in Hprf as ->.
     iDestruct "Hproph" as (us) "[Hproph %Hps]".
 
-    iAssert (id_frag 0) as "Hid"; first admit.
+    iAssert (id_ctr_frag 0) as "Hid"; first admit.
     iAssert (mapg_auth ∅) as "Hmauth"; first admit.
     iAssert (intransit 1) as "Hintr"; first admit.
     iAssert (good_state) as "Hst"; first admit.
-    iAssert (visited_mapg_auth ∅ ∅ ∅ 0) as "Hvmauth"; first admit.
+    iAssert (visited_mapg_auth ∅ ∅ ∅ 0 ∅) as "Hvmauth"; first admit.
     iAssert (pencount_frag 0) as "Hpc"; first admit.
 
     iMod (na_inv_alloc seqG_name ⊤ tableN (is_v_susp_table l) 
@@ -1923,7 +1923,7 @@ Section proof.
     assert (pn = sum_list lpn') as -> by admit.
     
     iDestruct "Hvw" as (??) "[[-> %] Hid']".
-    iPoseProof (id_agree with "Hid Hid'") as (->) "[Hid Hid']".
+    iPoseProof (id_ctr_frag_agree with "Hid Hid'") as (->) "[Hid Hid']".
 
     v_pures. v_load.
 
