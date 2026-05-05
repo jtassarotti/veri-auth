@@ -1,6 +1,6 @@
 From auth.prelude Require Import stdpp.
 From auth.rel_logic_tern_susp Require Export spec_rules spec_tactics.
-From iris.algebra Require Import gmap auth.
+From iris.algebra Require Import gmap auth csum agree.
 From iris.algebra.lib Require Import dfrac_agree.
 From auth.examples.susp_correctness Require Import resource_algebras definitions.
 
@@ -45,7 +45,7 @@ Section authentikit_helpers.
           * iDestruct "Hp" as (p γ) "(_ & _ & _ & Hfrag & _ & _)".
             iExists _. iFrame "Hfrag". }
     iDestruct ("Hext" $! v t v c with "[%//] Hcnt") as (q) "Hfrag".
-    iDestruct (mapg_subset with "Hmauth Hfrag") as %(y & Hy & _).
+    iDestruct (mapg_auth_alive with "Hmauth Hfrag") as %(y & Hy & _).
     rewrite Hnone in Hy. inversion Hy.
   Qed.
 
@@ -56,7 +56,8 @@ Section authentikit_helpers.
       mapg_auth m
       ==∗
         sub_susp_count t v 0 id Nc v ∗
-        mapg_auth (delete #id m).
+        mapg_auth (<[ #id := Cinr (to_agree tt) ]> m) ∗
+        mapg_removed #id.
   Proof.
     iIntros (t v id Nc m HN) "(#Hcap & %Hle & Hcount & Hagg) Hmauth".
     iDestruct "Hagg" as "[%Heq | [%Hlt Hq]]".
@@ -66,8 +67,8 @@ Section authentikit_helpers.
       assert (q = 1%Qp) as ->.
       { apply (inj (λ q : Qp, (q * pos_to_Qp (Pos.of_nat Nc))%Qp)).
         rewrite Qp.mul_1_l. exact Hqeq. }
-      iMod (mapg_remove with "Hmauth Hfrag") as "Hmauth".
-      iModIntro. iFrame.
+      iMod (mapg_remove with "Hmauth Hfrag") as "[Hmauth #Hrem]".
+      iModIntro. iFrame "∗ #".
   Qed.
 
   Lemma no_fix_InjLV (v : val) : v = InjLV v → False.
