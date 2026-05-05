@@ -278,7 +278,9 @@ Section authenticatable.
           { iPureIntro. intros Heq.
             (* s_real = prod_ser_str s_real_A s_real_B contains "_"; s_pred lacks
                "_" by Hidx. So s_pred ≠ s_real. *)
-            admit. }
+            rewrite Heq /prod_ser_str in Hidx.
+            erewrite index_0_append_char in Hidx;
+              [discriminate|done|apply valid_tag_stringOfZ]. }
           iEval (rewrite interp_bin_prod_unfold).
           rewrite interp_var1_ext2 interp_var0_ext1.
           iExists a1A', a3A, a1B', a3B.
