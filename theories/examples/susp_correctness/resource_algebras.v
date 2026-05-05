@@ -1,7 +1,8 @@
 From auth.prelude Require Import stdpp.
 From auth.rel_logic_tern_susp Require Export model spec_rules.
-From iris.algebra Require Import gmap auth excl gset csum frac.
+From iris.algebra Require Import gmap auth excl gset csum frac reservation_map.
 From iris.algebra.lib Require Import dfrac_agree.
+From iris.base_logic.lib Require Import ghost_map gen_heap.
 
 
 (* Nat is going to be the id assigned by the verifier. We are going to show that
@@ -509,6 +510,124 @@ Section lg_map.
   Qed.
 
 End lg_map.
+
+(** Prover-side parallel of [lg_map]. Uses Iris's standard [meta]/[meta_token]
+    machinery (from [iris.base_logic.lib.gen_heap]) for freshness, since
+    prover allocations come from [wp_alloc_meta] which yields [meta_token l ⊤].
+    The verifier and prover [loc]s come from independent heaps and may
+    coincide as values, so the two [lg_map] instances must use distinct
+    gnames — hence a separate [lg_mapG_p] class. *)
+Class lg_mapG_p Σ := Lg_mapG_p { lg_map_p_inG :> inG Σ lg_mapUR; lg_mapG_p_name : gname }.
+
+Definition lg_p_meta_n : namespace := nroot .@ "lg_p_meta".
+
+Section lg_map_p.
+  Context `{!lg_mapG_p Σ, !heapGS Σ}.
+
+  (** [lg_mapg_p_auth m] bundles the lg-map authority with a persistent
+      [meta l lg_p_meta_n (true : bool)] witness for every key [l ∈ dom m].
+      At insert time, [meta_combine_dom] uses [decide] to check whether
+      [l ∈ dom m]: in the positive case it calls [meta_set false] using
+      [meta_token l (↑lg_p_meta_n)] (a sub-token of the [meta_token l ⊤]
+      input), obtains [meta l lg_p_meta_n false], and applies [meta_agree]
+      to get [⌜false = true⌝] — a contradiction.  In the negative case it
+      calls [meta_set true] to extend the bigsep for the new key. *)
+  Definition lg_mapg_p_auth (m : lg_mapg_type) : iProp Σ :=
+    own lg_mapG_p_name (● m) ∗
+    [∗ set] l ∈ dom m, meta l lg_p_meta_n (true : bool).
+
+  Definition lg_mapg_p_frag l γ : iProp Σ :=
+    own lg_mapG_p_name (◯ {[ l := Cinr (to_agree γ) ]}).
+
+  Definition lg_mapg_p_unalloc l : iProp Σ :=
+    own lg_mapG_p_name (◯ {[ l := Cinl (to_agree ()) ]}).
+
+  Global Instance lg_mapg_p_frag_persistent l γ : Persistent (lg_mapg_p_frag l γ).
+  Proof. apply _. Qed.
+
+  Global Instance lg_mapg_p_unalloc_persistent l : Persistent (lg_mapg_p_unalloc l).
+  Proof. apply _. Qed.
+
+  Lemma lg_mapg_p_agree l γ1 γ2 :
+    lg_mapg_p_frag l γ1 -∗ lg_mapg_p_frag l γ2 -∗
+      ⌜γ1 = γ2⌝ ∗ lg_mapg_p_frag l γ1 ∗ lg_mapg_p_frag l γ2.
+  Proof.
+    rewrite /lg_mapg_p_frag. iIntros "H1 H2".
+    iDestruct (own_valid_2 with "H1 H2") as %Hv.
+    iFrame. iPureIntro.
+    rewrite -auth_frag_op auth_frag_valid singleton_op singleton_valid -Cinr_op
+      Cinr_valid in Hv.
+    fold_leibniz. by apply to_agree_op_inv_L in Hv.
+  Qed.
+
+  Lemma lg_mapg_p_frag_unalloc_excl l γ :
+    lg_mapg_p_frag l γ -∗ lg_mapg_p_unalloc l -∗ False.
+  Proof.
+    rewrite /lg_mapg_p_frag /lg_mapg_p_unalloc. iIntros "H1 H2".
+    iDestruct (own_valid_2 with "H1 H2") as %Hv.
+    rewrite -auth_frag_op singleton_op auth_frag_valid singleton_valid in Hv.
+    done.
+  Qed.
+
+  (** Combined [meta_token l ⊤ ∗ ([∗ set] l' ∈ dom m, meta l' lg_p_meta_n true)]
+      yields [l ∉ dom m] and re-bundles into the extended big-sep for the
+      inserted key.  We split [meta_token l ⊤] into [meta_token l (↑lg_p_meta_n)]
+      and case on [decide (l ∈ dom m)]: the [∈] branch uses [meta_set false]
+      to obtain [meta l lg_p_meta_n false] and [meta_agree] to derive
+      [⌜false = true⌝] (a contradiction discharged by [discriminate]); the
+      [∉] branch uses [meta_set true] to extend the bigsep. *)
+  Local Lemma meta_combine_dom (m : lg_mapg_type) (l : loc) (e : lg_mapEntry) :
+    meta_token l ⊤ -∗ ([∗ set] l' ∈ dom m, meta l' lg_p_meta_n (true : bool)) ==∗
+      ⌜l ∉ dom m⌝ ∗
+      ([∗ set] l' ∈ dom (<[ l := e ]> m), meta l' lg_p_meta_n (true : bool)).
+  Proof.
+    iIntros "Hmtok Hbig".
+    iDestruct (meta_token_difference l (↑lg_p_meta_n) with "Hmtok")
+      as "[Hmtok_N _]"; first set_solver.
+    destruct (decide (l ∈ dom m)) as [Hin | Hnin].
+    - iDestruct (big_sepS_elem_of with "Hbig") as "#Hmeta_l"; first done.
+      iMod (meta_set _ l (false : bool) lg_p_meta_n with "Hmtok_N")
+        as "#Hmeta_false"; first done.
+      iDestruct (meta_agree with "Hmeta_false Hmeta_l") as %H.
+      discriminate.
+    - iMod (meta_set _ l (true : bool) lg_p_meta_n with "Hmtok_N")
+        as "#Hmeta_l"; first done.
+      iModIntro. iSplit; first done.
+      rewrite dom_insert_L big_sepS_insert; last done.
+      iFrame "Hmeta_l Hbig".
+  Qed.
+
+  Lemma lg_mapg_p_insert m l γ :
+    meta_token l ⊤ -∗ lg_mapg_p_auth m ==∗
+      lg_mapg_p_auth (<[ l := Cinr (to_agree γ) ]> m) ∗ lg_mapg_p_frag l γ.
+  Proof.
+    rewrite /lg_mapg_p_auth /lg_mapg_p_frag.
+    iIntros "Hmtok [Hauth Hbig]".
+    iMod (meta_combine_dom m l (Cinr (to_agree γ)) with "Hmtok Hbig")
+      as "[%Hl_nin Hbig']".
+    apply not_elem_of_dom in Hl_nin.
+    iMod (own_update with "Hauth") as "[$ $]";
+      last by iModIntro; iFrame "Hbig'".
+    apply auth_update_alloc.
+    by apply alloc_singleton_local_update.
+  Qed.
+
+  Lemma lg_mapg_p_insert_unalloc m l :
+    meta_token l ⊤ -∗ lg_mapg_p_auth m ==∗
+      lg_mapg_p_auth (<[ l := Cinl (to_agree ()) ]> m) ∗ lg_mapg_p_unalloc l.
+  Proof.
+    rewrite /lg_mapg_p_auth /lg_mapg_p_unalloc.
+    iIntros "Hmtok [Hauth Hbig]".
+    iMod (meta_combine_dom m l (Cinl (to_agree ())) with "Hmtok Hbig")
+      as "[%Hl_nin Hbig']".
+    apply not_elem_of_dom in Hl_nin.
+    iMod (own_update with "Hauth") as "[$ $]";
+      last by iModIntro; iFrame "Hbig'".
+    apply auth_update_alloc.
+    by apply alloc_singleton_local_update.
+  Qed.
+
+End lg_map_p.
 
 Definition mapUR := authR (gmapUR val (dfrac_agreeR valO)).
 Class mapG Σ := MapG { map_inG :> inG Σ mapUR; mapG_name : gname }.
