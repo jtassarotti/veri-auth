@@ -207,14 +207,14 @@ Section authenticatable.
       iPureIntro. simpl. exists ua, ub. split; [done|].
       right. right. right. done.
     - (* 3. suspend_v_deser_spec (combined) *)
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ3 pid m d ps pn mlg) "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ3 pid m d ps pn B0 mlg) "Hv".
       v_pures.
       (* HeapLang evaluation: argument first. Bind v_dB before v_dA. *)
       v_bind tᵥ3 (v_dB #pid).
-      iMod ("HsuspvdeserB" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ with "Hv")
+      iMod ("HsuspvdeserB" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ _ with "Hv")
         as (v_deser_par_B) "[Hv #Hsuspvdeser_inner_B] /=".
       v_bind tᵥ3 (v_dA #pid).
-      iMod ("HsuspvdeserA" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ with "Hv")
+      iMod ("HsuspvdeserA" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ _ with "Hv")
         as (v_deser_par_A) "[Hv #Hsuspvdeser_inner_A] /=".
       rewrite /prod_deser. v_pures.
       iModIntro. iExists _. iFrame "Hv".
@@ -587,8 +587,44 @@ Section authenticatable.
                   iExists a1A', a3A, a1B', a3B.
                   iFrame "HAbin HBbin".
                   iSplit; [done|]. done.
-                * (* slen - i - 1 >= Alen: continue parsing *)
+                * (* slen - i - 1 >= Alen: continue parsing.
+                     Now: let s1 := strsub (i+1) Alen s_pred in let s2 := ... in
+                     let v1? := v_deser_par_A s1 in match v1? with SOME v1 => ... | NONE => NONEV end.
+                     Apply Hsuspvdeser_inner_A then Hsuspvdeser_inner_B. *)
                   v_pures.
+                  (* Extract inner relations from HAt (ternary), HAb (binary), HAu (unary). *)
+                  iDestruct "HAt" as (a1A_v a2A a3A a1B_v a2B a3B) "(%HeqA1 & %HeqA2 & %HeqA3 & #HAtA & #HBtA)".
+                  injection HeqA1 as -> ->. subst a2 a3.
+                  iEval (rewrite interp_bin_prod_unfold) in "HAb".
+                  rewrite interp_var1_ext2 interp_var0_ext1.
+                  iDestruct "HAb" as (? a3A_d ? a3B_d) "(%HeqB1 & %HeqB3 & #HAbA & #HBbA)".
+                  injection HeqB1 as -> ->. injection HeqB3 as -> ->.
+                  iEval (rewrite interp_un_prod_unfold) in "HAu".
+                  rewrite interp_var1_ext2 interp_var0_ext1.
+                  iDestruct "HAu" as (? ?) "(%HeqU2 & #HAuA & #HBuA)".
+                  injection HeqU2 as -> ->.
+                  iEval (rewrite /lrel_evidence' /lrel_bi_evidence /=) in "HA_bin".
+                  iDestruct "HA_bin" as (tA' p_ssA0 p_usA0 p_spA0 p_uspA0 v_sA0 v_dA0 v_cA0)
+                    "(%Heq_A & _ & #HsspecA & #HsuspbinA & _)".
+                  injection Heq_A as <- <- <- <-.
+                  iEval (rewrite /lrel_evidence' /lrel_bi_evidence /=) in "HB_bin".
+                  iDestruct "HB_bin" as (tB' p_ssB0 p_usB0 p_spB0 p_uspB0 v_sB0 v_dB0 v_cB0)
+                    "(%Heq_B & _ & #HsspecB & #HsuspbinB & _)".
+                  injection Heq_B as <- <- <- <-.
+                  (* Pair eval is right-first, so prover B runs first.
+                     For pair, this conflicts with the verifier order (deserA
+                     first then deserB) when using Hsuspvdeser_inner_X (which
+                     couples prover-X with verifier-X). The success-path proof
+                     requires either:
+                     1. Restructuring the prover suspend body to evaluate A first.
+                     2. Applying Hsuspvdeser_inner_B at the verifier's deserB
+                        position (inside deserA's SOME branch — only reachable
+                        after deserA runs). v_bind at this position requires
+                        the verifier expression to syntactically contain
+                        v_deser_par_B #s2; since fill K is structural, this
+                        works even before deserA runs. Then run prover B via
+                        Hsuspvdeser_inner_B coupled with verifier-B advance.
+                     This success path is left admitted pending that approach. *)
                   admit.
             - (* z2s Alen ≠ Alen_str: NONEV → mismatch *)
               v_pures.
