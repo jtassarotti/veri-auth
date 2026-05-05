@@ -190,7 +190,9 @@ Definition p_Auth_pair : val :=
         let: "suspend" :=
           λ: "a",
             let, ("a", "b") := "a" in
-            ("suspend_A" "a", "suspend_B" "b")
+            let: "ra" := "suspend_A" "a" in
+            let: "rb" := "suspend_B" "b" in
+            ("ra", "rb")
         in
         let: "unsuspend" :=
           λ: "a",

@@ -264,12 +264,13 @@ Section authenticatable.
                 rewrite interp_var1_ext2 interp_var0_ext1.
                 iDestruct "HAb" as (a1A_v a3A a1B_v a3B) "(%Heq_pa & %Heq_a3 & #HAbA & #HAbB)".
                 injection Heq_pa as -> ->. subst a3.
-                wp_bind (p_spB un_a1B).
-                wp_apply ("HsuspbinB" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbB"].
-                iIntros (a1B' s_real_B c_B) "[#HBbin #HserprealB]".
                 wp_bind (p_spA un_a1A).
                 wp_apply ("HsuspbinA" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbA"].
                 iIntros (a1A' s_real_A c_A) "[#HAbin #HserprealA]".
+                wp_pures.
+                wp_bind (p_spB un_a1B).
+                wp_apply ("HsuspbinB" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbB"].
+                iIntros (a1B' s_real_B c_B) "[#HBbin #HserprealB]".
                 wp_pures.
                 iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_real_A s_real_B) (c_A + c_B)).
                 iModIntro. iSplitL "".
@@ -433,12 +434,13 @@ Section authenticatable.
                   rewrite interp_var1_ext2 interp_var0_ext1.
                   iDestruct "HAb" as (a1A_v a3A a1B_v a3B) "(%Heq_pa & %Heq_a3 & #HAbA & #HAbB)".
                   injection Heq_pa as -> ->. subst a3.
-                  wp_bind (p_spB un_a1B).
-                  wp_apply ("HsuspbinB" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbB"].
-                  iIntros (a1B' s_real_B c_B) "[#HBbin #HserprealB]".
                   wp_bind (p_spA un_a1A).
                   wp_apply ("HsuspbinA" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbA"].
                   iIntros (a1A' s_real_A c_A) "[#HAbin #HserprealA]".
+                  wp_pures.
+                  wp_bind (p_spB un_a1B).
+                  wp_apply ("HsuspbinB" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbB"].
+                  iIntros (a1B' s_real_B c_B) "[#HBbin #HserprealB]".
                   wp_pures.
                   iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_real_A s_real_B) (c_A + c_B)).
                   iModIntro. iSplitL "".
@@ -640,12 +642,13 @@ Section authenticatable.
               rewrite interp_var1_ext2 interp_var0_ext1.
               iDestruct "HAb" as (a1A_v a3A a1B_v a3B) "(%Heq_pa & %Heq_a3 & #HAbA & #HAbB)".
               injection Heq_pa as -> ->. subst a3.
-              wp_bind (p_spB un_a1B).
-              wp_apply ("HsuspbinB" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbB"].
-              iIntros (a1B' s_real_B c_B) "[#HBbin #HserprealB]".
               wp_bind (p_spA un_a1A).
               wp_apply ("HsuspbinA" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbA"].
               iIntros (a1A' s_real_A c_A) "[#HAbin #HserprealA]".
+              wp_pures.
+              wp_bind (p_spB un_a1B).
+              wp_apply ("HsuspbinB" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbB"].
+              iIntros (a1B' s_real_B c_B) "[#HBbin #HserprealB]".
               wp_pures.
               iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_real_A s_real_B) (c_A + c_B)).
               iModIntro. iSplitL "".
@@ -809,12 +812,13 @@ Section authenticatable.
             rewrite interp_var1_ext2 interp_var0_ext1.
             iDestruct "HAb" as (a1A_v a3A a1B_v a3B) "(%Heq_pa & %Heq_a3 & #HAbA & #HAbB)".
             injection Heq_pa as -> ->. subst a3.
-            wp_bind (p_spB un_a1B).
-            wp_apply ("HsuspbinB" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbB"].
-            iIntros (a1B' s_real_B c_B) "[#HBbin #HserprealB]".
             wp_bind (p_spA un_a1A).
             wp_apply ("HsuspbinA" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbA"].
             iIntros (a1A' s_real_A c_A) "[#HAbin #HserprealA]".
+            wp_pures.
+            wp_bind (p_spB un_a1B).
+            wp_apply ("HsuspbinB" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbB"].
+            iIntros (a1B' s_real_B c_B) "[#HBbin #HserprealB]".
             wp_pures.
             iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_real_A s_real_B) (c_A + c_B)).
             iModIntro. iSplitL "".
@@ -979,13 +983,14 @@ Section authenticatable.
           rewrite interp_var1_ext2 interp_var0_ext1.
           iDestruct "HAb" as (a1A_v a3A a1B_v a3B) "(%Heq_pa & %Heq_a3 & #HAbA & #HAbB)".
           injection Heq_pa as -> ->. subst a3.
-          (* Run prover suspend_B first (right-first eval), then suspend_A *)
-          wp_bind (p_spB un_a1B).
-          wp_apply ("HsuspbinB" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbB"].
-          iIntros (a1B' s_real_B c_B) "[#HBbin #HserprealB]".
+          (* Run prover suspend_A first (let-binding evaluates A first), then suspend_B *)
           wp_bind (p_spA un_a1A).
           wp_apply ("HsuspbinA" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbA"].
           iIntros (a1A' s_real_A c_A) "[#HAbin #HserprealA]".
+          wp_pures.
+          wp_bind (p_spB un_a1B).
+          wp_apply ("HsuspbinB" with "[]"); first by iSplit; [iPureIntro; eauto|iNext; iExact "HAbB"].
+          iIntros (a1B' s_real_B c_B) "[#HBbin #HserprealB]".
           wp_pures.
           iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_real_A s_real_B) (c_A + c_B)).
           iModIntro. iSplitL "".
