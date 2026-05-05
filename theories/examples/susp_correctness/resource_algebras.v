@@ -1061,31 +1061,46 @@ Section lg_map_p.
 
 End lg_map_p.
 
-Definition mapUR := authR (gmapUR val (dfrac_agreeR valO)).
+(** [mapEntry]: per-key state. [Cinl (to_frac_agree q v)] is an alive
+    entry with fractional ownership of value [v]; [Cinr (to_agree ())]
+    is a tombstone — a persistent "this key has been removed" marker.
+    Once [k] transitions Cinl → Cinr at [mapg_remove], the persistent
+    [mapg_removed k] fragment forces the auth's [k] entry to remain
+    [Cinr] forever, so the key cannot become alive again. *)
+Definition mapEntry := csumR (dfrac_agreeR valO) (agreeR unitO).
+Definition mapUR := authR (gmapUR val mapEntry).
 Class mapG Σ := MapG { map_inG :> inG Σ mapUR; mapG_name : gname }.
 
 Section map_res.
   Context `{!mapG Σ}.
 
-  Definition mapg_type := gmap val (dfrac_agreeR valO).
+  Definition mapg_type := gmap val mapEntry.
 
   Definition mapg_auth (m : mapg_type) : iProp Σ :=
     own mapG_name (● m).
 
   Definition mapg_insert_def (m : mapg_type) k v : mapg_type :=
-    <[ k := to_frac_agree 1 v ]> m.
+    <[ k := Cinl (to_frac_agree 1 v) ]> m.
 
-  (* A fragment with fraction [q] for key [k] and value [v]. A full fraction
-     [q = 1] gives exclusive ownership and permits removal. The caller may
-     split a full fragment into [n] pieces of fraction [1/n] via [mapg_split]. *)
+  (** Alive fragment: fraction [q] for key [k] and value [v]. A full
+      fraction [q = 1] is exclusive (since [to_frac_agree 1 v] is
+      exclusive in [dfrac_agreeR]) and permits removal. *)
   Definition mapg_frag (k : val) (q : Qp) (v : val) : iProp Σ :=
-    own mapG_name (◯ {[ k := to_frac_agree q v ]}).
+    own mapG_name (◯ {[ k := Cinl (to_frac_agree q v) ]}).
+
+  (** Persistent tombstone: witness that [k] was removed and will
+      never be alive again. Minted by [mapg_remove]. *)
+  Definition mapg_removed (k : val) : iProp Σ :=
+    own mapG_name (◯ {[ k := Cinr (to_agree ()) ]}).
+
+  Global Instance mapg_removed_persistent k : Persistent (mapg_removed k).
+  Proof. apply _. Qed.
 
   Lemma mapg_frag_op k q1 q2 v :
     mapg_frag k (q1 + q2) v ⊣⊢ mapg_frag k q1 v ∗ mapg_frag k q2 v.
   Proof.
     rewrite /mapg_frag -own_op -auth_frag_op singleton_op.
-    by rewrite -frac_agree_op.
+    by rewrite -Cinl_op -frac_agree_op.
   Qed.
 
   Lemma mapg_frag_split k q1 q2 v :
@@ -1102,7 +1117,8 @@ Section map_res.
     rewrite /mapg_frag. iIntros "H1 H2".
     iDestruct (own_valid_2 with "H1 H2") as %Hv.
     iPureIntro.
-    rewrite -auth_frag_op auth_frag_valid singleton_op singleton_valid in Hv.
+    rewrite -auth_frag_op auth_frag_valid singleton_op singleton_valid -Cinl_op
+      Cinl_valid in Hv.
     apply dfrac_agree_op_valid_L in Hv as [_ ?]. done.
   Qed.
 
@@ -1116,34 +1132,86 @@ Section map_res.
     apply alloc_singleton_local_update; done.
   Qed.
 
-  Lemma mapg_subset m k q v :
+  (** Alive fragment forces the auth to have a [Cinl] entry agreeing on
+      the value. Replaces the old [mapg_subset]. *)
+  Lemma mapg_auth_alive m k q v :
     mapg_auth m -∗ mapg_frag k q v -∗
-      ⌜∃ y, m !! k ≡ Some y ∧ y.2 ≡ to_agree v⌝.
+      ⌜∃ y, m !! k ≡ Some (Cinl y) ∧ y.2 ≡ to_agree v⌝.
   Proof.
     rewrite /mapg_auth /mapg_frag. iIntros "H1 H2".
     iDestruct (own_valid_2 with "H1 H2") as %Hv. iPureIntro.
-    apply auth_both_valid_discrete in Hv as [Hincl Hv].
+    apply auth_both_valid_discrete in Hv as [Hincl Hvm].
     apply singleton_included_l in Hincl as (y & Hy & Hle).
     assert (✓ y) as Hvy.
     { eapply (lookup_valid_Some _ k); [done|by rewrite Hy]. }
-    destruct y as [d a]. simpl.
     apply Some_included in Hle as [Heq | Hinc].
-    - destruct Heq as [_ Heq2]. simpl in Heq2.
+    - destruct y as [[d a]| |]; [|by inversion Heq|by inversion Heq].
+      apply (inj Cinl) in Heq. destruct Heq as [_ Ha]. simpl in Ha.
       exists (d, a). split; [done|]. by symmetry.
-    - apply pair_included in Hinc as [_ Ha].
-      destruct Hvy as [_ Hva].
-      apply (agree_valid_included _ _ Hva) in Ha.
-      exists (d, a). split; [done|by symmetry].
+    - apply csum_included in Hinc
+        as [Hbot | [(? & y' & Hil & -> & Hle)|(? & ? & Hbad & _)]].
+      + by rewrite Hbot in Hvy.
+      + injection Hil as <-. destruct y' as [d a].
+        apply pair_included in Hle as [_ Ha'].
+        apply (Cinl_valid (B:=agreeR unitO)) in Hvy as [_ Hva].
+        apply (agree_valid_included _ _ Hva) in Ha'.
+        exists (d, a). split; [done|by symmetry].
+      + inversion Hbad.
   Qed.
 
-  Lemma mapg_remove m k v :
-    mapg_auth m -∗ mapg_frag k 1 v ==∗ mapg_auth (delete k m).
+  (** Auth-side query for tombstones: removed witness implies the auth's
+      [k] entry is on the [Cinr] branch (i.e. tombstoned). *)
+  Lemma mapg_auth_removed m k :
+    mapg_auth m -∗ mapg_removed k -∗
+      ⌜∃ a : agree unit, m !! k = Some (Cinr a)⌝.
   Proof.
-    rewrite /mapg_auth /mapg_frag. iIntros "H1 H2".
-    iCombine "H1 H2" as "H".
-    iMod (own_update with "H") as "$"; last done.
-    apply auth_update_dealloc.
-    by apply delete_singleton_local_update, _.
+    rewrite /mapg_auth /mapg_removed. iIntros "H1 H2".
+    iDestruct (own_valid_2 with "H1 H2") as %Hv. iPureIntro.
+    apply auth_both_valid_discrete in Hv as [Hincl Hvm].
+    apply singleton_included_l in Hincl as (y & Hy & Hle).
+    assert (✓ y) as Hvy.
+    { eapply (lookup_valid_Some _ k); [done|by rewrite Hy]. }
+    destruct (m !! k) as [x|] eqn:Hk; last first.
+    { rewrite Hk in Hy. by inversion Hy. }
+    rewrite Hk in Hy. apply Some_equiv_inj in Hy.
+    destruct x as [|a'|].
+    - (* Cinl: derive contradiction from Cinr ≼ Cinl. *)
+      exfalso. apply Some_included in Hle as [Heq | Hinc].
+      + rewrite -Hy in Heq. by inversion Heq.
+      + rewrite -Hy in Hinc.
+        apply csum_included in Hinc
+          as [Hbot | [(? & ? & Hxeq & _) | (? & ? & _ & Hyeq & _)]].
+        * by inversion Hbot.
+        * by inversion Hxeq.
+        * by inversion Hyeq.
+    - by exists a'.
+    - exfalso. revert Hvy. by rewrite -Hy.
+  Qed.
+
+  (** Auth-free conflict: alive ∗ removed at the same key is False.
+      Mirror of [lg_mapg_frag_unalloc_excl]. *)
+  Lemma mapg_frag_removed_excl k q v :
+    mapg_frag k q v -∗ mapg_removed k -∗ False.
+  Proof.
+    rewrite /mapg_frag /mapg_removed. iIntros "H1 H2".
+    iDestruct (own_valid_2 with "H1 H2") as %Hv.
+    rewrite -auth_frag_op auth_frag_valid singleton_op singleton_valid in Hv.
+    done.
+  Qed.
+
+  (** Removal: full fraction [q = 1] transitions Cinl → Cinr; mints a
+      persistent [mapg_removed k] witness. *)
+  Lemma mapg_remove m k v :
+    mapg_auth m -∗ mapg_frag k 1 v ==∗
+      mapg_auth (<[ k := Cinr (to_agree ()) ]> m) ∗ mapg_removed k.
+  Proof.
+    rewrite /mapg_auth /mapg_frag /mapg_removed. iIntros "H1 H2".
+    iMod (own_update_2 _ _ _
+      (● <[ k := Cinr (to_agree ()) ]> m ⋅
+       ◯ {[ k := Cinr (to_agree ()) ]})
+      with "H1 H2") as "[$ $]"; last done.
+    apply auth_update, singleton_local_update_any.
+    intros y _. apply exclusive_local_update. done.
   Qed.
 
 End map_res.
