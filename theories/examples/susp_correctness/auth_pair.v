@@ -235,8 +235,19 @@ Section authenticatable.
         v_pures.
         (* Case-split on String.index 0 "_" s_pred: SOME i (parse Alen further) or NONE (malformed) *)
         destruct (String.index 0 "_" s_pred) as [i|] eqn:Hidx.
-        * (* SOME case: well-formed, continue parsing *)
-          admit.
+        * (* SOME case: well-formed s_pred. Continue parsing in the verifier:
+             after strindex SOME i, extract Alen_str, attempt s2z, run inner
+             v_deser_par_A and v_deser_par_B at re-quantified K's, build
+             match if all parts agree else mismatch. *)
+          rewrite Hidx /=. v_pures.
+          (* After v_pures, verifier reduces strsub #0 #i s_pred to Alen_str.
+             Then case-split on whether s2z Alen_str succeeds. *)
+          set (Alen_str := String.substring 0 i s_pred).
+          destruct (ZOfString Alen_str) as [Alen|] eqn:HAlen.
+          { (* s2z succeeded with Alen *)
+            admit. }
+          { (* s2z failed → NONEV → mismatch (s_real parses, s_pred doesn't) *)
+            admit. }
         * (* NONE case: malformed s_pred *)
           rewrite Hidx /=. v_pures.
           (* Hv now at fill K (InjLV #()) = NONEV. Discharge prover wp via
