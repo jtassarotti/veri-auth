@@ -787,3 +787,66 @@ Section gname_tok_res.
   Qed.
 
 End gname_tok_res.
+
+(* Single-instance token with two states:
+   - [None]   — unparameterized state
+   - [Some n] — state parameterized by [n : nat].
+   The full fraction (1) is exclusive; any two fragments agree on the
+   carried [option nat] and split/combine via fractional ownership.
+   At full fraction the value can be updated (e.g. unparameterized to
+   [Some n] or vice versa). *)
+Definition stateTokUR := dfrac_agreeR (leibnizO (option nat)).
+Class stateTokG Σ := StateTokG {
+  state_tok_inG :> inG Σ stateTokUR;
+  state_tok_name : gname;
+}.
+
+Section state_tok_res.
+  Context `{!stateTokG Σ}.
+
+  Definition stok (q : Qp) (s : option nat) : iProp Σ :=
+    own state_tok_name (to_dfrac_agree (DfracOwn q) (s : leibnizO (option nat))).
+
+  Definition stok_unset (q : Qp) : iProp Σ := stok q None.
+  Definition stok_set (q : Qp) (n : nat) : iProp Σ := stok q (Some n).
+
+  Lemma stok_agree q1 q2 s1 s2 :
+    stok q1 s1 -∗ stok q2 s2 -∗ ⌜s1 = s2⌝.
+  Proof.
+    iIntros "H1 H2". rewrite /stok. iCombine "H1 H2" as "H".
+    iDestruct (own_valid with "H") as %[_ Heq]%dfrac_agree_op_valid_L.
+    done.
+  Qed.
+
+  Lemma stok_split q1 q2 s :
+    stok (q1 + q2)%Qp s ⊣⊢ stok q1 s ∗ stok q2 s.
+  Proof.
+    by rewrite /stok -own_op -dfrac_agree_op dfrac_op_own.
+  Qed.
+
+  Lemma stok_combine q1 q2 s1 s2 :
+    stok q1 s1 -∗ stok q2 s2 -∗ ⌜s1 = s2⌝ ∗ stok (q1 + q2)%Qp s1.
+  Proof.
+    iIntros "H1 H2".
+    iDestruct (stok_agree with "H1 H2") as %->.
+    iSplit; [done|]. iApply stok_split. iFrame.
+  Qed.
+
+  Lemma stok_excl q s1 s2 :
+    stok 1 s1 -∗ stok q s2 -∗ False.
+  Proof.
+    iIntros "H1 H2". rewrite /stok. iCombine "H1 H2" as "H".
+    iDestruct (own_valid with "H") as %[Hv _]%dfrac_agree_op_valid_L.
+    iPureIntro. apply dfrac_valid_own in Hv.
+    by apply Qp.not_add_le_l in Hv.
+  Qed.
+
+  Lemma stok_update s s' :
+    stok 1 s ==∗ stok 1 s'.
+  Proof.
+    iIntros "H". rewrite /stok.
+    iApply (own_update with "H").
+    by apply cmra_update_exclusive.
+  Qed.
+
+End state_tok_res.
