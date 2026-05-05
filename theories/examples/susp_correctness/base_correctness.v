@@ -81,7 +81,7 @@ Section authenticatable.
       iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m d ps pn mlg) "Hv".
       v_pures.
       iModIntro. iExists string_deser. iFrame "Hv".
-      iIntros (Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hv) HΨ".
+      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hv) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
       iDestruct "HAt" as %(s0 & -> & -> & ->).
       destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp; try done.
@@ -198,7 +198,7 @@ Section authenticatable.
       iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m d ps pn mlg) "Hv".
       v_pures.
       iModIntro. iExists int_deser. iFrame "Hv".
-      iIntros (Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hv) HΨ".
+      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hv) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
       iDestruct "HAt" as %(z0 & -> & -> & ->).
       destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp; try done.

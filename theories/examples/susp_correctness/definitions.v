@@ -443,28 +443,29 @@ Section authenticatable_definitions.
       spec_verifier tᵥ (fill K (v_deser #id))
       ={⊤}=∗ ∃ (v_deser_par : val),
         spec_verifier tᵥ (fill K v_deser_par) ∗
-        {{{ ⌜unsusp t' a1 un_a1⌝ ∗
-            ▷ (lrel_tern_as_lrel A) a1 a2 a3 ∗
-            susp_ser_p t' a1 s_def ∗
-            visited_mapg_auth m d ps pn ∗
-            lg_mapg_auth mlg ∗
-            spec_verifier tᵥ (fill K (v_deser_par #s_pred)) }}}
-          suspend un_a1
-        {{{ a1' s_real c, RET a1';
-            (∃ t_real, susp_p_ser_spec_at ser t_real c a1' s_real) ∗
-            ((⌜s_pred = s_real⌝ ∗ ∃ γl mlg' a2',
-              lg_mapg_auth mlg' ∗
-              ⌜size γl = c⌝ ∗ penset_frag γl ∗
-              (lrel_tern_as_lrel A) a1' a2' a3 ∗
-              susp_ser_p t a1' s_def ∗
-              spec_verifier tᵥ (fill K (SOMEV a2')) ∗
-              ([∗ set] γ ∈ γl, ∃ susp lb,
-                lg_mapg_frag lb γ ∗ lg_mapg_frag susp γ ∗
-                ⌜p_sub_obj t a1' #lb⌝ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
-              sub_susp_count t a2' c id c a2' ∗
-              ser_v_proph t id a2' s_def ∗
-              visited_map_update_pending m d ps pn γl) ∨
-            (⌜s_pred ≠ s_real⌝ ∗ (lrel_tern_bin A) a1' a3)) }}}).
+        □(∀ K' tᵥ',
+          {{{ ⌜unsusp t' a1 un_a1⌝ ∗
+              ▷ (lrel_tern_as_lrel A) a1 a2 a3 ∗
+              susp_ser_p t' a1 s_def ∗
+              visited_mapg_auth m d ps pn ∗
+              lg_mapg_auth mlg ∗
+              spec_verifier tᵥ' (fill K' (v_deser_par #s_pred)) }}}
+            suspend un_a1
+          {{{ a1' s_real c, RET a1';
+              (∃ t_real, susp_p_ser_spec_at ser t_real c a1' s_real) ∗
+              ((⌜s_pred = s_real⌝ ∗ ∃ γl mlg' a2',
+                lg_mapg_auth mlg' ∗
+                ⌜size γl = c⌝ ∗ penset_frag γl ∗
+                (lrel_tern_as_lrel A) a1' a2' a3 ∗
+                susp_ser_p t a1' s_def ∗
+                spec_verifier tᵥ' (fill K' (SOMEV a2')) ∗
+                ([∗ set] γ ∈ γl, ∃ susp lb,
+                  lg_mapg_frag lb γ ∗ lg_mapg_frag susp γ ∗
+                  ⌜p_sub_obj t a1' #lb⌝ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
+                sub_susp_count t a2' c id c a2' ∗
+                ser_v_proph t id a2' s_def ∗
+                visited_map_update_pending m d ps pn γl) ∨
+              (⌜s_pred ≠ s_real⌝ ∗ (lrel_tern_bin A) a1' a3)) }}})).
 
   Definition unsuspend_spec (unsuspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
     ∀ E (a1 a2 a3 : val),
