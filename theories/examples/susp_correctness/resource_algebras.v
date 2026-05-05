@@ -804,47 +804,50 @@ Class stateTokG Σ := StateTokG {
 Section state_tok_res.
   Context `{!stateTokG Σ}.
 
-  Definition stok (q : Qp) (s : option nat) : iProp Σ :=
-    own state_tok_name (to_dfrac_agree (DfracOwn q) (s : leibnizO (option nat))).
+  Definition stok (s : option nat) : iProp Σ :=
+    own state_tok_name (to_dfrac_agree (DfracOwn (1/2)) (s : leibnizO (option nat))).
 
-  Definition stok_unset (q : Qp) : iProp Σ := stok q None.
-  Definition stok_set (q : Qp) (n : nat) : iProp Σ := stok q (Some n).
+  Definition stok_comp (s : option nat) : iProp Σ :=
+    own state_tok_name (to_dfrac_agree (DfracOwn 1) (s : leibnizO (option nat))).
 
-  Lemma stok_agree q1 q2 s1 s2 :
-    stok q1 s1 -∗ stok q2 s2 -∗ ⌜s1 = s2⌝.
+  Definition stok_unset : iProp Σ := stok None.
+  Definition stok_set (n : nat) : iProp Σ := stok (Some n).
+
+  Lemma stok_agree s1 s2 :
+    stok s1 -∗ stok s2 -∗ ⌜s1 = s2⌝.
   Proof.
     iIntros "H1 H2". rewrite /stok. iCombine "H1 H2" as "H".
     iDestruct (own_valid with "H") as %[_ Heq]%dfrac_agree_op_valid_L.
     done.
   Qed.
 
-  Lemma stok_split q1 q2 s :
-    stok (q1 + q2)%Qp s ⊣⊢ stok q1 s ∗ stok q2 s.
+  Lemma stok_split s :
+    stok_comp s ⊣⊢ stok s ∗ stok s.
   Proof.
-    by rewrite /stok -own_op -dfrac_agree_op dfrac_op_own.
+    by rewrite /stok /stok_comp -own_op -dfrac_agree_op dfrac_op_own Qp.half_half.
   Qed.
 
-  Lemma stok_combine q1 q2 s1 s2 :
-    stok q1 s1 -∗ stok q2 s2 -∗ ⌜s1 = s2⌝ ∗ stok (q1 + q2)%Qp s1.
+  Lemma stok_combine s1 s2 :
+    stok s1 -∗ stok s2 -∗ ⌜s1 = s2⌝ ∗ stok_comp s1.
   Proof.
     iIntros "H1 H2".
     iDestruct (stok_agree with "H1 H2") as %->.
     iSplit; [done|]. iApply stok_split. iFrame.
   Qed.
 
-  Lemma stok_excl q s1 s2 :
-    stok 1 s1 -∗ stok q s2 -∗ False.
+  Lemma stok_excl s1 s2 :
+    stok_comp s1 -∗ stok s2 -∗ False.
   Proof.
-    iIntros "H1 H2". rewrite /stok. iCombine "H1 H2" as "H".
+    iIntros "H1 H2". rewrite /stok /stok_comp. iCombine "H1 H2" as "H".
     iDestruct (own_valid with "H") as %[Hv _]%dfrac_agree_op_valid_L.
     iPureIntro. apply dfrac_valid_own in Hv.
     by apply Qp.not_add_le_l in Hv.
   Qed.
 
   Lemma stok_update s s' :
-    stok 1 s ==∗ stok 1 s'.
+    stok_comp s ==∗ stok_comp s'.
   Proof.
-    iIntros "H". rewrite /stok.
+    iIntros "H". rewrite /stok_comp.
     iApply (own_update with "H").
     by apply cmra_update_exclusive.
   Qed.
