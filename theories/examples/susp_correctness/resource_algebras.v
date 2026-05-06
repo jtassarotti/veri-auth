@@ -632,6 +632,71 @@ Section visited_map_res.
       + by inversion Heq2.
   Qed.
 
+  (** Given [visit_finished γ id], no [γ'] has [m !! γ' = Some (done_val id)].
+      The argument: by [gm_m_coherent], [gm !! id] uniquely determines the
+      [γ'] holding [done_val id] / [finished_val id]. Combined with
+      [id_alloc id γ] (carried inside [visit_finished]), [γ' = γ]. But
+      [m !! γ = Some (finished_val id)] (by [visit_finished_lookup]),
+      contradicting [m !! γ = Some (done_val id)]. *)
+  Lemma vm_finished_no_done m d ps pn ctr gm γ id :
+    visited_mapg_auth m d ps pn ctr gm -∗ visit_finished γ id -∗
+      ⌜∀ γ', m !! γ' ≠ Some (done_val id)⌝ ∗
+      visited_mapg_auth m d ps pn ctr gm.
+  Proof.
+    iIntros "Hauth #Hvf".
+    iDestruct (visit_finished_lookup with "Hauth Hvf") as "(%Hmγ & Hauth & _)".
+    iDestruct "Hvf" as "[_ [_ #Halloc]]".
+    iDestruct "Hauth" as "(Hms & Hd & Hps & Hpn & Hgm & Hctr & %Hdom & %Hgmm & %Hdid & %Hpcoh)".
+    iDestruct (own_valid_2 with "Hgm Halloc") as %Hvgm.
+    apply auth_both_valid_discrete in Hvgm as [Hinclgm Hvalidgm].
+    apply singleton_included_l in Hinclgm as (xgm & Hxgm & Hle).
+    iSplit; last by iFrame "∗ %".
+    iPureIntro. intros γ' Hcontra.
+    pose proof (proj2 (Hgmm id γ') (or_introl Hcontra)) as Hgmm_id.
+    rewrite Hgmm_id in Hxgm. apply Some_equiv_inj in Hxgm.
+    assert (✓ xgm) as Hvxgm by (rewrite -Hxgm; done).
+    apply Some_included in Hle as [Heq | Hinc].
+    - rewrite -Heq in Hxgm.
+      apply (inj Cinr) in Hxgm.
+      apply (inj to_agree) in Hxgm.
+      fold_leibniz. subst γ'.
+      rewrite Hcontra in Hmγ. discriminate.
+    - apply csum_included in Hinc as
+        [Hbot | [(? & ? & Heq1 & _ & _) | (? & ? & Heq1 & Heq2 & Hle')]].
+      + subst xgm. by inversion Hxgm.
+      + by inversion Heq1.
+      + injection Heq1 as <-. subst xgm.
+        apply (inj Cinr) in Hxgm.
+        apply (Cinr_valid (A:=exclR unitO)) in Hvxgm.
+        apply (agree_valid_included _ _ Hvxgm) in Hle'.
+        rewrite -Hxgm in Hle'.
+        apply (inj to_agree) in Hle'.
+        fold_leibniz. subst γ'.
+        rewrite Hcontra in Hmγ. discriminate.
+  Qed.
+
+  (** [visit_reached_done γ n] forces [m !! γ] into the done/finished
+      family at [n]. Routes through [done_id_coherent]. *)
+  Lemma visit_reached_done_lookup γ n m d ps pn ctr gm :
+    visited_mapg_auth m d ps pn ctr gm -∗ visit_reached_done γ n -∗
+      ⌜m !! γ = Some (done_val n) ∨ m !! γ = Some (finished_val n)⌝ ∗
+      visited_mapg_auth m d ps pn ctr gm.
+  Proof.
+    iIntros "Hauth #Hr".
+    iDestruct "Hr" as "[#Hrd _]".
+    iDestruct "Hauth" as "(Hms & Hd & Hps & Hpn & Hgm & Hctr & %Hdom & %Hgmm & %Hdid & %Hpcoh)".
+    iDestruct (own_valid_2 with "Hd Hrd") as %Hvd.
+    apply auth_both_valid_discrete in Hvd as [Hincl_d Hvalid_d].
+    apply singleton_included_l in Hincl_d as (xd & Hxd & Hle_d).
+    assert (✓ xd) as Hvxd
+      by (eapply lookup_valid_Some; [exact Hvalid_d|exact Hxd]).
+    assert (d !! γ ≡ Some (to_agree n)) as Hdg_eq.
+    { rewrite Hxd. f_equiv. apply Some_included in Hle_d as [|Hinc]; [by symmetry|].
+      symmetry. by apply (agree_valid_included _ _ Hvxd). }
+    iSplit; last by iFrame "∗ %".
+    iPureIntro. by apply (Hdid γ n).
+  Qed.
+
   Lemma visited_invalid_1 γ n :
     visit_pending γ ∗ visit_done γ n -∗ False.
   Proof.
@@ -1133,13 +1198,13 @@ End lg_map_p.
     [mapg_removed k] fragment forces the auth's [k] entry to remain
     [Cinr] forever, so the key cannot become alive again. *)
 Definition mapEntry := csumR (dfrac_agreeR valO) (agreeR unitO).
-Definition mapUR := authR (gmapUR val mapEntry).
+Definition mapUR := authR (gmapUR nat mapEntry).
 Class mapG Σ := MapG { map_inG :> inG Σ mapUR; mapG_name : gname }.
 
 Section map_res.
   Context `{!mapG Σ}.
 
-  Definition mapg_type := gmap val mapEntry.
+  Definition mapg_type := gmap nat mapEntry.
 
   Definition mapg_auth (m : mapg_type) : iProp Σ :=
     own mapG_name (● m).
@@ -1150,12 +1215,12 @@ Section map_res.
   (** Alive fragment: fraction [q] for key [k] and value [v]. A full
       fraction [q = 1] is exclusive (since [to_frac_agree 1 v] is
       exclusive in [dfrac_agreeR]) and permits removal. *)
-  Definition mapg_frag (k : val) (q : Qp) (v : val) : iProp Σ :=
+  Definition mapg_frag (k : nat) (q : Qp) (v : val) : iProp Σ :=
     own mapG_name (◯ {[ k := Cinl (to_frac_agree q v) ]}).
 
   (** Persistent tombstone: witness that [k] was removed and will
       never be alive again. Minted by [mapg_remove]. *)
-  Definition mapg_removed (k : val) : iProp Σ :=
+  Definition mapg_removed (k : nat) : iProp Σ :=
     own mapG_name (◯ {[ k := Cinr (to_agree ()) ]}).
 
   Global Instance mapg_removed_persistent k : Persistent (mapg_removed k).
@@ -1282,7 +1347,7 @@ Section map_res.
   (** [mapg_alive m] is the alive subset of [m]: keys mapping to [Cinl _]
       are kept (with the underlying [dfrac_agreeR valO] value), tombstones
       are dropped. Lets consumers iterate only over live entries. *)
-  Definition mapg_alive (m : mapg_type) : gmap val (dfrac_agreeR valO) :=
+  Definition mapg_alive (m : mapg_type) : gmap nat (dfrac_agreeR valO) :=
     omap (λ e, match e with
                | Cinl x => Some x
                | _      => None
