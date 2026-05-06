@@ -1996,8 +1996,8 @@ Section proof.
 
     iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Htab_close)"; try solve_ndisj.
     wp_rec.
-    iDestruct "Htabo" as "(%&%&%&%&%&%& %idctr &% &% & Hl & %Hm & 
-          Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv)".
+    iDestruct "Htabo" as "(%&%&%&%&%&%& %idctr &% &% & Hl & %Hm &
+          Hbigsep & Hmauth & %Hszeq & Hvmauth & %Hidinv & Hvisinv)".
 
     assert (pn = sum_list lpn') as -> by admit.
     
@@ -2010,28 +2010,40 @@ Section proof.
     { assert (size m ≠ 0) as Hmnonemp by lia.
       assert (size (mapg_alive m') ≠ 0) as Hm'nonemp by lia.
 
-      (* specialize (map_size_ne_0_lookup_1 _ Hm'nonemp) as [? Hm'some].
-      unfold is_Some in Hm'some.
-      destruct! Hm'some. *)
+      iAssert (⌜∀ (id : nat), id ∈ dom (mapg_alive m') → ∃ v, m !! #id = Some v⌝)%I
+        as %Hbigsepdom.
+      { iIntros (id Hin).
+        apply elem_of_dom in Hin as [agv Hagv].
+        iPoseProof (big_sepM_lookup _ _ id agv Hagv with "Hbigsep") as "Hms".
+        iDestruct "Hms" as (?????????) "[(% & %Hmid & _) _]".
+        iPureIntro. eauto. }
 
       set (keys := dom (mapg_alive m')).
       set (max_id := set_fold Nat.max 0 keys).
-      assert (max_id ∈ keys) by admit.
-      assert (∃ v, (mapg_alive m') !! max_id = Some v) as [??] by admit.
-      
-      iPoseProof (big_sepM_lookup_acc _ (mapg_alive m') max_id x0 H4 with "Hbigsep") as "[Hms Hbigsep]".
-      iDestruct "Hms" as (????????? ?) "(_ & _ & _ & _ & Hxc & _)".
-      destruct! H6; simplify_eq.
+      assert (max_id ∈ keys) as Hmaxin.
+      { apply gset_max_elem_of. intros Hempty. apply Hm'nonemp.
+        rewrite -size_dom. unfold keys in Hempty. rewrite Hempty size_empty //. }
+      assert (∃ v, (mapg_alive m') !! max_id = Some v) as [vmax Hvmax]
+        by (apply elem_of_dom; exact Hmaxin).
+
+      iPoseProof (big_sepM_lookup_acc _ (mapg_alive m') max_id vmax Hvmax with "Hbigsep") as "[Hms Hbigsep]".
+      iDestruct "Hms" as (ctr_v Nc_v finish_v xv av serv tv sv qv)
+        "((%Hctr_v & %Hmid_v & %Hagv_v) & _ & _ & _ & _ & Hxc & _)".
 
       iMod ("Hgoodtr" with "Hst Hvmauth Hpc") as "(Hst & Hvmauth & Hpc)".
 
-      iPoseProof (gt_child with "[//] Hvisinv Hstok Hpc Hxc Hvmauth") 
-        as "[%|%]"; try lia.
-      destruct! H8; simplify_eq.
+      iPoseProof (gt_child with "[%//] Hvisinv Hstok Hpc Hxc Hvmauth")
+        as "[%Hpn|%Hex]"; try lia.
+      destruct Hex as (id' & v' & Hgt & Hlookup); simplify_eq.
 
-      assert (H10 ∈ keys) by admit.
+      assert (id' ∈ keys) as Hid'in.
+      { apply (id_in_alive_dom m keys id').
+        - unfold keys. rewrite size_dom. by rewrite Hszeq.
+        - exact Hbigsepdom.
+        - eauto. }
 
-      admit. }
+      assert (id' ≤ max_id) by (apply gset_max_ge; exact Hid'in).
+      exfalso. lia. }
 
     v_bind (map_is_empty d).
     iMod (gwp_map_is_empty () ⊤ d m 

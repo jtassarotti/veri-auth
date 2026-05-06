@@ -4,6 +4,63 @@ From iris.algebra Require Import gmap auth excl csum agree.
 From iris.algebra.lib Require Import dfrac_agree.
 From auth.examples.susp_correctness Require Import resource_algebras definitions.
 
+Lemma gset_max_elem_of (X : gset nat) :
+  X ≠ ∅ → set_fold Nat.max 0 X ∈ X.
+Proof.
+  intros HX.
+  apply (set_fold_ind_L (fun r X => (X = ∅ → r = 0) ∧ (X ≠ ∅ → r ∈ X))).
+  - split; [done|set_solver].
+  - intros x X0 r Hxni [Hempty Hnonempty]. split; [set_solver|].
+    intros _. destruct (decide (X0 = ∅)) as [-> | HX0].
+    { rewrite Hempty //. rewrite Nat.max_0_r. set_solver. }
+    specialize (Hnonempty HX0).
+    assert (Nat.max x r = x ∨ Nat.max x r = r) as [-> | ->] by lia; set_solver.
+  - exact HX.
+Qed.
+
+Lemma gset_max_ge (X : gset nat) (x : nat) :
+  x ∈ X → x ≤ set_fold Nat.max 0 X.
+Proof.
+  intros Hx. revert x Hx.
+  apply (set_fold_ind_L (fun r X => ∀ x, x ∈ X → x ≤ r)).
+  - set_solver.
+  - intros y X0 r Hni IH z Hz.
+    apply elem_of_union in Hz as [Hz%elem_of_singleton | Hz]; [lia|].
+    apply IH in Hz. lia.
+Qed.
+
+Lemma size_set_map_inj_nat_val (X : gset nat) (f : nat → val) :
+  Inj eq eq f → size (set_map f X : gset val) = size X.
+Proof.
+  intros Hinj. unfold set_map.
+  rewrite size_list_to_set; [|by apply NoDup_fmap_2, NoDup_elements].
+  rewrite length_fmap. unfold size, set_size. simpl. reflexivity.
+Qed.
+
+Lemma inj_val_of_nat : Inj (=) (=) (λ n : nat, #n).
+Proof. intros n m. inversion 1. lia. Qed.
+
+Lemma id_in_alive_dom (m : gmap val val) (D : gset nat) (n : nat) :
+  size m = size D →
+  (∀ (id : nat), id ∈ D → ∃ v, m !! #id = Some v) →
+  (∃ v, m !! #n = Some v) →
+  n ∈ D.
+Proof.
+  intros Hsize HsubD [v Hv].
+  set (fD := set_map (λ k : nat, #k : val) D : gset val).
+  assert (fD ⊆ dom m) as Hfsub.
+  { intros u Hu. apply elem_of_map in Hu as [k [-> Hk]].
+    apply HsubD in Hk as [v' Hv']. by apply elem_of_dom. }
+  assert (size fD = size D) as HfDsize.
+  { apply size_set_map_inj_nat_val, inj_val_of_nat. }
+  assert (fD = dom m) as Hfdom.
+  { apply set_subseteq_size_eq; [done|]. rewrite -size_dom in Hsize. lia. }
+  assert (#n ∈ dom m) as Hndom by (apply elem_of_dom; eauto).
+  rewrite -Hfdom in Hndom.
+  apply elem_of_map in Hndom as [k [Heq Hk]].
+  apply inj_val_of_nat in Heq as ->. exact Hk.
+Qed.
+
 Section authentikit_helpers.
   Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, !mapG Σ, 
       !capG Σ, !intransitG Σ, !stateG Σ, !stateTokG Σ}.
