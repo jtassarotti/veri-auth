@@ -245,8 +245,9 @@ Section authenticatable_definitions.
       susp ↦ᵥ{#(3/4)} InjLV (#pid, #p) ∗ proph_v_susp p h. *)
 
   Definition auth_susp_emp_v_proph (pid : nat) (v : val) : iProp Σ :=
-    ∃ (h : string) (susp : loc) (p : proph_id) pv pt (q : Qp) γ,
-      ⌜v = InjRV #susp⌝ ∗ mapg_frag #pid q pv ∗ lg_mapg_frag susp γ ∗
+    ∃ (h : string) (susp : loc) (p : proph_id) pv pt (q : Qp) γ N,
+      ⌜v = InjRV #susp⌝ ∗ cap_frag pid N ∗ lg_mapg_frag susp γ ∗
+      mapg_frag #pid (1 / (2 * pos_to_Qp (Pos.of_nat N)))%Qp pv ∗
       ⌜v_sub_obj pt pv #susp⌝ ∗ susp ↦ᵥ{#(3/4)} InjLV (#pid, #p) ∗ proph_v_susp p h.
 
   Definition auth_susp_v_ser_proph_inv (pid : nat) (v : val) (s : string) : iProp Σ :=
@@ -367,7 +368,7 @@ Section authenticatable_definitions.
               (∃ (p : proph_id) γ,
                 lg_mapg_frag susp γ ∗
                 susp ↦ᵥ{#1/4} InjLV (#pid, #p) ∗ ⌜c = 1⌝ ∗
-                mapg_frag #pid (1 / pos_to_Qp (Pos.of_nat N))%Qp v_outer ∗
+                mapg_frag #pid (1 / (2 * pos_to_Qp (Pos.of_nat N)))%Qp v_outer ∗
                 cap_frag pid N ∗
                 (visit_pending γ ∨ (∃ id, ⌜id > pid⌝ ∗ visit_done γ id)))))).
 
@@ -445,7 +446,7 @@ Section authenticatable_definitions.
   Definition suspend_v_deser_spec
       (ser suspend v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
     □(∀ t' (a1 un_a1 a2 a3 : val) (s_def s_pred : string)
-         K tᵥ (id : nat) m d ps pn ctr gm mlg,
+         K tᵥ (id : nat) m vm d ps pn ctr gm mlg,
       spec_verifier tᵥ (fill K (v_deser #id))
       ={⊤}=∗ ∃ (v_deser_par : val),
         spec_verifier tᵥ (fill K v_deser_par) ∗
@@ -453,14 +454,14 @@ Section authenticatable_definitions.
           {{{ ⌜unsusp t' a1 un_a1⌝ ∗
               ▷ (lrel_tern_as_lrel A) a1 a2 a3 ∗
               susp_ser_p t' a1 s_def ∗
-              visited_mapg_auth m d ps pn ctr gm ∗
-              lg_mapg_auth mlg ∗
+              visited_mapg_auth vm d ps pn ctr gm ∗
+              lg_mapg_auth mlg ∗ mapg_auth m ∗
               spec_verifier tᵥ' (fill K' (v_deser_par #s_pred)) }}}
             suspend un_a1
           {{{ a1' s_real c, RET a1';
               (∃ t_real, susp_p_ser_spec_at ser t_real c a1' s_real) ∗
               ((⌜s_pred = s_real⌝ ∗ ∃ γl mlg' a2',
-                lg_mapg_auth mlg' ∗
+                lg_mapg_auth mlg' ∗ mapg_auth (mapg_insert_def m #id a1') ∗
                 ⌜size γl = c⌝ ∗ penset_frag γl ∗
                 (lrel_tern_as_lrel A) a1' a2' a3 ∗
                 susp_ser_p t a1' s_def ∗
@@ -470,7 +471,7 @@ Section authenticatable_definitions.
                   ⌜p_sub_obj t a1' #lb⌝ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
                 sub_susp_count t a2' c id c a2' ∗
                 ser_v_proph t id a2' s_def ∗
-                visited_map_update_pending m d ps pn γl ctr gm) ∨
+                visited_map_update_pending vm d ps pn γl ctr gm) ∨
               (⌜s_pred ≠ s_real⌝ ∗ (lrel_tern_bin A) a1' a3)) }}})).
 
   Definition unsuspend_spec (unsuspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=

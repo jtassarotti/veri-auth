@@ -345,7 +345,7 @@ Section authentikit_helpers.
       sub_susp_count t (InjRV (InjRV #susp)) (c-1) pid Nc v_outer ∗
       susp ↦ᵥ{#(3/4)} InjRV #h ∗
       spec_verifier tᵥ (fill K (#())) ∗
-      mapg_frag #pid (1 / pos_to_Qp (Pos.of_nat Nc))%Qp v_outer.
+      mapg_frag #pid (1 / (2 * pos_to_Qp (Pos.of_nat Nc)))%Qp v_outer.
   Proof.
     iIntros "Hauth #Hlg #Hreached Hinner Hsusp Hspec".
     destruct t; simpl.
@@ -398,6 +398,7 @@ Section authentikit_helpers.
       ⌜v_sub_obj t' v #susp⌝ -∗
       visited_mapg_auth m d ps pn ctr gm -∗
       lg_mapg_frag susp γ -∗
+      mapg_frag #pid (1 / (2 * pos_to_Qp (Pos.of_nat Nc)))%Qp v -∗ 
       visit_reached_done γ n -∗
       sub_susp_count_frags t v c pid Nc -∗
       susp ↦ᵥ{#(3/4)} InjLV (#pid, v') -∗
@@ -410,7 +411,7 @@ Section authentikit_helpers.
         spec_verifier tᵥ (fill K (#())).
   Proof.
     iIntros (K tᵥ v v' t t' susp c pid Nc h γ n m d ps pn ctr gm)
-      "%Hsub Hauth #Hlg #Hreached (#Hcap & %Hle & Hinner & Hagg) Hsusp Hspec".
+      "%Hsub Hauth #Hlg Hmapg #Hreached (#Hcap & %Hle & Hinner & Hagg) Hsusp Hspec".
     iAssert (∀ v_outer (t : evi_type) (v : val) (c : nat) (t' : evi_type),
                ⌜v_sub_obj t' v #susp⌝ -∗
                visited_mapg_auth m d ps pn ctr gm -∗
@@ -423,7 +424,7 @@ Section authentikit_helpers.
                sub_susp_count t v (c - 1) pid Nc v_outer ∗
                susp ↦ᵥ{#3/4} InjRV #h ∗
                spec_verifier tᵥ (fill K #()) ∗
-               mapg_frag #pid (1 / pos_to_Qp (Pos.of_nat Nc))%Qp v_outer)%I
+               mapg_frag #pid (1 / (2 * pos_to_Qp (Pos.of_nat Nc)))%Qp v_outer)%I
       with "[]" as "Hlem".
     { iClear "Hcap".
       iIntros (v_outer tind).
@@ -502,6 +503,8 @@ Section authentikit_helpers.
             iModIntro. iSplit; [iPureIntro; lia|]. iFrame "Hauth' Hfin". iFrame. }
     iMod ("Hlem" $! v t v c t' Hsub with "Hauth Hinner Hsusp Hspec")
       as "(%Hc & Hauth & #Hfin & Hinner & Hsusp & Hspec & Hnew)".
+    iDestruct (mapg_frag_combine with "Hmapg Hnew") as "Hnew".
+    rewrite Qp.div_2_mul.
     iModIntro. iFrame "Hauth Hfin Hsusp Hspec Hcap".
     iSplit; [iPureIntro; lia|]. iFrame "Hinner".
     iDestruct "Hagg" as "[%HcN | [%HcN Hq]]".
