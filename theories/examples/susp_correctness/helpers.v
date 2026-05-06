@@ -1,6 +1,6 @@
 From auth.prelude Require Import stdpp.
 From auth.rel_logic_tern_susp Require Export spec_rules spec_tactics.
-From iris.algebra Require Import gmap auth csum agree.
+From iris.algebra Require Import gmap auth excl csum agree.
 From iris.algebra.lib Require Import dfrac_agree.
 From auth.examples.susp_correctness Require Import resource_algebras definitions.
 
@@ -784,6 +784,66 @@ Section authentikit_helpers.
       sub_susp_count_frags t x ctr id Nc -∗
       visited_mapg_auth vm dm ps pn ctr' gm -∗
       (⌜pn > 0 ∨ (∃ id' v', id' > id ∧ m !! #id' = Some v')⌝).
-  Proof. Admitted.
+  Proof.
+    iIntros (m vm dm ps gm id ctr ctr' Nc pn t x).
+    iIntros "%Hctr Hvm Hstok Hpn Hsub Hauth".
+    iDestruct "Hsub" as "(_ & _ & Hcount & _)".
+    iDestruct "Hvm" as "[[_ Hbig]|Hset]"; last first.
+    { iDestruct "Hset" as (id_set) "[Hstok_set _]".
+      iDestruct (stok_agree with "Hstok Hstok_set") as %?. discriminate. }
+    iAssert (∀ (v_outer : val) (tind : evi_type) (vind : val) (cind : nat),
+               ⌜cind > 0⌝ -∗ sub_susp_count tind vind cind id Nc v_outer -∗
+               ∃ γ, visit_pending γ ∨
+                    (∃ id', ⌜id' > id⌝ ∗ visit_done γ id'))%I
+      with "[]" as "Hext".
+    { iIntros (v_outer tind).
+      iInduction tind as [t1 t2 | t1 t2 | | | ] "IH".
+      all: iIntros (vind cind) "%Hci Hcnt".
+      - simpl. iDestruct "Hcnt" as (c1 c2 v1 v2 [-> Hsum]) "[Hc1 Hc2]".
+        destruct c1 as [|c1'].
+        + assert (c2 > 0) by lia.
+          iApply ("IH1" $! v2 c2 with "[%//] Hc2").
+        + assert (S c1' > 0) by lia.
+          iApply ("IH" $! v1 (S c1') with "[%//] Hc1").
+      - simpl. iDestruct "Hcnt" as "[H|H]".
+        + iDestruct "H" as (?) "[-> Hc']".
+          iApply ("IH" with "[%//] Hc'").
+        + iDestruct "H" as (?) "[-> Hc']".
+          iApply ("IH1" with "[%//] Hc'").
+      - simpl. iDestruct "Hcnt" as "[_ %Heq]". lia.
+      - simpl. iDestruct "Hcnt" as "[_ %Heq]". lia.
+      - simpl. iDestruct "Hcnt" as (v1) "[_ Hcases]".
+        iDestruct "Hcases" as "[H|H]".
+        + iDestruct "H" as (h) "%Heq". destruct Heq as [_ Heq]. lia.
+        + iDestruct "H" as (susp) "[_ Hcases]".
+          iDestruct "Hcases" as "[Hh|Hp]".
+          * iDestruct "Hh" as (h) "[_ %Heq]". lia.
+          * iDestruct "Hp" as (p γ) "(_ & _ & _ & _ & _ & Hdisj)".
+            iExists γ. iExact "Hdisj". }
+    iDestruct ("Hext" $! x t x ctr with "[%//] Hcount") as (γ) "[Hpend|Hdone]".
+    - iDestruct "Hauth" as "(Hms & _ & _ & _ & _ & _ & _ & _ & _ & %Hpcoh)".
+      iDestruct (own_valid_2 with "Hms Hpend") as %Hvm.
+      apply auth_both_valid_discrete in Hvm as [Hincl Hvalid].
+      apply (singleton_included_exclusive_l vm γ pending_val) in Hincl;
+        [|apply _|exact Hvalid].
+      assert (vm !! γ = Some pending_val) as Hincl'.
+      { destruct (vm !! γ) as [s|] eqn:Hvγ;
+          rewrite Hvγ in Hincl; [|by inversion Hincl].
+        apply Some_equiv_inj in Hincl. rewrite /pending_val in Hincl |- *.
+        destruct s as [s'| |]; [|by inversion Hincl|by inversion Hincl].
+        apply (inj Cinl) in Hincl. destruct s' as [v|]; [|by inversion Hincl].
+        apply (inj Excl) in Hincl. apply leibniz_equiv in Hincl. by subst. }
+      clear Hincl. rename Hincl' into Hincl.
+      destruct Hpcoh as [-> Hpn_in].
+      apply Hpn_in in Hincl.
+      iPureIntro. left.
+      assert (size ps ≠ 0) by (apply size_non_empty_iff; set_solver).
+      lia.
+    - iDestruct "Hdone" as (id' Hgt) "Hvd".
+      iDestruct (visit_done_lookup with "Hauth Hvd") as "(%Hvmγ & _ & _)".
+      iDestruct (big_sepM_lookup with "Hbig") as "Hlam"; [exact Hvmγ|].
+      iDestruct ("Hlam" $! id' with "[//]") as (v') "%Hmid'".
+      iPureIntro. right. exists id', v'. split; done.
+  Qed.
 
 End authentikit_helpers.
