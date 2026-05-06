@@ -652,14 +652,14 @@ Section authentikit_definitions.
         stok_unset ∗
         (∀ γ, visit_reached_done γ id -∗ visit_finished γ id)).
 
-  Definition v_susp_big_sep_lam (m : gmap val val) (m' : mapg_type) k agv : iProp Σ :=
+  Definition v_susp_big_sep_lam (m : gmap val val) k agv : iProp Σ :=
     ∃ (ctr id Nc: nat) (finish x a ser : val) (t : evi_type) (s : string) (q : Qp),
       (⌜ctr > 0 ∧ m !! k = Some (#ctr, finish)%V ∧ agv ≡ to_frac_agree q x ∧ k = #id⌝ ∗
       £ 1 ∗ ser_v_proph t id x s ∗ v_ser_spec ser t ∗ auth_v a s id ∗
       sub_susp_count_frags t x ctr id Nc ∗ v_finish_spec' finish x a ser)%I.
 
   Definition v_susp_big_sep (m : gmap val val) (m' : mapg_type) : iProp Σ :=
-    [∗ map] k ↦ agv ∈ mapg_alive m', v_susp_big_sep_lam m m' k agv.
+    [∗ map] k ↦ agv ∈ mapg_alive m', v_susp_big_sep_lam m k agv.
 
   Definition ctr_inv (ctr : nat) (m : gmap val val) : Prop :=
     ∀ (ctr' : nat), ctr' ≥ ctr → m !! #ctr' = None.
