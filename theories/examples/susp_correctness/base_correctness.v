@@ -12,7 +12,7 @@ Section authenticatable.
 
   Lemma refines_Auth_sum Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 + var0) ⟧
-      (ext Δ (lrel_evidence N)) p_Auth_sum v_Auth_sum i_Auth_sum.
+      (ext Δ (lrel_evidence)) p_Auth_sum v_Auth_sum i_Auth_sum.
   Proof.
     iSplit; [|iSplit]; interp_unfold!; last first.
     { (* unary  *) admit. }
@@ -221,7 +221,7 @@ Section authenticatable.
   Admitted.
 
   Lemma refines_Auth_string :
-    ⊢ (lrel_evidence N) (LRelTern lrel_string lrel_bin_string lrel_un_string)
+    ⊢ (lrel_evidence) (LRelTern lrel_string lrel_bin_string lrel_un_string)
         p_Auth_string v_Auth_string i_Auth_string.
   Proof.
     iSplit; [|iSplit]; last first.
@@ -281,10 +281,10 @@ Section authenticatable.
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
     - (* 3. suspend_v_deser_spec (combined) *)
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m d ps pn ctr gm mlg) "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m vm d ps pn ctr gm mlg) "Hv".
       v_pures.
       iModIntro. iExists string_deser. iFrame "Hv".
-      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hv) HΨ".
+      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hmapg & Hv) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
       iDestruct "HAt" as %(s0 & -> & -> & ->).
       destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp; try done.
@@ -321,21 +321,8 @@ Section authenticatable.
             iFrame "Hg Hpen". by rewrite big_sepS_empty. }
           iLeft. iSplit; [done|]. iExists ∅, mlg, #s0.
           iFrame "Hauth".
-          iSplit; [iPureIntro; rewrite size_empty; lia|].
-          iSplitL "Hpe"; [iExact "Hpe"|].
-          iSplit.
-          { iSplit; [iExists s0; done|].
-            iSplit; [iExists s0; done|]. by iExists s0. }
-          iSplit; [iPureIntro; by exists s0|].
-          iFrame "Hv".
-          iSplit; [rewrite big_sepS_empty; done|].
-          iSplit; [iSplit; [iExists s0; done|by iPureIntro]|].
-          iSplit; [iPureIntro; by exists s0|].
-          rewrite visited_map_update_pending_rewrite. rewrite size_empty.
-          replace (ps ∪ ∅) with ps by set_solver.
-          replace (pn + 0) with pn by lia.
-          rewrite (set_fold_empty (λ γ m, <[γ := pending_val]> m) m).
-          iExact "Hvm".
+          (* TODO: needs mapg_insert m #pid #s0 — requires m !! #pid = None *)
+          admit.
         * (* Mismatch branch *)
           iApply ("HΨ" $! #s0 (string_ser_str s0) 0%nat).
           iModIntro.
@@ -381,7 +368,7 @@ Section authenticatable.
   Admitted.
 
   Lemma refines_Auth_int :
-    ⊢ (lrel_evidence N) (LRelTern lrel_int lrel_bin_int lrel_un_int)
+    ⊢ (lrel_evidence) (LRelTern lrel_int lrel_bin_int lrel_un_int)
         p_Auth_int v_Auth_int i_Auth_int.
   Proof.
     iSplit; [|iSplit]; last first.
@@ -412,10 +399,10 @@ Section authenticatable.
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
     - (* 3. suspend_v_deser_spec (combined) *)
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m d ps pn ctr gm mlg) "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m vm d ps pn ctr gm mlg) "Hv".
       v_pures.
       iModIntro. iExists int_deser. iFrame "Hv".
-      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hv) HΨ".
+      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hmapg & Hv) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
       iDestruct "HAt" as %(z0 & -> & -> & ->).
       destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp; try done.
@@ -455,21 +442,8 @@ Section authenticatable.
             iFrame "Hg Hpen". by rewrite big_sepS_empty. }
           iLeft. iSplit; [done|]. iExists ∅, mlg, #z0.
           iFrame "Hauth".
-          iSplit; [iPureIntro; rewrite size_empty; lia|].
-          iSplitL "Hpe"; [iExact "Hpe"|].
-          iSplit.
-          { iSplit; [iExists z0; done|].
-            iSplit; [iExists z0; done|]. by iExists z0. }
-          iSplit; [iPureIntro; by exists z0|].
-          iFrame "Hv".
-          iSplit; [rewrite big_sepS_empty; done|].
-          iSplit; [iSplit; [iExists z0; done|by iPureIntro]|].
-          iSplit; [iPureIntro; by exists z0|].
-          rewrite visited_map_update_pending_rewrite. rewrite size_empty.
-          replace (ps ∪ ∅) with ps by set_solver.
-          replace (pn + 0) with pn by lia.
-          rewrite (set_fold_empty (λ γ m, <[γ := pending_val]> m) m).
-          iExact "Hvm".
+          (* TODO: needs mapg_insert m #pid #z0 *)
+          admit.
         * (* Mismatch branch *)
           iApply ("HΨ" $! #z0 (int_ser_str z0) 0%nat).
           iModIntro.
@@ -514,7 +488,7 @@ Section authenticatable.
 
   Lemma refines_Auth_mu Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆ ⇒ ⋆, var1 (var0 (μ: ⋆; var1 var0)) → var1 (μ: ⋆; var1 var0) ⟧
-      (ext Δ (lrel_evidence N)) p_Auth_mu v_Auth_mu i_Auth_mu.
+      (ext Δ (lrel_evidence)) p_Auth_mu v_Auth_mu i_Auth_mu.
   Proof.
     iSplit; [|iSplit]; interp_unfold!; last first.
     { (* unary  *) admit. }
@@ -556,19 +530,19 @@ Section authenticatable.
       iIntros "(Htok & Hintr & HreachA)".
       iApply "HΨ". iFrame.
     - (* 3. suspend_v_deser_spec (combined): forwards to A's spec via rec_fold *)
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m d ps pn ctr gm mlg) "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m vm d ps pn ctr gm mlg) "Hv".
       v_pures.
       iModIntro. iExists _. iFrame "Hv".
-      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hv) HΨ".
+      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hmapg & Hv) HΨ".
       iEval (rewrite interp_rec_star_unfold) in "HA".
       interp_unfold! in "HA".
       rewrite interp_var1_ext2 interp_var0_ext1.
       v_pures.
       v_bind tᵥ' (v_dA #pid).
-      iMod ("HsuspvdeserA" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ _ _ with "Hv")
+      iMod ("HsuspvdeserA" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ _ _ _ with "Hv")
         as (v_deser_par_A) "[Hv #Hsuspvdeser_inner_A] /=".
       rewrite /rec_fold. wp_pures.
-      wp_apply ("Hsuspvdeser_inner_A" with "[$Hv $Hvm $Hauth]").
+      wp_apply ("Hsuspvdeser_inner_A" with "[$Hv $Hvm $Hauth $Hmapg]").
       { iSplit; [iPureIntro; eauto|]. iFrame "Hser HA". }
       iIntros (a1' s_real c_v) "[#Hsspec_at HpostA]".
       iApply ("HΨ" $! a1' s_real c_v).
@@ -583,7 +557,7 @@ Section authenticatable.
       iDestruct "HpostA" as "[[%Hpredeq HpostA] | [%Hpredne HAbinpost]]".
       + iLeft. iSplit; [done|].
         iDestruct "HpostA" as (γl mlg' a2')
-          "(Hauth' & Hszγ & Hpenγ & HArel & Hser_a1' & Hverv & Hbig & Hcnt & Hproph & Hvmupd)".
+          "(Hauth' & Hmapg' & Hszγ & Hpenγ & HArel & Hser_a1' & Hverv & Hbig & Hcnt & Hproph & Hvmupd)".
         iExists γl, mlg', a2'. iFrame.
         iEval (rewrite interp_rec_star_unfold).
         iNext. interp_unfold!.
@@ -640,7 +614,7 @@ Section authenticatable.
         (auth_inv s' susp)). *)
 
   Definition auth_ctx {Θ} (Δ : ctxO Σ Θ) (R : kindO Σ (⋆ ⇒ ⋆)) :=
-    ext (ext (ext Δ (lrel_auth N)) R) (lrel_evidence N).
+    ext (ext (ext Δ (lrel_auth)) R) (lrel_evidence).
 
   Lemma refines_Auth_auth Θ (Δ : ctxO Σ Θ) (R : kindO Σ (⋆ ⇒ ⋆)) :
     ⊢ ⟦ ∀: ⋆, var1 (var3 var0) ⟧

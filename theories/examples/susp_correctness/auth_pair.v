@@ -9,7 +9,7 @@ Section authenticatable.
 
   Lemma refines_Auth_pair Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 * var0) ⟧
-      (ext Δ (lrel_evidence N)) p_Auth_pair v_Auth_pair i_Auth_pair.
+      (ext Δ (lrel_evidence)) p_Auth_pair v_Auth_pair i_Auth_pair.
   Proof.
     iSplit; [|iSplit]; interp_unfold!; last first.
     { (* unary  *) admit. }
@@ -207,18 +207,18 @@ Section authenticatable.
       iPureIntro. simpl. exists ua, ub. split; [done|].
       right. right. right. done.
     - (* 3. suspend_v_deser_spec (combined) *)
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ3 pid m d ps pn ctr gm mlg) "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ3 pid m vm d ps pn ctr gm mlg) "Hv".
       v_pures.
       (* HeapLang evaluation: argument first. Bind v_dB before v_dA. *)
       v_bind tᵥ3 (v_dB #pid).
-      iMod ("HsuspvdeserB" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ _ _ with "Hv")
+      iMod ("HsuspvdeserB" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ _ _ _ with "Hv")
         as (v_deser_par_B) "[Hv #Hsuspvdeser_inner_B] /=".
       v_bind tᵥ3 (v_dA #pid).
-      iMod ("HsuspvdeserA" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ _ _ with "Hv")
+      iMod ("HsuspvdeserA" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ _ _ _ with "Hv")
         as (v_deser_par_A) "[Hv #Hsuspvdeser_inner_A] /=".
       rewrite /prod_deser. v_pures.
       iModIntro. iExists _. iFrame "Hv".
-      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hv) HΨ".
+      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hmapg & Hv) HΨ".
       destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp; try done.
       + (* tprod — the actual case *)
         destruct Hunsusp as (a1A & a1B & un_a1A & un_a1B & -> & -> & HunsuspA & HunsuspB).

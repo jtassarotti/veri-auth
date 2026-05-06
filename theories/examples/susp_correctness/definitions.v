@@ -425,7 +425,7 @@ Section authenticatable_definitions.
   Definition susp_p_ser_spec_at
       (ser : val) (t : evi_type) (c : nat) (a : val) (s : string) : iProp Σ :=
     ∀ (E : coPset) (q : Qp),
-      ⌜↑prover_susp_set N ⊆ E⌝ -∗
+      ⌜↑prover_susp_set ⊆ E⌝ -∗
       {{{ seq_tok E ∗ intransit q }}}
         ser a
       {{{ RET #s; seq_tok E ∗ intransit (q/2)%Qp ∗
