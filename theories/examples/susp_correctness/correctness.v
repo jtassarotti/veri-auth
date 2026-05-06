@@ -117,7 +117,7 @@ Section proof.
         assert (γ = γ0) as -> by admit.
         iFrame "Hvisfin".
         
-      + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%& Hmfrag & Hlbfrag' & %Hmsub & Hsusp & Hproph)".
+      + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%&%& Hcap & Hlbfrag' & Hmfrag & %Hmsub & Hsusp & Hproph)".
 
         simplify_eq H2. intros <-.
         iPoseProof (lg_mapg_agree with "Hlbfrag' Hlbfrag") as "(-> & _ & _)".
@@ -144,8 +144,9 @@ Section proof.
             "(Hlc & Hxser & Hxserspec & Hxauth & Hxc & Hxfin)".
         assert (pid = id0) as <- by by simplify_eq. simplify_eq.
 
-        (* iDestruct "Hxc" as "(Hcap & % & Hxc & Hxagg)".
-        iAssert (sub_susp_count_frags t0 x1 ctr pid Nc0) with "[$Hcap $Hxc $Hxagg //]" as "Hxc". *)
+        iDestruct "Hxc" as "(Hcap' & % & Hxc & Hxagg)".
+        iDestruct (cap_frag_agree with "Hcap Hcap'") as "->".
+        iAssert (sub_susp_count_frags t0 x1 ctr pid Nc0) with "[$Hcap $Hxc $Hxagg //]" as "Hxc".
 
         (* iMod (visited_update_finished id with "Hvmauth Hlbfrag Hsusp Hxc Hvisdone Hintr") as 
             "(Hvisfin & Hvmauth & Hxc & Hsusp)"; try done.
@@ -155,8 +156,9 @@ Section proof.
           iDestruct (stok_agree with "Hstok Hstok'") as "%";
           simplify_eq.
         
-        iMod (count_update with "[] Hvmauth Hlbfrag Hvisdone Hxc Hsusp Hv") as "(Hvmauth & #Hvisfin & Hxc & Hsusp & Hv) /=".
-        { assert (x1 = pv) by admit. by simplify_eq. }
+        assert (x1 = pv) by admit. simplify_eq.
+        
+        iMod (count_update with "[//] Hvmauth Hlbfrag Hmfrag Hvisdone Hxc Hsusp Hv") as "(Hvmauth & #Hvisfin & Hxc & Hsusp & Hv) /=".
         iEval (rewrite visited_map_update_finished_rewrite) in "Hvmauth".
 
         iPoseProof (stok_combine with "Hstok Hstok'") as "[_ Hstok_comp]".
