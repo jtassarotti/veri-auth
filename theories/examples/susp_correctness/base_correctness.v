@@ -144,7 +144,24 @@ Section authenticatable.
         unfold inr_ser_str. iModIntro. iFrame "Hspec".
         iSplitL "HcntB"; [iRight; iExists vB; by iFrame|].
         iExists vB, s'. iRight. iSplit; [iExact "Hser1"|]. done.
-    - (* 6. v_auth_ser_spec *) admit.
+    - (* 6. v_auth_ser_spec *)
+      iIntros (K tᵥ3 a1 a2 a3) "!# #HA Hv".
+      rewrite /sum_ser''. v_pures.
+      rewrite interp_tern_sum_unfold.
+      rewrite interp_var1_ext2 interp_var0_ext1.
+      iDestruct "HA" as (v1' v2' v3') "[(>-> & >-> & >-> & #HrA) | (>-> & >-> & >-> & #HrB)]".
+      + (* InjL *)
+        v_pures. v_bind (v_sA _).
+        iMod ("HvauthserA" with "HrA Hv") as (sv) "[Hsserv Hv] /=".
+        v_pures. iModIntro. iExists (inl_ser_str sv).
+        unfold inl_ser_str. iFrame "Hv".
+        iExists v2', sv. iLeft. iSplit; [iExact "Hsserv"|]. done.
+      + (* InjR *)
+        v_pures. v_bind (v_sB _).
+        iMod ("HvauthserB" with "HrB Hv") as (sv) "[Hsserv Hv] /=".
+        v_pures. iModIntro. iExists (inr_ser_str sv).
+        unfold inr_ser_str. iFrame "Hv".
+        iExists v2', sv. iRight. iSplit; [iExact "Hsserv"|]. done.
     - (* 7. v_count_spec *)
       iIntros (K tᵥ3 a c id Nc v_outer) "!# Hcnt Hspec".
       iDestruct "Hcnt" as "[(%vA & -> & HcntA) | (%vB & -> & HcntB)]".
