@@ -31,67 +31,6 @@ Section proof.
   Local Notation ser_v_proph := (ser_v_proph authBaseN).
   Local Notation auth_v := (auth_v authBaseN).
 
-  Definition v_finish_spec' (finish x a ser : val) : iProp Σ :=
-		□(∀ (E: coPset) tᵥ K (s : string) (t : evi_type) id Nc,
-      ⌜↑ver_susp_set ⊆ E ∧ ↑tableN ⊆ E⌝ -∗ £ 1 -∗
-      seq_tok E -∗ ser_v_proph t id x s -∗ v_ser_spec ser t -∗
-			sub_susp_count t x 0 id Nc x -∗ auth_v a s id -∗
-      stok_set id -∗ mapg_removed #id -∗
-			spec_verifier tᵥ (fill K (finish #()))
-			={⊤}=∗ spec_verifier tᵥ (fill K (SOMEV #())) ∗ seq_tok E ∗
-        stok_unset ∗
-        (∀ γ, visit_reached_done γ id -∗ visit_finished γ id)).
-
-  Definition v_susp_big_sep_lam (m : gmap val val) (m' : mapg_type) k agv : iProp Σ :=
-    ∃ (ctr id Nc: nat) (finish x a ser : val) (t : evi_type) (s : string) (q : Qp),
-      (⌜ctr > 0 ∧ m !! k = Some (#ctr, finish)%V ∧ agv ≡ to_frac_agree q x ∧ k = #id⌝ ∗
-      £ 1 ∗ ser_v_proph t id x s ∗ v_ser_spec ser t ∗ auth_v a s id ∗
-      sub_susp_count_frags t x ctr id Nc ∗ v_finish_spec' finish x a ser)%I.
-
-  Definition v_susp_big_sep (m : gmap val val) (m' : mapg_type) : iProp Σ :=
-    [∗ map] k ↦ agv ∈ mapg_alive m', v_susp_big_sep_lam m m' k agv.
-
-  Definition ctr_inv (ctr : nat) (m : gmap val val) : Prop :=
-    ∀ (ctr' : nat), ctr' ≥ ctr → m !! #ctr' = None.
-
-  Definition vm_big_sep_lam_unset 
-    (m : gmap val val) (γ : gname) v : iProp Σ :=
-      ∀ id v', ⌜v = done_val id⌝ -∗ ⌜m !! #id = Some v'⌝.
-
-  Definition vm_big_sep_lam_set 
-    (m : gmap val val) (id' : nat) (γ : gname) v : iProp Σ :=
-      ∀ id v', ⌜id ≠ id'⌝ -∗ ⌜v = done_val id⌝ -∗ ⌜m !! #id = Some v'⌝.
-
-  Definition vm_big_sep (m : gmap val val) (vm : state_mapg_type) : iProp Σ :=
-    (stok_unset ∗
-      [∗ map] γ ↦ v ∈ vm, vm_big_sep_lam_unset m γ v) ∨
-    (∃ id, stok_set id ∗
-      [∗ map] γ ↦ v ∈ vm, vm_big_sep_lam_set m id γ v).
-
-  Lemma gt_child :
-    ∀ m vm dm ps gm (id ctr ctr' Nc pn : nat) t x,
-      ⌜ctr > 0⌝ -∗ vm_big_sep m vm -∗ 
-      stok_unset -∗ pencount_frag pn -∗ 
-      sub_susp_count_frags t x ctr id Nc -∗
-      visited_mapg_auth vm dm ps pn ctr' gm -∗
-      (⌜pn > 0 ∨ (∃ id' v', id' > id → m !! #id' = Some v')⌝).
-  Proof. Admitted.
-
-  Definition valid_keyset (keyset : gset nat) (m : gmap val val) : iProp Σ :=
-    ([∗ set] (id : nat) ∈ keyset, ∃ v, ⌜m !! #id = Some v⌝) ∧
-    ([∗ map] k ↦ v ∈ m, ∃ (id : nat), ⌜k = #id ∧ id ∈ keyset⌝).
-
-  Definition is_v_susp_table (l : loc) : iProp Σ :=
-    ∃ (d : val) (m : gmap val val) (m' : mapg_type) (vm : state_mapg_type)
-        (dm : done_mapg_type) (ps : pending_setg_type) (ctr pn : nat)
-        (keyset : gset nat) gm,
-      l ↦ᵥ d ∗ ⌜is_map d m⌝ ∗ v_susp_big_sep m m' ∗ mapg_auth m' ∗
-      ⌜size (mapg_alive m') = size m⌝ ∗ visited_mapg_auth vm dm ps pn ctr gm ∗
-      ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ valid_keyset keyset m.
-
-  Definition inv_v_susp_table (l: loc) := seq_inv tableN (is_v_susp_table l).
-
-
 	Lemma v_finish_spec :
     ∀ tᵥ K (a x ser : val) (st : loc),
       inv_v_susp_table st -∗
@@ -346,6 +285,10 @@ Section proof.
             with "[//] [] [$Hv //]") as (?) "[Hv %Hmdel] /="; 
             try by iIntros "!#" (?).
           Unshelve. 2: done.
+          
+          iPoseProof (stok_combine with "Hstok Hstok'") as "[_ Hstok_comp]".
+          iMod (stok_update _ (Some pid) with "Hstok_comp") as "Hstok_comp".
+          iPoseProof (stok_split with "Hstok_comp") as "[Hstok Hstok']".
 
           iPoseProof (big_sepM_mono 
               (v_susp_big_sep_lam m m')
