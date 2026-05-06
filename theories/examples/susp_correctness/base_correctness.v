@@ -338,8 +338,45 @@ Section authenticatable.
       wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser $Htok $Hintr]").
       iIntros "(Htok & Hintr & HreachA)".
       iApply "HΨ". iFrame.
-    - (* 3. suspend_v_deser_spec (combined) *)
-      admit.
+    - (* 3. suspend_v_deser_spec (combined): forwards to A's spec via rec_fold *)
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m d ps pn ctr gm mlg) "Hv".
+      v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hv) HΨ".
+      iEval (rewrite interp_rec_star_unfold) in "HA".
+      interp_unfold! in "HA".
+      rewrite interp_var1_ext2 interp_var0_ext1.
+      v_pures.
+      v_bind tᵥ' (v_dA #pid).
+      iMod ("HsuspvdeserA" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ _ _ with "Hv")
+        as (v_deser_par_A) "[Hv #Hsuspvdeser_inner_A] /=".
+      rewrite /rec_fold. wp_pures.
+      wp_apply ("Hsuspvdeser_inner_A" with "[$Hv $Hvm $Hauth]").
+      { iSplit; [iPureIntro; eauto|]. iFrame "Hser HA". }
+      iIntros (a1' s_real c_v) "[#Hsspec_at HpostA]".
+      iApply ("HΨ" $! a1' s_real c_v).
+      iSplitL "".
+      { (* Lift Hsspec_at from p_ssA to (λ "a", rec_fold p_ssA "a"). *)
+        iDestruct "Hsspec_at" as (t_real) "Hsspec_at_inner".
+        iExists t_real.
+        iIntros (E q HE Ψ').
+        iModIntro. iIntros "[Htok Hintr] HΨ'".
+        wp_pures. rewrite /rec_fold. wp_pures.
+        iApply ("Hsspec_at_inner" with "[//] [$Htok $Hintr]"). iApply "HΨ'". }
+      iDestruct "HpostA" as "[[%Hpredeq HpostA] | [%Hpredne HAbinpost]]".
+      + iLeft. iSplit; [done|].
+        iDestruct "HpostA" as (γl mlg' a2')
+          "(Hauth' & Hszγ & Hpenγ & HArel & Hser_a1' & Hverv & Hbig & Hcnt & Hproph & Hvmupd)".
+        iExists γl, mlg', a2'. iFrame.
+        iEval (rewrite interp_rec_star_unfold).
+        iNext. interp_unfold!.
+        rewrite interp_var1_ext2 interp_var0_ext1.
+        iExact "HArel".
+      + iRight. iSplit; [done|].
+        iEval (rewrite interp_rec_star_bin_unfold).
+        iNext. interp_unfold!.
+        rewrite interp_var1_ext2 interp_var0_ext1.
+        iExact "HAbinpost".
     - (* 4. unsuspend_spec *)
       iIntros (E a1 a2 a3 HE Ψ) "!# (#HA & Htok & Hintr) HΨ".
       rewrite /rec_fold. wp_pures.
