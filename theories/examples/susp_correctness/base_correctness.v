@@ -121,7 +121,29 @@ Section authenticatable.
         admit.
     - (* 3. suspend_v_deser_spec (combined) *) admit.
     - (* 4. unsuspend_spec *) admit.
-    - (* 5. v_ser_spec *) admit.
+    - (* 5. v_ser_spec *)
+      iIntros (K tᵥ3 a s id Nc v_outer) "!# Hcnt #Hser Hspec".
+      iDestruct "Hser" as (w s') "[[#Hser1 [-> ->]] | [#Hser1 [-> ->]]]".
+      + (* InjL *)
+        iDestruct "Hcnt" as "[(%vA & %HeqL & HcntA) | (%vB & %HeqR & _)]"; last by inversion HeqR.
+        injection HeqL as ->.
+        rewrite /sum_ser''. v_pures.
+        v_bind tᵥ3 (v_sA _).
+        iMod ("HvserA" with "HcntA Hser1 Hspec") as "(HcntA & _ & Hspec) /=".
+        v_pures.
+        unfold inl_ser_str. iModIntro. iFrame "Hspec".
+        iSplitL "HcntA"; [iLeft; iExists vA; by iFrame|].
+        iExists vA, s'. iLeft. iSplit; [iExact "Hser1"|]. done.
+      + (* InjR *)
+        iDestruct "Hcnt" as "[(%vA & %HeqL & _) | (%vB & %HeqR & HcntB)]"; first by inversion HeqL.
+        injection HeqR as ->.
+        rewrite /sum_ser''. v_pures.
+        v_bind tᵥ3 (v_sB _).
+        iMod ("HvserB" with "HcntB Hser1 Hspec") as "(HcntB & _ & Hspec) /=".
+        v_pures.
+        unfold inr_ser_str. iModIntro. iFrame "Hspec".
+        iSplitL "HcntB"; [iRight; iExists vB; by iFrame|].
+        iExists vB, s'. iRight. iSplit; [iExact "Hser1"|]. done.
     - (* 6. v_auth_ser_spec *) admit.
     - (* 7. v_count_spec *)
       iIntros (K tᵥ3 a c id Nc v_outer) "!# Hcnt Hspec".
