@@ -679,17 +679,22 @@ Section authentikit_definitions.
     (∃ id, stok_set id ∗
       [∗ map] γ ↦ v ∈ vm, vm_big_sep_lam_set m id γ v).
 
-  Definition valid_keyset (keyset : gset nat) (m : gmap val val) : iProp Σ :=
+  (* Definition valid_keyset (keyset : gset nat) (m : mapg_type) : iProp Σ :=
+    dom keys
+    ∀ id, id ∈ keyset → ∃ v, m !! #id = Some v ∧
+    ∀ id v, #id ↦ v ∈ m → id ∈ keyset ∧
+
+
     ([∗ set] (id : nat) ∈ keyset, ∃ v, ⌜m !! #id = Some v⌝) ∧
-    ([∗ map] k ↦ v ∈ m, ∃ (id : nat), ⌜k = #id ∧ id ∈ keyset⌝).
+    ([∗ map] k ↦ v ∈ m, ∃ (id : nat), ⌜k = #id ∧ id ∈ keyset⌝) ∧
+    ⌜. *)
 
   Definition is_v_susp_table (l : loc) : iProp Σ :=
     ∃ (d : val) (m : gmap val val) (m' : mapg_type) (vm : state_mapg_type)
-        (dm : done_mapg_type) (ps : pending_setg_type) (ctr pn : nat)
-        (keyset : gset nat) gm,
+        (dm : done_mapg_type) (ps : pending_setg_type) (ctr pn : nat) gm,
       l ↦ᵥ d ∗ ⌜is_map d m⌝ ∗ v_susp_big_sep m m' ∗ mapg_auth m' ∗
       ⌜size (mapg_alive m') = size m⌝ ∗ visited_mapg_auth vm dm ps pn ctr gm ∗
-      ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ valid_keyset keyset m.
+      ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm.
 
   Definition inv_v_susp_table (l: loc) := seq_inv tableN (is_v_susp_table l).
 

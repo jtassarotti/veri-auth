@@ -57,11 +57,10 @@ Section proof.
       iMod ("Hclose_tab" with "[$Htok $Hbigsep $Hmauth $Hl $Hvmauth Hvisinv $Hkeys Hstok]") as "Htok".
       { iFrame "%". iNext. iLeft. iFrame.
         iApply (big_sepM_mono with "Hvisinv").
-        iIntros (???) "Hvis".
-        iIntros (??).
-        destruct (Hidunused k) as [Hidunused' _].
-        simplify_eq.
-        assert (id ≠ id0) by admit.
+        iIntros (k x0 Hkx) "Hvis".
+        iIntros (id_inner Heq).
+        assert (id_inner ≠ id0) by
+          (intros ->; destruct (Hidunused k) as [Hu _]; apply Hu; rewrite Hkx Heq; reflexivity).
         iApply "Hvis"; try done. }
       
       iFrame. iModIntro.
@@ -79,7 +78,8 @@ Section proof.
       + iDestruct "Hinv_1" as "(%s1&%& (%&%&%&%&%& Hsusp & #Hlbfrag' & #Hvisfin))".
         rewrite /filled_string /simple_string in H2 H3. destruct! H3; simplify_eq.
         iPoseProof (lg_mapg_agree with "Hlbfrag' Hlbfrag") as "(-> & _ & _)".
-        assert (id0 = id) as -> by admit.
+        iDestruct (visit_finished_keep with "Hvisfin") as "[_ #Hvisreach2]".
+        iDestruct (visited_reached_done_agree with "Hvisreach2 Hvisdone") as %->.
 
         simplify_eq. v_load. v_pures. v_bind (Hash _).
         iMod (step_verifier_hash with "Hv") as "Hv /="; try done.
@@ -88,10 +88,10 @@ Section proof.
         v_pures. iFrame.
 
         iMod (lc_fupd_elim_later with "Hlc Htabo") as "Htabo".
-        iDestruct "Htabo" as "(%&%&%&%&%&%& %idctr &%& %keys &% & Hl & %Hm & 
+        iDestruct "Htabo" as "(%&%&%&%&%&%& %idctr &%& %keys &% & Hl & %Hm &
             Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hkeys)".
-        
-        assert (vm !! γ = Some (finished_val id)) by admit.
+
+        iDestruct (vm_finished_no_done with "Hvmauth Hvisfin") as "(%Hno_done & Hvmauth)".
 
         iDestruct "Hvisinv" as "[[Hstok' Hvisinv]|(% & Hstok' & Hvisinv)]";
           iDestruct (stok_agree with "Hstok Hstok'") as "%";
@@ -102,19 +102,20 @@ Section proof.
         iPoseProof (stok_split with "Hstok_comp") as "[Hstok Hstok']".
 
         iMod ("Hclose_inv" with "[$Htok Hsusp]") as "Htok".
-        { iNext. iLeft. iFrame "∗ #". eauto. }
+        { iNext. iLeft. iFrame "Hvisfin". iFrame "∗ #". eauto. }
 
         iMod ("Hclose_tab" with "[$Htok $Hbigsep $Hmauth $Hl $Hvmauth Hvisinv $Hkeys Hstok]") as "Htok".
         { iFrame "%". iNext. iLeft. iFrame.
           iApply (big_sepM_mono with "Hvisinv").
-          iIntros (???) "Hvis".
-          iIntros (??).
-          iApply "Hvis"; try done.
-          admit. (* finished_val id0/done_val id => id0 ≠ id *) }
+          iIntros (k x0 Hkx) "Hvis".
+          iIntros (id_inner Heq).
+          assert (id_inner ≠ id0) by
+            (intros ->; apply (Hno_done k); rewrite Hkx Heq; reflexivity).
+          iApply "Hvis"; try done. }
 
         iFrame. iModIntro.
         iIntros (?) "Hvisit".
-        assert (γ = γ0) as -> by admit.
+        iDestruct (visit_reached_done_inj with "Hvisdone Hvisit") as %->.
         iFrame "Hvisfin".
         
       + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%&%& Hcap & Hlbfrag' & Hmfrag & %Hmsub & Hsusp & Hproph)".
@@ -134,9 +135,10 @@ Section proof.
         iMod (step_verifier_hash with "Hv") as "Hv /="; try done.
         v_pures. v_bind (_ <- _)%E.
 
-        iPoseProof (mapg_auth_alive with "Hmauth Hmfrag") as (?) "%Hin".
-        destruct Hin as [(?&Hin&?)%Some_equiv_eq ?]. clear Hin.
-        assert ((mapg_alive m') !! #pid = Some y) as Hin by admit.
+        iPoseProof (mapg_auth_alive with "Hmauth Hmfrag") as (y) "%Hin".
+        destruct Hin as [(? & Hin & ?)%Some_equiv_eq ?].
+        edestruct (mapg_alive_lookup_Cinl _ _ _ y Hin) as (y' & Halive & Hyy'); first done.
+        clear Hin. rename Halive into Hin.
 
         iDestruct (big_sepM_delete _ (mapg_alive m') #pid _ Hin with "Hbigsep") as "[Hms Hbigsep]".
 
@@ -148,16 +150,16 @@ Section proof.
         iDestruct (cap_frag_agree with "Hcap Hcap'") as "->".
         iAssert (sub_susp_count_frags t0 x1 ctr pid Nc0) with "[$Hcap $Hxc $Hxagg //]" as "Hxc".
 
-        (* iMod (visited_update_finished id with "Hvmauth Hlbfrag Hsusp Hxc Hvisdone Hintr") as 
-            "(Hvisfin & Hvmauth & Hxc & Hsusp)"; try done.
-        { assert (x1 = pv) by admit. by simplify_eq. } *)
+        iDestruct (visit_reached_done_lookup with "Hvmauth Hvisdone") as "(%Hvmγ_old & Hvmauth)".
 
         iDestruct "Hvisinv" as "[[Hstok' Hvisinv]|(% & Hstok' & Hvisinv)]";
           iDestruct (stok_agree with "Hstok Hstok'") as "%";
           simplify_eq.
-        
-        assert (x1 = pv) by admit. simplify_eq.
-        
+
+        assert (x1 = pv) as ->.
+        { rewrite Hyy' in H5. rewrite H5 in H4. simpl in H4.
+          fold_leibniz. by apply (inj to_agree) in H4. }
+
         iMod (count_update with "[//] Hvmauth Hlbfrag Hmfrag Hvisdone Hxc Hsusp Hv") as "(Hvmauth & #Hvisfin & Hxc & Hsusp & Hv) /=".
         iEval (rewrite visited_map_update_finished_rewrite) in "Hvmauth".
 
@@ -165,16 +167,25 @@ Section proof.
         iMod (stok_update _ None with "Hstok_comp") as "Hstok_comp".
         iPoseProof (stok_split with "Hstok_comp") as "[Hstok Hstok']".
 
-        assert (vm !! γ = Some (finished_val id0)) by admit.
+        iDestruct (vm_finished_no_done with "Hvmauth Hvisfin") as "(%Hno_done & Hvmauth)".
 
-        iPoseProof (big_sepM_mono 
+        assert (∃ v_γ, vm !! γ = Some v_γ) as [v_γ Hvγ]
+          by (destruct Hvmγ_old as [H' | H']; eauto).
+        iPoseProof (big_sepM_insert_override_2 _ _ γ v_γ 
+              (finished_val id0) with "Hvisinv []") as "Hvisinv"; try done.
+        
+
+        iPoseProof (big_sepM_mono
             (vm_big_sep_lam_set m id0)
             (vm_big_sep_lam_unset m)
           with "Hvisinv") as "Hvisinv".
-        { iIntros (???) "Hvis".
-          iIntros (??).
+        { iIntros (k x0' Hkx0) "Hvis".
+          iIntros (id_inner Heq).
           iApply "Hvis"; try done.
-          admit. (* finished_val id0/done_val id => id0 ≠ id *) }
+          destruct (decide (γ = k)); simplify_eq.
+          { rewrite lookup_insert in Hkx0. eauto. }
+          rewrite lookup_insert_ne in Hkx0; try done.
+          admit. }
 
         v_pures. v_load. v_bind (map_lookup _ _).
         iMod (gwp_map_lookup #pid d m () ⊤ _
@@ -235,9 +246,6 @@ Section proof.
               right. by apply Hidinv.
             - iSplitL "Hvisinv Hstok".
               + iRight. iFrame.
-                iApply big_sepM_insert_2.
-                { iIntros (???).
-                  simplify_eq. }
 
                 iApply (big_sepM_mono with "Hvisinv").
                 iIntros (???) "Hvis".
@@ -254,19 +262,25 @@ Section proof.
                   { destruct! Hlook. by simplify_eq. }
 
                   iApply (big_sepS_mono with "Hkeysmap").
-                  iIntros (???).
-                  iPureIntro.
-                  destruct! H9. exists H10.
-                  rewrite lookup_delete_ne; try done.
-                  intros ?. simplify_eq.
-                  admit. (* by contra: x2 ∈ keys ∖ {[x2]} *)
+                  iIntros (id_iter Hid_iter).
+                  iIntros "[%v_id %Hv_id]".
+                  iExists v_id. iPureIntro.
+                  rewrite lookup_delete_ne; first done.
+                  intros Heq'. simplify_eq.
+                  apply elem_of_difference in Hid_iter as [_ Hnotin].
+                  apply Hnotin. by apply elem_of_singleton.
                 * iPoseProof (big_sepM_delete _ _ #pid with "Hmapkeys") as "[_ Hmapkeys]"; try done.
                   iApply (big_sepM_mono with "Hmapkeys").
-                  iIntros (????). admit. }
+                  iIntros (k v_k Hkv) "[%id_k [%Heq' %Hin_k]]".
+                  iExists id_k. iPureIntro. split; first done.
+                  apply elem_of_difference. split; first done.
+                  intros Hsing%elem_of_singleton. subst id_k k.
+                  rewrite lookup_delete in Hkv. discriminate. }
 
             iMod ("Hxfin" $! E with "[//] Hlc Htok Hxser Hxserspec Hxc Hxauth Hstok' Hxrem Hv") as "($&$&$&Hfin)".
             iModIntro. iIntros (?) "Hvisdone'".
-            by assert (γ = γ0) as -> by admit.
+            iDestruct (visit_reached_done_inj with "Hvisdone Hvisdone'") as %->.
+            iFrame "Hvisfin".
           
         * v_load. v_bind (map_remove _ _).
           iMod (gwp_map_remove () ⊤ #pid d m _
@@ -323,13 +337,32 @@ Section proof.
 
           rewrite (insert_delete _ _ _ Hin). v_store. v_pures.
           iMod ("Hclose_tab" with "[$Htok $Hl $Hmauth $Hbigsep $Hvmauth Hstok Hvisinv Hkeys]") as "Htok".
-          { iNext. iFrame "%".
-            iPureIntro. intros ??.
-            rewrite lookup_insert_ne.
-            by apply Hidinv.
-            intros ?. simplify_eq.
-            specialize (Hidinv ctr' H4). simplify_eq. }
-          by iFrame.
+          { iNext. iFrame "%". iExists keys.
+            iSplit; [|iSplit].
+            - iPureIntro. admit.
+            - iPureIntro. intros ??.
+              destruct (decide (pid = ctr')); simplify_eq.
+              + specialize (Hidinv ctr' H7).
+                simplify_eq.
+              + rewrite lookup_insert_ne; eauto.
+                intros ?. simplify_eq.
+            - iSplitL "Hvisinv Hstok".
+              + iLeft. iFrame.
+                
+                iApply (big_sepM_mono with "Hvisinv").
+                iIntros (???) "Hvis".
+                iIntros (??).
+
+                destruct (decide (pid = id)); simplify_eq.
+                * rewrite lookup_insert. eauto.
+                * rewrite lookup_insert_ne; try by (intros ?; simplify_eq).
+                  by iApply "Hvis".
+              
+              + admit. }
+          iFrame.
+
+          iModIntro. iIntros (?) "_".
+          by assert (γ = γ0) as -> by admit.
   Admitted.
 
   Definition p_finish_spec (finish ser a : val) (s : string) (c : nat) : iProp Σ :=
@@ -341,15 +374,15 @@ Section proof.
       {{{ ls', RET #s;
             seq_tok E ∗ proph_proof pr_s ls' ∗
             ⌜ls = s :: ls'⌝ ∗
-            (∀ m d ps pn B (γl : pending_setg_type),
+            (∀ vm d ps pn ctr gm (γl : pending_setg_type),
               good_state -∗ penset_frag γl -∗
               pencount_frag pn -∗
-              visited_mapg_auth m d ps pn B -∗
+              visited_mapg_auth vm d ps pn ctr gm -∗
               ⌜size γl = c⌝ -∗
               ([∗ set] γ ∈ γl, ∃ lb,
                 lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) ==∗
               good_state ∗ pencount_frag (pn - size γl) ∗
-              visited_mapg_pending_removed m d ps pn γl B) }}}.
+              visited_mapg_pending_removed vm d ps pn γl ctr gm) }}}.
 
   Lemma p_finish_spec' :
     ∀ ser a sprf pn,
@@ -376,7 +409,7 @@ Section proof.
 
     iApply "HΦ". iFrame.
     iModIntro. repeat (iSplit; eauto).
-    iIntros (??????) "Hst Hpset Hpc Hvm % #HbigL".
+    iIntros (???????) "Hst Hpset Hpc Hvm % #HbigL".
     
     iPoseProof ("Hgood" with "Hst Hpset [//] HbigL") as "($ & Hpset & #HbigL')".
     iPoseProof (big_sepS_sep
@@ -423,10 +456,10 @@ Section proof.
           ⌜ps_proph = ps_proph' ++ x⌝ ∗ ⌜ps_proph' = ps_real⌝ ∗
           ⌜is_proof prf' ps'⌝ ∗ ⌜ps' = reverse ps_proph' ++ ps⌝ ∗
           proph_proof p x ∗ seq_tok ⊤ ∗
-          (∀ m d pset B,
-            good_state -∗ visited_mapg_auth m d pset pn B -∗
+          (∀ vm d pset ctr gm,
+            good_state -∗ visited_mapg_auth vm d pset pn ctr gm -∗
             pencount_frag pn ==∗
-            good_state ∗ visited_mapg_auth m d ∅ 0 B ∗
+            good_state ∗ visited_mapg_auth vm d ∅ 0 ctr gm ∗
             pencount_frag 0) }}}.
   Proof.
     iIntros (?????????? ?) 
@@ -443,12 +476,12 @@ Section proof.
       iFrame "∗ %". instantiate (1 := []).
       
       iModIntro. iFrame. repeat (iSplit; eauto).
-      iIntros (???) "Hst Hvm $".
-      iDestruct "Hvm" as "(Hms & Hd & Hpc & Hps & %Hcoh & %Hpcoh)".
+      iIntros (?????) "$ Hvm Hpenc".
+      iDestruct "Hvm" as "(Hms & Hd & Hps & Hpn & Hgm & Hctr & %Hdom & %Hgmm & %Hdid & %Hpcoh)".
       destruct Hpcoh as [Hsize Hpend].
       symmetry in Hsize. apply size_empty_inv, leibniz_equiv in Hsize as ->.
       iModIntro. iFrame.
-      iPureIntro. split; [done|]. split; [by rewrite size_empty|done].
+      iPureIntro. repeat (split; eauto).
 
     - wp_apply gwp_list_head; try done.
       iIntros (? H). destruct! H; simplify_eq.
@@ -461,12 +494,12 @@ Section proof.
       simplify_eq. iDestruct "Hintr" as "[Hintr Hintr']".
 
       wp_apply ("Hpfinish" $! ⊤ with "[//] [$Htok $Hproph $Hserp $Hserspec $Hintr]").
-      iIntros (??) "(Htok & Hproph & %Heq & Hgoodtr)".
-      destruct! Heq. destruct ps_proph; simplify_eq.
+      iIntros (?) "(Htok & Hproph & % & Hgoodtr)".
+      destruct ps_proph; simplify_eq.
 
       wp_pures. wp_bind (_ :: _)%E.
       
-      wp_apply (gwp_list_cons s' ps prf with "[//]").
+      wp_apply (gwp_list_cons s0 ps prf with "[//]").
       iIntros (??).
 
       wp_apply (gwp_list_tail ⊤ with "[//]").
@@ -476,34 +509,23 @@ Section proof.
       iIntros (????) "(%&%&%&%& Hproph & Htok & Hgoodtr')".
 
       iApply "HΦ". iFrame "∗ %".
-      instantiate (1 := s'::ps_proph').
+      instantiate (1 := s0::ps_proph').
       rewrite reverse_cons.
       simplify_list_eq.
       repeat (iSplit; eauto).
 
-      iIntros (???) "Hgood Hvm Hpc".
+      iIntros (?????) "Hgood Hvm Hpc".
 
-      iMod ("Hgoodtr" $! m d pset (size γl + sum_list lpn) γl with "Hgood Hpset Hpc Hvm [//] HbigS")
+      iMod ("Hgoodtr" $! vm d pset (size γl + sum_list lpn) ctr gm with "Hgood Hpset Hpc Hvm [//] HbigS")
         as "(Hgood & Hpc & Hvm_rem)".
       
       iEval (rewrite visited_mapg_pending_remove_rewrite) in "Hvm_rem".
       assert (size γl + sum_list lpn - size γl = sum_list lpn) as ? by lia.
       iEval (rewrite H2) in "Hpc". iEval (rewrite H2) in "Hvm_rem".
 
-      iMod ("Hgoodtr'" $! m d (pset ∖ γl) with "Hgood Hvm_rem Hpc") as "($ & $ & $)".
+      iMod ("Hgoodtr'" $! vm d (pset ∖ γl) with "Hgood Hvm_rem Hpc") as "($ & $ & $)".
       done.
   Qed.
-
-  (* Lemma flush_buf_stream_spec_bad :
-    ∀ (p : proph_id) (prf buf : val) (ps ps_proph : list string) (bufl : list val),
-      {{{ ⌜is_list bufl buf⌝ ∗ ⌜is_proof prf ps⌝ ∗
-          ⌜List.length bufl = List.length ps_proph⌝ ∗
-          proph_proof p ps_proph ∗ p_buffer_bad (combine bufl ps_proph) ∗
-          seq_tok ⊤ }}}
-        flush_buf_stream buf prf #p
-      {{{ prf' (ps' : list string), RET prf';
-          ⌜is_proof prf' ps'⌝ ∗ ⌜ps' = reverse ps_proph ++ ps⌝ ∗
-          proph_proof p [] ∗ seq_tok ⊤ }}}. *)
 
   Definition v_proof_state (v : val) (ps : list string) : iProp Σ :=
     ∃ (prf : val) (cntr : nat),
@@ -518,13 +540,13 @@ Section proof.
           spec_ideal t3 (fill K3 (v3 #())) ∗ pencount_frag (sum_list lpn) ∗
           p_proof_state w1 ps1 ps_fix lpn ∗ v_proof_state w2 ps2 ∗
           proph_proof p ps ∗ ⌜ps = reverse ps2 ++ ps1⌝ ∗
-          intransit 1%Qp ∗ good_state
+          intransit 1%Qp ∗ good_state ∗ stok_unset
       }}}
         v1 w1
       {{{ ps1' lpn' (w1' a1 a3 : val), RET (w1', a1)%V;
           seq_tok ⊤ ∗ spec_ideal t3 (fill K3 a3) ∗ intransit 1%Qp ∗
           proph_proof p ps ∗ p_proof_state w1' ps1' ps_fix lpn' ∗
-          pencount_frag (sum_list lpn') ∗
+          pencount_frag (sum_list lpn') ∗ stok_unset ∗
           
           ((∃ ps2' (w2' a2 : val),
             ⌜ps = reverse ps2' ++ ps1'⌝ ∗ A a1 a2 a3 ∗ 
@@ -595,7 +617,7 @@ Section proof.
   Program Definition lrel_auth_comp : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_auth_comp' A.
   Next Obligation. Admitted.
 
-  Definition auth_ctx {Θ} (Δ : ctxO Σ Θ) := ext (ext Δ (lrel_auth authBaseN)) lrel_auth_comp.
+  Definition auth_ctx {Θ} (Δ : ctxO Σ Θ) := ext (ext Δ lrel_auth) lrel_auth_comp.
 
   (* Lemma refines_auth_return Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆, var0 → var1 var0 ⟧ (auth_ctx Δ) p_return v_return i_return.
@@ -992,7 +1014,7 @@ Section proof.
     inv_v_susp_table c
     ⊢ REL p_unauth << v_unauth #c << i_unauth :
       ⟦ ∀: ⋆, var1 var0 → var3 var0 → var2 var0 ⟧
-      (ext (auth_ctx Δ) (lrel_evidence authBaseN)).
+      (ext (auth_ctx Δ) lrel_evidence).
   Proof. Admitted.
     (* iIntros "#Htab" (????) "Hv Hi Htok".
     rewrite /p_unauth /v_unauth /i_unauth.
@@ -1895,7 +1917,7 @@ Section proof.
            with "[% //] [] [$Hv //]") as (x) "[Hv %Hx] /=".
     { by iIntros "!#" (??). }
 
-    v_alloc as l "Hl". v_pures.
+    v_alloc as l "[Hl _]". v_pures.
     rewrite /v_run_def. v_pures.
     rewrite /v_unauth.
 
@@ -1903,20 +1925,26 @@ Section proof.
     apply is_list_inject in Hprf as ->.
     iDestruct "Hproph" as (us) "[Hproph %Hps]".
 
-    iAssert (id_ctr_frag 0) as "Hid"; first admit.
     iAssert (mapg_auth ∅) as "Hmauth"; first admit.
     iAssert (intransit 1) as "Hintr"; first admit.
     iAssert (good_state) as "Hst"; first admit.
-    iAssert (visited_mapg_auth ∅ ∅ ∅ 0 ∅) as "Hvmauth"; first admit.
+    iAssert (visited_mapg_auth ∅ ∅ ∅ 0 0 ∅) as "Hvmauth"; first admit.
     iAssert (pencount_frag 0) as "Hpc"; first admit.
+    iAssert (id_ctr_frag 0) as "Hid"; first admit.
+    iAssert (stok_comp None) as "Hstok"; first admit.
+    iPoseProof (stok_split with "Hstok") as "[Hstok'' Hstok']".
+    iClear "Hstok".
 
     iMod (na_inv_alloc seqG_name ⊤ tableN (is_v_susp_table l) 
-      with "[$Hid $Hl $Hmauth]") as "#Htab".
+      with "[$Hl $Hmauth]") as "#Htab".
     { admit. }
 
     iDestruct "Hc" as "(Hc & _ & _)".
     v_bind (f2 _).
-    wp_apply ("Hc" $! _ _ _ _ _ ps [] (reverse ps) _ [] with "[$Hproph $Hv $Hi $Htok $Hid $Hintr $Hst Hpc]").
+
+    (* wp_apply ("Hc" with "[$Htok $Hproph $Hv $Hi]"). *)
+    wp_apply ("Hc" $! _ _ _ _ _ ps [] (reverse ps) _ [] 
+        with "[$Hproph $Hv $Hi $Htok $Hintr $Hst $Hstok'' Hpc $Hid]").
     { simpl. iFrame "#".
       iSplitL.
       { repeat iExists _.
@@ -1927,11 +1955,10 @@ Section proof.
       repeat (iSplit; eauto); last first.
       { admit. }
       iPureIntro.
-      eexists _. split; eauto.
-      admit. }
+      eexists _. split; eauto. admit. }
       
     iClear "Hid Hmauth Hintr Hst Hvmauth Hpc".
-    iIntros (ps1' lpn' w1 a1 a3) "(Htok & Hi & Hintr & Hproph & Hpw & Hpc & Hv) /=".
+    iIntros (ps1' lpn' w1 a1 a3) "(Htok & Hi & Hintr & Hproph & Hpw & Hpc & Hstok & Hv) /=".
     wp_pures.
     iDestruct "Hpw" as (??????) "(% & -> & Hbuf & % & %Hbuf)".
     wp_pures.
@@ -1958,28 +1985,38 @@ Section proof.
 
     iMod (na_inv_acc with "Htab Htok") as "(Htabo & Htok & Htab_close)"; try solve_ndisj.
     wp_rec.
-    iDestruct "Htabo" as (????????) 
-        "(Hl & %Hm & Hbigsep & Hmauth & %& Hid & Hvm & %Hidinv & %Hvmidinv & Hgtidinv)".
+    iDestruct "Htabo" as "(%&%&%&%&%&%& %idctr &%& %keys' &% & Hl & %Hm & 
+          Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hkeys)".
 
     assert (pn = sum_list lpn') as -> by admit.
     
     iDestruct "Hvw" as (??) "[[-> %] Hid']".
-    iPoseProof (id_ctr_frag_agree with "Hid Hid'") as (->) "[Hid Hid']".
+    assert (cntr = idctr) as -> by admit.
 
     v_pures. v_load.
 
     destruct (size m) eqn:Hmsize; last first.
     { assert (size m ≠ 0) as Hmnonemp by lia.
-      assert (size m' ≠ 0) as Hm'nonemp by lia.
-      specialize (map_size_ne_0_lookup_1 _ Hm'nonemp) as [? Hm'some].
-      unfold is_Some in Hm'some.
-      destruct! Hm'some.
+      assert (size (mapg_alive m') ≠ 0) as Hm'nonemp by lia.
 
-      iPoseProof (big_sepM_lookup_acc _ m' x0 H3 H4 with "Hbigsep") as "[Hms Hbigsep]".
-      iDestruct "Hms" as (?????????? ?) "Hms".
+      (* specialize (map_size_ne_0_lookup_1 _ Hm'nonemp) as [? Hm'some].
+      unfold is_Some in Hm'some.
+      destruct! Hm'some. *)
+
+      set (keys := dom (mapg_alive m')).
+      set (max_id := set_fold Nat.max 0 keys).
+      
+      iPoseProof (big_sepM_lookup_acc _ (mapg_alive m') x0 H3 H4 with "Hbigsep") as "[Hms Hbigsep]".
+      iDestruct "Hms" as (?????????? ?) "(_ & _ & _ & _ & Hxc & _)".
       destruct! H6; simplify_eq.
 
-      iMod ("Hgoodtr" with "Hst Hvm Hpc") as "(Hst & Hvm & Hpc)".
+      iMod ("Hgoodtr" with "Hst Hvmauth Hpc") as "(Hst & Hvmauth & Hpc)".
+
+      iPoseProof (gt_child with "[//] Hvisinv Hstok Hpc Hxc Hvmauth") 
+        as "[%|%]"; try lia.
+      destruct! H9; simplify_eq.
+
+
 
       iPoseProof ("Hgtidinv" $! id 0 _ with "[//] Hpc") as "[Hpc %]".
       destruct! H9; simplify_eq. { lia. }
