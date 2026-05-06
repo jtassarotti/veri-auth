@@ -120,7 +120,50 @@ Section authenticatable.
         iPureIntro. simpl. exists w. right. split; [done|]. split; [done|].
         admit.
     - (* 3. suspend_v_deser_spec (combined) *) admit.
-    - (* 4. unsuspend_spec *) admit.
+    - (* 4. unsuspend_spec *)
+      iIntros (E a1 a2 a3 HE Ψ) "!# (#HA & Htok & Hintr) HΨ".
+      wp_pures.
+      iDestruct "HA" as "[#HA1 [#HA2 #HA3]]".
+      interp_unfold! in "HA1".
+      iEval (rewrite interp_bin_sum_unfold) in "HA2".
+      iEval (rewrite interp_un_sum_unfold) in "HA3".
+      iDestruct "HA1" as (v1 v2 v3) "[(-> & -> & -> & #H1) | (-> & -> & -> & #H1)]".
+      + (* InjL: A's branch *)
+        iDestruct "HA2" as (? ?) "[(%Heq1 & %Heq2 & #HA2a) | (%Heq1 & _)]"; last discriminate.
+        injection Heq1 as ->. injection Heq2 as ->.
+        iDestruct "HA3" as (?) "[[%Heq3 #HA3a] | [%Heq3 _]]"; last discriminate.
+        injection Heq3 as ->.
+        wp_pures.
+        wp_bind (p_uspA _).
+        wp_apply ("HunsuspA" with "[//] [$Htok $Hintr]").
+        { rewrite interp_var1_ext2.
+          iSplit; [|iSplit]; iNext.
+          - destruct A; iExact "H1".
+          - destruct A; iExact "HA2a".
+          - destruct A; iExact "HA3a". }
+        iIntros (un_va sa) "(Htok & Hintr & %Hunsuspa & #Hssera)".
+        wp_pures. iApply ("HΨ" $! (InjLV un_va) (inl_ser_str sa)).
+        iFrame. iModIntro. iSplit.
+        { iPureIntro. left. eexists _, un_va. done. }
+        iExists un_va, sa. iLeft. iSplit; [iExact "Hssera"|]. done.
+      + (* InjR: B's branch *)
+        iDestruct "HA2" as (? ?) "[(%Heq1 & _) | (%Heq1 & %Heq2 & #HA2b)]"; first discriminate.
+        injection Heq1 as ->. injection Heq2 as ->.
+        iDestruct "HA3" as (?) "[[%Heq3 _] | [%Heq3 #HA3b]]"; first discriminate.
+        injection Heq3 as ->.
+        wp_pures.
+        wp_bind (p_uspB _).
+        wp_apply ("HunsuspB" with "[//] [$Htok $Hintr]").
+        { rewrite interp_var0_ext1.
+          iSplit; [|iSplit]; iNext.
+          - destruct B; iExact "H1".
+          - destruct B; iExact "HA2b".
+          - destruct B; iExact "HA3b". }
+        iIntros (un_vb sb) "(Htok & Hintr & %Hunsuspb & #Hsserb)".
+        wp_pures. iApply ("HΨ" $! (InjRV un_vb) (inr_ser_str sb)).
+        iFrame. iModIntro. iSplit.
+        { iPureIntro. right. eexists _, un_vb. done. }
+        iExists un_vb, sb. iRight. iSplit; [iExact "Hsserb"|]. done.
     - (* 5. v_ser_spec *)
       iIntros (K tᵥ3 a s id Nc v_outer) "!# Hcnt #Hser Hspec".
       iDestruct "Hser" as (w s') "[[#Hser1 [-> ->]] | [#Hser1 [-> ->]]]".
