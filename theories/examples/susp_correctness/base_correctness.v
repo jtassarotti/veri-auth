@@ -14,7 +14,73 @@ Section authenticatable.
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 + var0) ⟧
       (ext Δ (lrel_evidence N)) p_Auth_sum v_Auth_sum i_Auth_sum.
   Proof.
-
+    iSplit; [|iSplit]; interp_unfold!; last first.
+    { (* unary  *) admit. }
+    { (* binary *) admit. }
+    (* ternary *)
+    iIntros (A v1 v2 v3) "!# _"; rewrite -/interp.
+    iIntros (????) "Hv Hi Htok".
+    rewrite /p_Auth_sum /v_Auth_sum /i_Auth_sum.
+    v_pures; i_pures; wp_pures.
+    iModIntro. iFrame. clear.
+    iSplit; [|iSplit]; interp_unfold!; last first.
+    { (* inner-after-A unary *) admit. }
+    { (* inner-after-A binary *) admit. }
+    iIntros (B w1 w2 w3) "!# _"; rewrite -/interp.
+    iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
+    iModIntro. iFrame. clear.
+    iSplit; [|iSplit]; interp_unfold!; last first.
+    { (* inner-after-B unary *) admit. }
+    { (* inner-after-B binary *) admit. }
+    iIntros (vA1 vA2 vA3) "!# #HA".
+    interp_unfold! in "HA".
+    iDestruct "HA" as "(HA_tern & #HA_bin & #HA_un)".
+    rewrite interp_var2_ext3 interp_var1_ext2.
+    iDestruct "HA_tern" as (tA p_ssA p_usA p_spA p_uspA v_sA v_dA v_cA -> ->)
+      "(#HinvA & #HusserA & #HsserA & #HsuspvdeserA & #HunsuspA & HvserA & HvauthserA & HvcountA)".
+    fold v_ser_spec.
+    iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
+    iModIntro. iFrame. clear.
+    iSplit; [|iSplit]; interp_unfold!; last first.
+    { (* inner-after-HA unary *) admit. }
+    { (* inner-after-HA binary *) admit. }
+    iIntros (vB1 vB2 vB3) "!# #HB".
+    interp_unfold! in "HB".
+    iDestruct "HB" as "(HB_tern & #HB_bin & #HB_un)".
+    rewrite interp_var2_ext3 interp_var0_ext1.
+    iDestruct "HB_tern" as (tB p_ssB p_usB p_spB p_uspB v_sB v_dB v_cB -> ->)
+      "(#HinvB & #HusserB & #HsserB & #HsuspvdeserB & #HunsuspB & HvserB & HvauthserB & HvcountB)".
+    iIntros (????) "Hv Hi Htok".
+    rewrite /sum_ser'' /sum_ser /sum_count.
+    v_pures; i_pures; wp_pures.
+    iModIntro. iFrame.
+    iSplit; [|iSplit]; interp_unfold!; last first.
+    { (* final unary  *) admit. }
+    { (* final binary *) admit. }
+    (* Ternary evidence for the sum. *)
+    rewrite interp_var2_ext3.
+    iExists (tsum tA tB), _, _, _, _, _, _, _.
+    iSplit; [done|]. iSplit; [done|].
+    iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]]].
+    - (* 0. invalid_val *)
+      iIntros "!#" (p v2 v3) "#HA".
+      rewrite interp_tern_sum_unfold.
+      iDestruct "HA" as (v1' v2' v3') "[(%Hl & _) | (%Hr & _)]"; discriminate.
+    - (* 1. unsusp_p_ser_spec *)
+      iIntros (v s Ψ) "!# Hser HΨ".
+      iDestruct "Hser" as (w s') "[[Husser %HeqL] | [Husser %HeqR]]".
+      + destruct HeqL as [-> ->]. wp_pures.
+        wp_apply ("HusserA" with "Husser"). iIntros "_". wp_pures.
+        unfold inl_ser_str. iApply "HΨ". by iModIntro.
+      + destruct HeqR as [-> ->]. wp_pures.
+        wp_apply ("HusserB" with "Husser"). iIntros "_". wp_pures.
+        unfold inr_ser_str. iApply "HΨ". by iModIntro.
+    - (* 2. susp_p_ser_spec *) admit.
+    - (* 3. suspend_v_deser_spec (combined) *) admit.
+    - (* 4. unsuspend_spec *) admit.
+    - (* 5. v_ser_spec *) admit.
+    - (* 6. v_auth_ser_spec *) admit.
+    - (* 7. v_count_spec *) admit.
   Admitted.
 
   Lemma refines_Auth_string :
