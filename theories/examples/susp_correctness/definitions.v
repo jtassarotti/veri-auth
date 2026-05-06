@@ -651,11 +651,11 @@ Section authentikit_definitions.
 
   Definition vm_big_sep_lam_unset 
     (m : gmap val val) (γ : gname) v : iProp Σ :=
-      ∀ id v', ⌜v = done_val id⌝ -∗ ⌜m !! #id = Some v'⌝.
+      ∀ id, ⌜v = done_val id⌝ -∗ ∃ v', ⌜m !! #id = Some v'⌝.
 
   Definition vm_big_sep_lam_set 
     (m : gmap val val) (id' : nat) (γ : gname) v : iProp Σ :=
-      ∀ id v', ⌜id ≠ id'⌝ -∗ ⌜v = done_val id⌝ -∗ ⌜m !! #id = Some v'⌝.
+      ∀ id, ⌜id ≠ id'⌝ -∗ ⌜v = done_val id⌝ -∗ ∃ v', ⌜m !! #id = Some v'⌝.
 
   Definition vm_big_sep (m : gmap val val) (vm : state_mapg_type) : iProp Σ :=
     (stok_unset ∗
