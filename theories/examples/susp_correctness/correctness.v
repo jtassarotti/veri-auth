@@ -58,7 +58,7 @@ Section proof.
       { iFrame "%". iNext. iLeft. iFrame.
         iApply (big_sepM_mono with "Hvisinv").
         iIntros (???) "Hvis".
-        iIntros (???).
+        iIntros (??).
         destruct (Hidunused k) as [Hidunused' _].
         simplify_eq.
         assert (id ≠ id0) by admit.
@@ -108,7 +108,9 @@ Section proof.
         { iFrame "%". iNext. iLeft. iFrame.
           iApply (big_sepM_mono with "Hvisinv").
           iIntros (???) "Hvis".
-          iIntros (???). simplify_eq. admit. }
+          iIntros (??).
+          iApply "Hvis"; try done.
+          admit. (* finished_val id0/done_val id => id0 ≠ id *) }
 
         iFrame. iModIntro.
         iIntros (?) "Hvisit".
@@ -142,8 +144,8 @@ Section proof.
             "(Hlc & Hxser & Hxserspec & Hxauth & Hxc & Hxfin)".
         assert (pid = id0) as <- by by simplify_eq. simplify_eq.
 
-        iDestruct "Hxc" as "(Hcap & % & Hxc & Hxagg)".
-        iAssert (sub_susp_count_frags t0 x1 ctr pid Nc0) with "[$Hcap $Hxc $Hxagg //]" as "Hxc".
+        (* iDestruct "Hxc" as "(Hcap & % & Hxc & Hxagg)".
+        iAssert (sub_susp_count_frags t0 x1 ctr pid Nc0) with "[$Hcap $Hxc $Hxagg //]" as "Hxc". *)
 
         (* iMod (visited_update_finished id with "Hvmauth Hlbfrag Hsusp Hxc Hvisdone Hintr") as 
             "(Hvisfin & Hvmauth & Hxc & Hsusp)"; try done.
@@ -168,11 +170,9 @@ Section proof.
             (vm_big_sep_lam_unset m)
           with "Hvisinv") as "Hvisinv".
         { iIntros (???) "Hvis".
-          iIntros (???).
+          iIntros (??).
           iApply "Hvis"; try done.
-          iPureIntro.
-          destruct (decide (id = id0)); simplify_eq; try done.
-          admit. }
+          admit. (* finished_val id0/done_val id => id0 ≠ id *) }
 
         v_pures. v_load. v_bind (map_lookup _ _).
         iMod (gwp_map_lookup #pid d m () ⊤ _
@@ -203,9 +203,8 @@ Section proof.
           rewrite -mapg_alive_remove.
 
           iPoseProof (big_sepM_mono 
-              (v_susp_big_sep_lam m m')
-              (v_susp_big_sep_lam (delete #pid m) 
-                (<[#pid:=Cinr (to_agree ())]> m')) 
+              (v_susp_big_sep_lam m)
+              (v_susp_big_sep_lam (delete #pid m)) 
             with "Hbigsep") as "Hbigsep".
           { iIntros (?? Hlook) "Hbigsep".
             rewrite /v_susp_big_sep_lam.
@@ -235,12 +234,12 @@ Section proof.
             - iSplitL "Hvisinv Hstok".
               + iRight. iFrame.
                 iApply big_sepM_insert_2.
-                { iIntros (????).
+                { iIntros (???).
                   simplify_eq. }
 
                 iApply (big_sepM_mono with "Hvisinv").
                 iIntros (???) "Hvis".
-                iIntros (????).
+                iIntros (???).
 
                 rewrite lookup_delete_ne; last first.
                 { intros ?. simplify_eq. }
@@ -258,7 +257,7 @@ Section proof.
                   destruct! H9. exists H10.
                   rewrite lookup_delete_ne; try done.
                   intros ?. simplify_eq.
-                  admit. (* by H8 *)
+                  admit. (* by contra: x2 ∈ keys ∖ {[x2]} *)
                 * iPoseProof (big_sepM_delete _ _ #pid with "Hmapkeys") as "[_ Hmapkeys]"; try done.
                   iApply (big_sepM_mono with "Hmapkeys").
                   iIntros (????). admit. }
@@ -273,24 +272,19 @@ Section proof.
             with "[//] [] [$Hv //]") as (?) "[Hv %Hmdel] /="; 
             try by iIntros "!#" (?).
           Unshelve. 2: done.
-          
-          iPoseProof (stok_combine with "Hstok Hstok'") as "[_ Hstok_comp]".
-          iMod (stok_update _ (Some pid) with "Hstok_comp") as "Hstok_comp".
-          iPoseProof (stok_split with "Hstok_comp") as "[Hstok Hstok']".
 
           iPoseProof (big_sepM_mono 
-              (v_susp_big_sep_lam m m')
-              (v_susp_big_sep_lam (delete #pid m) (delete #pid m')) 
+              (v_susp_big_sep_lam m)
+              (v_susp_big_sep_lam (delete #pid m)) 
             with "Hbigsep") as "Hbigsep".
           { iIntros (?? Hlook) "Hbigsep".
             rewrite /v_susp_big_sep_lam.
             iDestruct "Hbigsep" as (??????????[?[?[??]]]) "($ & $ & $ & $)".
             iPureIntro. exists q1. 
             split; eauto. split; last eauto.
-            destruct (decide (k = #pid)); simplify_eq.
             rewrite lookup_delete_Some in Hlook.
-            destruct! Hlook. simplify_eq.
-            rewrite lookup_delete_Some. eauto. }
+            destruct! Hlook; simplify_eq.
+            rewrite lookup_delete_ne; try done. }
 
           v_store. v_pures. v_load. v_pures. v_bind (map.map_insert _ _ _).
           iMod (gwp_map_insert #pid _ v _ () ⊤ _
@@ -301,8 +295,8 @@ Section proof.
           rewrite insert_delete_insert in Hmins.
 
           iPoseProof (big_sepM_mono 
-              (v_susp_big_sep_lam (delete #pid m) (delete #pid m')) 
-              (v_susp_big_sep_lam (<[#pid:=(#(ctr - 1), finish)%V]> m) m')
+              (v_susp_big_sep_lam (delete #pid m)) 
+              (v_susp_big_sep_lam (<[#pid:=(#(ctr - 1), finish)%V]> m))
             with "Hbigsep") as "Hbigsep".
           { iIntros (?? Hlook) "Hbigsep".
             rewrite /v_susp_big_sep_lam.
@@ -317,7 +311,7 @@ Section proof.
             rewrite lookup_insert_ne; eauto. }
 
           iPoseProof (big_sepM_insert _ _ #pid _ 
-            with "[$Hbigsep $Hxfin $Hxser $Hxserspec $Hxc $Hlc $Hauthv]") as "Hbigsep".
+            with "[$Hbigsep $Hxfin $Hxser $Hxserspec $Hxc $Hlc $Hxauth]") as "Hbigsep".
           { by rewrite lookup_delete. }
           { iExists q0. iPureIntro. split. 
             { inversion Hcgt; simplify_eq; try lia. }
@@ -326,7 +320,7 @@ Section proof.
             repeat f_equal. lia. }
 
           rewrite (insert_delete _ _ _ Hin). v_store. v_pures.
-          iMod ("Hclose_tab" with "[$Htok $Hl $Hmauth $Hbigsep $Hidfrag]") as "Htok".
+          iMod ("Hclose_tab" with "[$Htok $Hl $Hmauth $Hbigsep $Hvmauth Hstok Hvisinv Hkeys]") as "Htok".
           { iNext. iFrame "%".
             iPureIntro. intros ??.
             rewrite lookup_insert_ne.
