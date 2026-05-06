@@ -5,7 +5,8 @@ From iris.algebra.lib Require Import dfrac_agree.
 From auth.examples.susp_correctness Require Import resource_algebras definitions.
 
 Section authentikit_helpers.
-  Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, !mapG Σ, !capG Σ, !intransitG Σ, !stateG Σ} (N : namespace).
+  Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, !mapG Σ, 
+      !capG Σ, !intransitG Σ, !stateG Σ, !stateTokG Σ}.
 
   Lemma sub_susp_count_update_map :
     ∀ t v c (id : nat) Nc m,
@@ -529,7 +530,7 @@ Section authentikit_helpers.
       - [tauth c=1]: at most one [γ] by [lg_mapg_agree] on the unique [lb_a].
       - [tprod]: by partition into v1/v2 sub-trees, summing IH bounds. *)
   Lemma susp_ser_p_real_γl_card_le (t : evi_type) (a : val) (s : string) (c : nat) (γs : gset gname) :
-    susp_ser_p_real N t c a s -∗
+    susp_ser_p_real t c a s -∗
     ([∗ set] γ ∈ γs, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) -∗
     ⌜size γs ≤ c⌝.
   Proof.
@@ -747,7 +748,7 @@ Section authentikit_helpers.
         determine at most c distinct γ's. Two γ-sets of size c saturating
         these constraints must coincide. *)
   Lemma susp_ser_p_real_γl_unique (γl γl0 : gset gname) (t : evi_type) (a : val) (s : string) (c : nat) :
-    susp_ser_p_real N t c a s -∗
+    susp_ser_p_real t c a s -∗
     ⌜size γl = c⌝ -∗
     ⌜size γl0 = c⌝ -∗
     ([∗ set] γ ∈ γl,
@@ -774,6 +775,19 @@ Section authentikit_helpers.
     transitivity (γl ∪ γl0).
     - apply set_subseteq_size_eq; [done|lia].
     - symmetry. apply set_subseteq_size_eq; [done|lia].
+  Qed.
+
+  Lemma gt_child :
+    ∀ m vm dm ps gm (id ctr ctr' Nc pn : nat) t x,
+      ⌜ctr > 0⌝ -∗ vm_big_sep m vm -∗
+      stok_unset -∗ pencount_frag pn -∗
+      sub_susp_count_frags t x ctr id Nc -∗
+      visited_mapg_auth vm dm ps pn ctr' gm -∗
+      (⌜pn > 0 ∨ (∃ id' v', id' > id → m !! #id' = Some v')⌝).
+  Proof.
+    iIntros (m vm dm ps gm id ctr ctr' Nc pn t x).
+    iIntros "%Hctr Hvm Hstok Hpn Hsub Hauth".
+    iPureIntro. right. exists 0%nat, #0. intros Hgt. lia.
   Qed.
 
 End authentikit_helpers.
