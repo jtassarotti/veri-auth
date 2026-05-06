@@ -123,7 +123,19 @@ Section authenticatable.
     - (* 4. unsuspend_spec *) admit.
     - (* 5. v_ser_spec *) admit.
     - (* 6. v_auth_ser_spec *) admit.
-    - (* 7. v_count_spec *) admit.
+    - (* 7. v_count_spec *)
+      iIntros (K tᵥ3 a c id Nc v_outer) "!# Hcnt Hspec".
+      iDestruct "Hcnt" as "[(%vA & -> & HcntA) | (%vB & -> & HcntB)]".
+      + rewrite /sum_count. v_pures.
+        v_bind tᵥ3 (v_cA _).
+        iMod ("HvcountA" with "HcntA Hspec") as "[HcntA Hspec]".
+        v_pures. iModIntro. iFrame.
+        iLeft. iExists vA. by iFrame.
+      + rewrite /sum_count. v_pures.
+        v_bind tᵥ3 (v_cB _).
+        iMod ("HvcountB" with "HcntB Hspec") as "[HcntB Hspec]".
+        v_pures. iModIntro. iFrame.
+        iRight. iExists vB. by iFrame.
   Admitted.
 
   Lemma refines_Auth_string :
