@@ -10,17 +10,17 @@ Section authentikit_helpers.
 
   Lemma sub_susp_count_update_map :
     ∀ t v c (id : nat) Nc m,
-      m !! #id = None →
+      m !! id = None →
       ⌜c > 0⌝ -∗
       mapg_auth m -∗
       sub_susp_count t v c id Nc v ==∗
-        mapg_auth (mapg_insert_def m #id v) ∗
+        mapg_auth (mapg_insert_def m id v) ∗
         sub_susp_count_frags t v c id Nc.
   Proof.
     iIntros (t v c id Nc m Hnone) "%Hc Hmauth Hcnt".
     iAssert (∀ (v_outer : val) (tind : evi_type) (vind : val) (cind : nat),
                ⌜cind > 0⌝ -∗ sub_susp_count tind vind cind id Nc v_outer -∗
-               ∃ q, mapg_frag #id q v_outer)%I with "[]" as "Hext".
+               ∃ q, mapg_frag id q v_outer)%I with "[]" as "Hext".
     { iIntros (v_outer tind).
       iInduction tind as [t1 t2 | t1 t2 | | | ] "IH".
       all: iIntros (vind cind) "%Hci Hcnt'".
@@ -57,8 +57,8 @@ Section authentikit_helpers.
       mapg_auth m
       ==∗
         sub_susp_count t v 0 id Nc v ∗
-        mapg_auth (<[ #id := Cinr (to_agree tt) ]> m) ∗
-        mapg_removed #id.
+        mapg_auth (<[ id := Cinr (to_agree tt) ]> m) ∗
+        mapg_removed id.
   Proof.
     iIntros (t v id Nc m HN) "(#Hcap & %Hle & Hcount & Hagg) Hmauth".
     iDestruct "Hagg" as "[%Heq | [%Hlt Hq]]".
@@ -345,7 +345,7 @@ Section authentikit_helpers.
       sub_susp_count t (InjRV (InjRV #susp)) (c-1) pid Nc v_outer ∗
       susp ↦ᵥ{#(3/4)} InjRV #h ∗
       spec_verifier tᵥ (fill K (#())) ∗
-      mapg_frag #pid (1 / (2 * pos_to_Qp (Pos.of_nat Nc)))%Qp v_outer.
+      mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat Nc)))%Qp v_outer.
   Proof.
     iIntros "Hauth #Hlg #Hreached Hinner Hsusp Hspec".
     destruct t; simpl.
@@ -398,7 +398,7 @@ Section authentikit_helpers.
       ⌜v_sub_obj t' v #susp⌝ -∗
       visited_mapg_auth m d ps pn ctr gm -∗
       lg_mapg_frag susp γ -∗
-      mapg_frag #pid (1 / (2 * pos_to_Qp (Pos.of_nat Nc)))%Qp v -∗ 
+      mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat Nc)))%Qp v -∗ 
       visit_reached_done γ n -∗
       sub_susp_count_frags t v c pid Nc -∗
       susp ↦ᵥ{#(3/4)} InjLV (#pid, v') -∗
@@ -424,7 +424,7 @@ Section authentikit_helpers.
                sub_susp_count t v (c - 1) pid Nc v_outer ∗
                susp ↦ᵥ{#3/4} InjRV #h ∗
                spec_verifier tᵥ (fill K #()) ∗
-               mapg_frag #pid (1 / (2 * pos_to_Qp (Pos.of_nat Nc)))%Qp v_outer)%I
+               mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat Nc)))%Qp v_outer)%I
       with "[]" as "Hlem".
     { iClear "Hcap".
       iIntros (v_outer tind).
