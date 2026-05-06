@@ -192,8 +192,22 @@ Section authenticatable.
     - (* 0. invalid_val *)
       iIntros "!#" (p v2 v3) "HA".
       iDestruct "HA" as %(z & Heq & _). discriminate.
-    - (* 1. unsusp_p_ser_spec *) admit.
-    - (* 2. susp_p_ser_spec *) admit.
+    - (* 1. unsusp_p_ser_spec *)
+      iIntros (vint sint Ψ) "!# Hser HΨ".
+      iDestruct "Hser" as %(z & -> & ->).
+      rewrite /p_Auth_int /int_ser' /int_ser /int_ser_str.
+      wp_pures.
+      by iApply "HΨ".
+    - (* 2. susp_p_ser_spec *)
+      iIntros (E a1 s c q HE Ψ) "!# ((Hint & %Hc) & Htok & Hintr) HΨ".
+      subst c. iDestruct "Hint" as %(z & -> & ->).
+      rewrite /int_ser. wp_pures.
+      iApply "HΨ". iModIntro. iFrame "Htok".
+      iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+      iDestruct "Hintr" as "[$ _]".
+      iIntros (γl) "Hg Hpen %Hsz Hbig".
+      apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+      iFrame "Hg Hpen". by rewrite big_sepS_empty.
     - (* 3. suspend_v_deser_spec (combined) *)
       iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m d ps pn ctr gm mlg) "Hv".
       v_pures.
