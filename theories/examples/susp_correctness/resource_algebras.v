@@ -1279,6 +1279,35 @@ Section map_res.
     intros y _. apply exclusive_local_update. done.
   Qed.
 
+  (** [mapg_alive m] is the alive subset of [m]: keys mapping to [Cinl _]
+      are kept (with the underlying [dfrac_agreeR valO] value), tombstones
+      are dropped. Lets consumers iterate only over live entries. *)
+  Definition mapg_alive (m : mapg_type) : gmap val (dfrac_agreeR valO) :=
+    omap (λ e, match e with
+               | Cinl x => Some x
+               | _      => None
+               end) m.
+
+  Lemma mapg_alive_insert m k v :
+    mapg_alive (<[ k := Cinl (to_frac_agree 1 v) ]> m)
+      = <[ k := to_frac_agree 1 v ]> (mapg_alive m).
+  Proof. apply (omap_insert_Some _ _ _ _ (to_frac_agree 1 v)). done. Qed.
+
+  Lemma mapg_alive_remove m k :
+    mapg_alive (<[ k := Cinr (to_agree ()) ]> m)
+      = delete k (mapg_alive m).
+  Proof. apply omap_insert_None. done. Qed.
+
+  (** Membership: a [Cinl] entry in [m] surfaces in the alive view. *)
+  Lemma mapg_alive_lookup_Cinl m k x y :
+    m !! k = Some x → x ≡ Cinl y →
+    ∃ y', mapg_alive m !! k = Some y' ∧ y' ≡ y.
+  Proof.
+    intros Hm Heq. rewrite /mapg_alive lookup_omap Hm /=.
+    destruct x as [x'| |]; [|by inversion Heq|by inversion Heq].
+    apply (inj Cinl) in Heq. by exists x'.
+  Qed.
+
 End map_res.
 
 Definition capUR := authR (gmapUR nat (agreeR natO)).
