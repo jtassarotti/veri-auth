@@ -75,7 +75,50 @@ Section authenticatable.
       + destruct HeqR as [-> ->]. wp_pures.
         wp_apply ("HusserB" with "Husser"). iIntros "_". wp_pures.
         unfold inr_ser_str. iApply "HΨ". by iModIntro.
-    - (* 2. susp_p_ser_spec *) admit.
+    - (* 2. susp_p_ser_spec *)
+      iIntros (E a1 s c q HE Ψ) "!# (Hser & Htok & Hintr) HΨ".
+      iEval (rewrite /susp_ser_p_real /=) in "Hser".
+      iDestruct "Hser" as (w s') "[[#Hser1 [-> ->]] | [#Hser1 [-> ->]]]".
+      + (* InjL: A serializer runs *)
+        rewrite /sum_ser''. wp_pures. rewrite /sum_ser. wp_pures.
+        wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser1 $Htok $Hintr]").
+        iIntros "(Htok & Hintr & HreachA)". wp_pures.
+        unfold inl_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
+        iIntros (γl) "Hg Hpen %Hsz Hbig".
+        iAssert ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj tA w #lb⌝)%I
+          with "[Hbig]" as "HbigA".
+        { iApply (big_sepS_mono with "Hbig"). iIntros (γ ?) "(%lb & Hlg & %Hp)".
+          iExists lb. iFrame "Hlg". iPureIntro. simpl in Hp.
+          destruct Hp as (v' & [(Heq & Hsub & _)|(Heq & _)]);
+            [injection Heq as ->; exact Hsub|discriminate]. }
+        iSpecialize ("HreachA" $! γl with "Hg Hpen [//] HbigA").
+        iDestruct "HreachA" as "(Hg & Hpen & HbigA')".
+        iFrame "Hg Hpen".
+        iApply (big_sepS_mono with "HbigA'").
+        iIntros (γ' ?) "[Hreach Hlb]". iFrame "Hreach".
+        iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
+        iPureIntro. simpl. exists w. left. split; [done|]. split; [done|].
+        admit. (* sv = v' constraint - problematic; might need rethink *)
+      + (* InjR: B serializer runs *)
+        rewrite /sum_ser''. wp_pures. rewrite /sum_ser. wp_pures.
+        wp_apply ("HsserB" $! _ _ _ c q with "[//] [$Hser1 $Htok $Hintr]").
+        iIntros "(Htok & Hintr & HreachB)". wp_pures.
+        unfold inr_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
+        iIntros (γl) "Hg Hpen %Hsz Hbig".
+        iAssert ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj tB w #lb⌝)%I
+          with "[Hbig]" as "HbigB".
+        { iApply (big_sepS_mono with "Hbig"). iIntros (γ ?) "(%lb & Hlg & %Hp)".
+          iExists lb. iFrame "Hlg". iPureIntro. simpl in Hp.
+          destruct Hp as (v' & [(Heq & _)|(Heq & Hsub & _)]);
+            [discriminate|injection Heq as ->; exact Hsub]. }
+        iSpecialize ("HreachB" $! γl with "Hg Hpen [//] HbigB").
+        iDestruct "HreachB" as "(Hg & Hpen & HbigB')".
+        iFrame "Hg Hpen".
+        iApply (big_sepS_mono with "HbigB'").
+        iIntros (γ' ?) "[Hreach Hlb]". iFrame "Hreach".
+        iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
+        iPureIntro. simpl. exists w. right. split; [done|]. split; [done|].
+        admit.
     - (* 3. suspend_v_deser_spec (combined) *) admit.
     - (* 4. unsuspend_spec *) admit.
     - (* 5. v_ser_spec *) admit.
