@@ -37,7 +37,7 @@ Section authenticatable.
     iDestruct "HA" as "(HA_tern & #HA_bin & #HA_un)".
     rewrite interp_var2_ext3 interp_var1_ext2.
     iDestruct "HA_tern" as (tA p_ssA p_usA p_spA p_uspA v_sA v_dA v_cA -> ->)
-      "(#HinvA & #HusserA & #HsserA & #HsuspvdeserA & #HunsuspA & HvserA & HvauthserA & HvcountA)".
+      "(#HinvA & #HusserA & #HsserA & HsuspvdeserA & #HunsuspA & HvserA & HvauthserA & HvcountA)".
     fold v_ser_spec.
     iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
@@ -49,7 +49,7 @@ Section authenticatable.
     iDestruct "HB" as "(HB_tern & #HB_bin & #HB_un)".
     rewrite interp_var2_ext3 interp_var0_ext1.
     iDestruct "HB_tern" as (tB p_ssB p_usB p_spB p_uspB v_sB v_dB v_cB -> ->)
-      "(#HinvB & #HusserB & #HsserB & #HsuspvdeserB & #HunsuspB & HvserB & HvauthserB & HvcountB)".
+      "(#HinvB & #HusserB & #HsserB & HsuspvdeserB & #HunsuspB & HvserB & HvauthserB & HvcountB)".
     iIntros (????) "Hv Hi Htok".
     rewrite /sum_ser'' /sum_ser /sum_count.
     v_pures; i_pures; wp_pures.
@@ -517,7 +517,11 @@ Section authenticatable.
     iExists tA, _, _, _, _, _, _, _.
     iSplit; [done|]. iSplit; [done|].
     iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]]].
-    - (* 0. invalid_val *) admit.
+    - (* 0. invalid_val *)
+      iIntros (???) "!# HA".
+      iApply "HinvA".
+      iEval (rewrite interp_rec_star_tern_unfold) in "HA".
+
     - (* 1. unsusp_p_ser_spec *)
       iIntros (vmu smu Ψ) "!# Hser HΨ".
       rewrite /rec_fold. wp_pures.
