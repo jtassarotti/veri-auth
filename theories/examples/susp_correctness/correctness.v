@@ -19,18 +19,6 @@ Section proof.
   Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ,
       !mapG Σ, !capG Σ, !intransitG Σ, !stateG Σ, !stateTokG Σ}.
 
-  Definition authBaseN : namespace := nroot .@ "susp_sec".
-  Definition tableN : namespace := authBaseN .@ "table".
-
-  Local Notation prover_susp_set := (prover_susp_set authBaseN).
-  Local Notation susp_p_ser_spec := (susp_p_ser_spec authBaseN).
-  Local Notation susp_ser_p_real := (susp_ser_p_real authBaseN).
-
-  Local Notation ver_susp_set := (ver_susp_set authBaseN).
-  Local Notation v_ser_spec := (v_ser_spec authBaseN).
-  Local Notation ser_v_proph := (ser_v_proph authBaseN).
-  Local Notation auth_v := (auth_v authBaseN).
-
 	Lemma v_finish_spec :
     ∀ tᵥ K (a x ser : val) (st : loc),
       inv_v_susp_table st -∗
@@ -277,7 +265,7 @@ Section proof.
 
             iMod ("Hxfin" $! E with "[//] Hlc Htok Hxser Hxserspec Hxc Hxauth Hstok' Hxrem Hv") as "($&$&$&Hfin)".
             iModIntro. iIntros (?) "Hvisdone'".
-            assert (γ = γ0) as -> by admit. done.
+            by assert (γ = γ0) as -> by admit.
           
         * v_load. v_bind (map_remove _ _).
           iMod (gwp_map_remove () ⊤ #pid d m _

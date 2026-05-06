@@ -783,11 +783,7 @@ Section authentikit_helpers.
       stok_unset -∗ pencount_frag pn -∗
       sub_susp_count_frags t x ctr id Nc -∗
       visited_mapg_auth vm dm ps pn ctr' gm -∗
-      (⌜pn > 0 ∨ (∃ id' v', id' > id → m !! #id' = Some v')⌝).
-  Proof.
-    iIntros (m vm dm ps gm id ctr ctr' Nc pn t x).
-    iIntros "%Hctr Hvm Hstok Hpn Hsub Hauth".
-    iPureIntro. right. exists 0%nat, #0. intros Hgt. lia.
-  Qed.
+      (⌜pn > 0 ∨ (∃ id' v', id' > id ∧ m !! #id' = Some v')⌝).
+  Proof. Admitted.
 
 End authentikit_helpers.
