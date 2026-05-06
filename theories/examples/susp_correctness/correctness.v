@@ -1014,8 +1014,8 @@ Section proof.
     ⊢ REL p_unauth << v_unauth #c << i_unauth :
       ⟦ ∀: ⋆, var1 var0 → var3 var0 → var2 var0 ⟧
       (ext (auth_ctx Δ) lrel_evidence).
-  Proof. Admitted.
-    (* iIntros "#Htab" (????) "Hv Hi Htok".
+  Proof.
+    iIntros "#Htab" (????) "Hv Hi Htok".
     rewrite /p_unauth /v_unauth /i_unauth.
     v_pures; wp_pures.
     iModIntro. iFrame. clear.
@@ -1033,7 +1033,7 @@ Section proof.
     interp_unfold!.
     rewrite interp_var0_ext1 interp_var1_ext2.
     iDestruct 1 as "(#Hevi & #Hevi_bi & #Hevi_un)".
-    iDestruct "Hevi" as (tA ???? ??? -> ->) "#(_ & Hpunserspec & Hpserspec & Hpsuspspec & Hpunsuspspec & Hvserspec & _ & Hvdeserspec & Hvcountspec)".
+    iDestruct "Hevi" as (tA ???? ??? -> ->) "#(_ & Hpunserspec & Hpserspec & Hpsuspspec & Hpunsuspspec & Hvserspec & _ & Hvcountspec)".
     iIntros (????) "Hv Hi Htok".
     v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
@@ -1048,25 +1048,37 @@ Section proof.
     { (* unary  *) admit. }
     { (* binary *) admit. }
     rewrite interp_var0_ext1 interp_var2_ext3.
-    iIntros (???????????? Ψ) "!# (Htok & Hv & Hi & Hpw & Hvw & Hpr & % & Hintr) HΨ".
+    iIntros (???????????? Ψ) 
+        "!# (Htok & Hv & Hi & Hpenc & Hpw & Hvw & Hpr & % & Hintr & Hst & Hstok) HΨ".
     interp_unfold! in "Hauth".
     rewrite interp_var3_ext4 interp_var0_ext1.
     iDestruct "Hauth" as "(Hauth & _ & _)".
     iDestruct "Hauth" as (tA' ? a1 a2 un_a1 s [-> ?]) "(Hpserp & #HA & Hpvauth)".
-    iDestruct "Hpw" as (???? ->) "(% & % & % & Hbuf & % & %)".
+    iDestruct "Hpw" as (???? ->) "(% & % & -> & Hbuf & % & %)".
     iDestruct "Hvw" as (??) "([-> %Hvprf] & Hid)".
     iDestruct "Hpvauth" as (??? ->) "Hvinv".
     v_pures; i_pures; wp_pures.
-    iDestruct "Hvinv" as "[[-> Hinv_fill]|(%&%& -> & Hslb & Hinv_unfill & -> & Hinv_authv)]".
+    iDestruct "Hvinv" as "[[-> Hinv_fill]|(%&%&%& -> & Hslb & Hinv_unfill & -> & Hinv_authv)]".
     - iMod (na_inv_acc with "Hinv_fill Htok") as "(>Hinvo & Htok & Hclose_inv)"; try solve_ndisj.
-      iDestruct "Hinvo" as "[Hlb [(% & Hlr & [Hbrproph %Hin])|[Hlr Hbrproph]]]"; wp_load; wp_pures.
+      iDestruct "Hinvo" as "[Hlb [(% & Hlr & (Hbrproph & %))|
+          [(% & Hlr & Hbrproph)|[(Hlr & Hbrproph)|(%&%&%& Hlr & Hbrproph & Hintr')]]]]";
+          wp_load; wp_pures.
+    
       + wp_apply (wp_resolve_proph_bool with "Hbrproph").
         iIntros (?) "[% Hbrproph]". 
-        simplify_eq. simpl in Hin.
-        exfalso. apply Hin. eauto.
-      + 
-        admit.
-        (* wp_apply ("Hpsuspspec" with "[$HA $Hpserp //]").
+        simplify_eq. by destruct! H5.
+    
+      + destruct ps2; simplify_eq; v_bind (list_head _).
+        { iMod (gwp_list_head ⊤ _ [] () (λ v, ⌜v = NONEV⌝)%I
+              with "[] [] [$Hv //]") as (?) "[Hv ->] /="; [done| |v_pures].
+          { iIntros "!>" (? [[] | (?&?&?&?)]); simplify_eq. eauto. }
+
+          (* step prover using binary suspend *)
+          admit. }
+
+
+
+        wp_apply ("Hpsuspspec" with "[$HA $Hpserp //]").
         iIntros (?) "[#HA' [Hpserp' [% #Hpserr]]]". 
         wp_pures.
         
@@ -1826,7 +1838,7 @@ Section proof.
               combine (p_finish :: bufl) (s' :: ps1))
             as -> by done.
           iFrame "Hbuf". iExists v, ps'. by iFrame "%". *)
-  Admitted. *)
+  Admitted.
 
   Lemma refines_Authenticatable Θ (Δ : ctxO Σ Θ) :
     ⊢ REL p_Authenticatable << v_Authenticable << i_Authenticable : ⟦ Authenticatable ⟧ (auth_ctx Δ).
