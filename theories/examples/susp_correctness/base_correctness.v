@@ -281,7 +281,7 @@ Section authenticatable.
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
     - (* 3. suspend_v_deser_spec (combined) *)
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m vm d ps pn ctr gm mlg) "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m vm d ps pn ctr gm mlg mlg_p) "Hv".
       v_pures.
       iModIntro. iExists string_deser. iFrame "Hv".
       iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hmapg & Hv) HΨ".
@@ -399,7 +399,7 @@ Section authenticatable.
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
     - (* 3. suspend_v_deser_spec (combined) *)
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m vm d ps pn ctr gm mlg) "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m vm d ps pn ctr gm mlg mlg_p) "Hv".
       v_pures.
       iModIntro. iExists int_deser. iFrame "Hv".
       iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hmapg & Hv) HΨ".
@@ -534,7 +534,7 @@ Section authenticatable.
       iIntros "(Htok & Hintr & HreachA)".
       iApply "HΨ". iFrame.
     - (* 3. suspend_v_deser_spec (combined): forwards to A's spec via rec_fold *)
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m vm d ps pn ctr gm mlg) "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m vm d ps pn ctr gm mlg mlg_p) "Hv".
       v_pures.
       iModIntro. iExists _. iFrame "Hv".
       iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hmapg & Hv) HΨ".
