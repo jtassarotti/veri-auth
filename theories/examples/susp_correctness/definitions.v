@@ -446,7 +446,7 @@ Section authenticatable_definitions.
   Definition suspend_v_deser_spec
       (ser suspend v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
     □(∀ t' (a1 un_a1 a2 a3 : val) (s_def s_pred : string)
-         K tᵥ (id : nat) m vm d ps pn ctr gm mlg,
+         K tᵥ (id : nat) m vm d ps pn ctr gm mlg mlg_p,
       spec_verifier tᵥ (fill K (v_deser #id))
       ={⊤}=∗ ∃ (v_deser_par : val),
         spec_verifier tᵥ (fill K v_deser_par) ∗
@@ -455,13 +455,13 @@ Section authenticatable_definitions.
               ▷ (lrel_tern_as_lrel A) a1 a2 a3 ∗
               susp_ser_p t' a1 s_def ∗
               visited_mapg_auth vm d ps pn ctr gm ∗
-              lg_mapg_auth mlg ∗ mapg_auth m ∗
+              lg_mapg_auth mlg mlg_p ∗ mapg_auth m ∗
               spec_verifier tᵥ' (fill K' (v_deser_par #s_pred)) }}}
             suspend un_a1
           {{{ a1' s_real c, RET a1';
               (∃ t_real, susp_p_ser_spec_at ser t_real c a1' s_real) ∗
               ((⌜s_pred = s_real⌝ ∗ ∃ γl mlg' a2',
-                lg_mapg_auth mlg' ∗ mapg_auth (mapg_insert_def m id a1') ∗
+                lg_mapg_auth mlg' mlg_p ∗ mapg_auth (mapg_insert_def m id a1') ∗
                 ⌜size γl = c⌝ ∗ penset_frag γl ∗
                 (lrel_tern_as_lrel A) a1' a2' a3 ∗
                 susp_ser_p t a1' s_def ∗
