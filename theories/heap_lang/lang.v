@@ -114,6 +114,9 @@ Inductive expr :=
   | InjL (e : expr)
   | InjR (e : expr)
   | Case (e0 : expr) (e1 : expr) (e2 : expr)
+  (* Box: distinct val constructor used as a structural tag *)
+  | Box (e : expr)
+  | Unbox (e : expr)
   (* Heap *)
   | AllocN (e1 e2 : expr) (* array length (positive number), initial value *)
   | Free (e : expr)
@@ -133,7 +136,8 @@ with val :=
   | RecV (f x : binder) (e : expr)
   | PairV (v1 v2 : val)
   | InjLV (v : val)
-  | InjRV (v : val).
+  | InjRV (v : val)
+  | BoxV (v : val).
 
 Bind Scope expr_scope with expr.
 Bind Scope val_scope with val.
@@ -190,13 +194,14 @@ Definition val_is_unboxed (v : val) : Prop :=
   | LitV l => lit_is_unboxed l
   | InjLV (LitV l) => lit_is_unboxed l
   | InjRV (LitV l) => lit_is_unboxed l
+  | BoxV _ => False
   | _ => False
   end.
 
 Global Instance lit_is_unboxed_dec l : Decision (lit_is_unboxed l).
 Proof. destruct l; simpl; exact (decide _). Defined.
 Global Instance val_is_unboxed_dec v : Decision (val_is_unboxed v).
-Proof. destruct v as [ | | | [] | [] ]; simpl; exact (decide _). Defined.
+Proof. destruct v as [ | | | [] | [] | ]; simpl; exact (decide _). Defined.
 
 (** We just compare the word-sized representation of two values, without looking
 into boxed data.  This works out fine if at least one of the to-be-compared
@@ -256,6 +261,8 @@ Proof.
      | InjR e, InjR e' => cast_if (decide (e = e'))
      | Case e0 e1 e2, Case e0' e1' e2' =>
         cast_if_and3 (decide (e0 = e0')) (decide (e1 = e1')) (decide (e2 = e2'))
+     | Box e, Box e' => cast_if (decide (e = e'))
+     | Unbox e, Unbox e' => cast_if (decide (e = e'))
      | AllocN e1 e2, AllocN e1' e2' =>
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | Free e, Free e' =>
@@ -285,6 +292,7 @@ Proof.
         cast_if_and (decide (e1 = e1')) (decide (e2 = e2'))
      | InjLV e, InjLV e' => cast_if (decide (e = e'))
      | InjRV e, InjRV e' => cast_if (decide (e = e'))
+     | BoxV e, BoxV e' => cast_if (decide (e = e'))
      | _, _ => right _
      end
    for go); try (clear go gov; abstract intuition congruence).
@@ -373,6 +381,8 @@ Proof.
      | NewProph => GenNode 21 []
      | Resolve e0 e1 e2 => GenNode 22 [go e0; go e1; go e2]
      | Hash e => GenNode 23 [go e]
+     | Box e => GenNode 24 [go e]
+     | Unbox e => GenNode 25 [go e]
      end
    with gov v :=
      match v with
@@ -382,6 +392,7 @@ Proof.
      | PairV v1 v2 => GenNode 1 [gov v1; gov v2]
      | InjLV v => GenNode 2 [gov v]
      | InjRV v => GenNode 3 [gov v]
+     | BoxV v => GenNode 4 [gov v]
      end
    for go).
  set (dec :=
@@ -412,6 +423,8 @@ Proof.
      | GenNode 21 [] => NewProph
      | GenNode 22 [e0; e1; e2] => Resolve (go e0) (go e1) (go e2)
      | GenNode 23 [e] => Hash (go e)
+     | GenNode 24 [e] => Box (go e)
+     | GenNode 25 [e] => Unbox (go e)
      | _ => Val $ LitV LitUnit (* dummy *)
      end
    with gov v :=
@@ -421,12 +434,13 @@ Proof.
      | GenNode 1 [v1; v2] => PairV (gov v1) (gov v2)
      | GenNode 2 [v] => InjLV (gov v)
      | GenNode 3 [v] => InjRV (gov v)
+     | GenNode 4 [v] => BoxV (gov v)
      | _ => LitV LitUnit (* dummy *)
      end
    for go).
  refine (inj_countable' enc dec _).
  refine (fix go (e : expr) {struct e} := _ with gov (v : val) {struct v} := _ for go).
- - destruct e as [v| | | | | | | | | | | | | | | | | | | | | | | |]; simpl; f_equal;
+ - destruct e as [v| | | | | | | | | | | | | | | | | | | | | | | | | |]; simpl; f_equal;
      [exact (gov v)|done..].
  - destruct v; by f_equal.
 Qed.
@@ -466,6 +480,8 @@ Inductive ectx_item :=
   | InjLCtx
   | InjRCtx
   | CaseCtx (e1 : expr) (e2 : expr)
+  | BoxCtx
+  | UnboxCtx
   | AllocNLCtx (v2 : val)
   | AllocNRCtx (e1 : expr)
   | FreeCtx
@@ -509,6 +525,8 @@ Fixpoint fill_item (Ki : ectx_item) (e : expr) : expr :=
   | InjLCtx => InjL e
   | InjRCtx => InjR e
   | CaseCtx e1 e2 => Case e e1 e2
+  | BoxCtx => Box e
+  | UnboxCtx => Unbox e
   | AllocNLCtx v2 => AllocN e (Val v2)
   | AllocNRCtx e1 => AllocN e1 e
   | FreeCtx => Free e
@@ -546,6 +564,8 @@ Fixpoint subst (x : string) (v : val) (e : expr)  : expr :=
   | InjL e => InjL (subst x v e)
   | InjR e => InjR (subst x v e)
   | Case e0 e1 e2 => Case (subst x v e0) (subst x v e1) (subst x v e2)
+  | Box e => Box (subst x v e)
+  | Unbox e => Unbox (subst x v e)
   | AllocN e1 e2 => AllocN (subst x v e1) (subst x v e2)
   | Free e => Free (subst x v e)
   | Load e => Load (subst x v e)
@@ -728,6 +748,10 @@ Inductive base_step : expr → state → list observation → expr → state →
      base_step (InjL $ Val v) σ [] (Val $ InjLV v) σ []
   | InjRS v σ :
      base_step (InjR $ Val v) σ [] (Val $ InjRV v) σ []
+  | BoxS v σ :
+     base_step (Box $ Val v) σ [] (Val $ BoxV v) σ []
+  | UnboxS v σ :
+     base_step (Unbox $ Val $ BoxV v) σ [] (Val v) σ []
   | BetaS f x e1 v2 e' σ :
      e' = subst' x v2 (subst' f (RecV f x e1) e1) →
      base_step (App (Val $ RecV f x e1) (Val v2)) σ [] e' σ []

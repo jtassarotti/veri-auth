@@ -29,11 +29,7 @@ Section authenticatable.
     rewrite interp_var1_ext2.
     iExists tauth, _, _, _, _, _, _, _.
     iSplit; [done|]. iSplit; [done|].
-    iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]]].
-    - (* 0. invalid_val *)
-      iIntros "!#" (p v2 v3) "#HA".
-      iDestruct "HA" as (t v2' a1 a2 un_a1 s) "[_ [_ [_ Hpv]]]".
-      iDestruct "Hpv" as (lb lr ps) "[%Heq _]". discriminate.
+    iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]].
     - (* 1. unsusp_p_ser_spec *) admit.
     - (* 2. susp_p_ser_spec *) admit.
     - (* 3. suspend_v_deser_spec (combined) *) admit.

@@ -140,6 +140,7 @@ Definition read_br : val :=
 Definition auth_susp_ser_p : val :=
   λ: "a",
     let: "a_ser" := auth_scheme.(s_serializer) in
+    let: "a" := Unbox "a" in
     let, ("b", <>, "a", "h", "pfl") := "a" in
     resolve_proph: "pfl" to: NONEV;;
     if: !"b" then "a_ser" (InjL #"")
@@ -153,10 +154,11 @@ Definition auth_unsusp_ser_p : val :=
 Definition auth_suspend_p : val :=
   λ: "unsusp_a",
     let, ("a", "h") := "unsusp_a" in
-    (ref #false, ref #false, "a", "h", NewProph).
+    Box (ref #false, ref #false, "a", "h", NewProph).
 
 Definition auth_unsuspend_p : val :=
   λ: "susp_a",
+    let: "susp_a" := Unbox "susp_a" in
     let, ("b", "r", "a", "h", "pfl") := "susp_a" in
     resolve_proph: "pfl" to: (SOMEV #false);;
     "r" <- #true;;
@@ -234,7 +236,7 @@ Definition p_auth : val :=
     match: ("unsuspend" "a") with
       NONE => NONEV
     | SOME "unsusp_a" =>
-        (ref #false, ref #false, "unsusp_a",
+        Box (ref #false, ref #false, "unsusp_a",
            Hash ("serialize" "unsusp_a"), NewProph)
     end.
 

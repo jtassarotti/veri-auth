@@ -19,7 +19,7 @@ Fixpoint is_closed_expr (X : stringset) (e : expr) : bool :=
   | Val v => is_closed_val v
   | Var x => bool_decide (x ∈ X)
   | Rec f x e => is_closed_expr (set_binder_insert f (set_binder_insert x X)) e
-  | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Fork e | Free e | Load e =>
+  | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Box e | Unbox e | Fork e | Free e | Load e =>
      is_closed_expr X e
   | App e1 e2 | BinOp _ e1 e2 | Pair e1 e2 | AllocN e1 e2 | Store e1 e2 | Xchg e1 e2 | FAA e1 e2 =>
      is_closed_expr X e1 && is_closed_expr X e2
@@ -33,7 +33,7 @@ with is_closed_val (v : val) : bool :=
   | LitV _ => true
   | RecV f x e => is_closed_expr (set_binder_insert f (set_binder_insert x ∅)) e
   | PairV v1 v2 => is_closed_val v1 && is_closed_val v2
-  | InjLV v | InjRV v => is_closed_val v
+  | InjLV v | InjRV v | BoxV v => is_closed_val v
   end.
 
 (* Parallel substitution *)
@@ -53,6 +53,8 @@ Fixpoint subst_map (vs : gmap string val) (e : expr) : expr :=
   | InjL e => InjL (subst_map vs e)
   | InjR e => InjR (subst_map vs e)
   | Case e0 e1 e2 => Case (subst_map vs e0) (subst_map vs e1) (subst_map vs e2)
+  | Box e => Box (subst_map vs e)
+  | Unbox e => Unbox (subst_map vs e)
   | Fork e => Fork (subst_map vs e)
   | AllocN e1 e2 => AllocN (subst_map vs e1) (subst_map vs e2)
   | Free e => Free (subst_map vs e)

@@ -34,7 +34,7 @@ Section authenticatable.
     iDestruct "HA" as "(HA_tern & #HA_bin & #HA_un)".
     rewrite interp_var2_ext3 interp_var1_ext2.
     iDestruct "HA_tern" as (tA p_ssA p_usA p_spA p_uspA v_sA v_dA v_cA -> ->)
-      "(#HinvA & #HusserA & #HsserA & #HsuspvdeserA & #HunsuspA & HvserA & HvauthserA & HvcountA)".
+      "(#HusserA & #HsserA & #HsuspvdeserA & #HunsuspA & HvserA & HvauthserA & HvcountA)".
     fold v_ser_spec.
     iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
@@ -46,7 +46,7 @@ Section authenticatable.
     iDestruct "HB" as "(HB_tern & #HB_bin & #HB_un)".
     rewrite interp_var2_ext3 interp_var0_ext1.
     iDestruct "HB_tern" as (tB p_ssB p_usB p_spB p_uspB v_sB v_dB v_cB -> ->)
-      "(#HinvB & #HusserB & #HsserB & #HsuspvdeserB & #HunsuspB & HvserB & HvauthserB & HvcountB)".
+      "(#HusserB & #HsserB & #HsuspvdeserB & #HunsuspB & HvserB & HvauthserB & HvcountB)".
     iIntros (????) "Hv Hi Htok".
     rewrite /prod_ser'' /prod_ser /prod_count.
     v_pures; i_pures; wp_pures.
@@ -59,11 +59,7 @@ Section authenticatable.
     rewrite interp_var2_ext3.
     iExists (tprod tA tB), _, _, _, _, _, _, _.
     iSplit; [done|]. iSplit; [done|].
-    iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]]].
-    - (* 0. invalid_val *)
-      iIntros "!#" (p v2 v3) "#HA".
-      rewrite interp_tern_prod_unfold.
-      iDestruct "HA" as (? ? ? ? ? ? ?) "H". discriminate.
+    iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]].
     - (* 1. unsusp_p_ser_spec *)
       iIntros (v s Ψ) "!# Hser HΨ".
       iDestruct "Hser" as (a1 a2 sa sb [-> ->]) "[Hussera Husserb]".
@@ -1155,16 +1151,15 @@ Section authenticatable.
         iEval (rewrite interp_tern_prod_unfold) in "HAt".
         rewrite interp_var1_ext2 interp_var0_ext1.
         iDestruct "HAt" as (??????) "(%Heq & _)". discriminate.
-      + (* tauth: a1 = (lb, lr, a, h, p) — IS a pair, but v1' = #p contradicts
-           B's invalid_val (no proph_id literals at B). *)
+      + (* tauth: a1 = BoxV (lb, lr, a, h, p) — distinct from PairV, contradicts
+           lrel_tern_prod's pair shape. *)
         destruct Hunsusp as (lb & lr & a_inner & h_inner & p_inner & -> & ->).
         wp_pures.
         iDestruct "HA" as "[#HAt _]".
         iEval (rewrite interp_tern_prod_unfold) in "HAt".
         rewrite interp_var1_ext2 interp_var0_ext1.
-        iDestruct "HAt" as (v1 v2 v3 v1' v2' v3') "(%Heq1 & %Heq2 & %Heq3 & _ & #HBinner)".
-        simplify_eq.
-        iExFalso. iApply ("HinvB" with "HBinner").
+        iDestruct "HAt" as (v1 v2 v3 v1' v2' v3') "(%Heq1 & _ & _ & _ & _)".
+        discriminate.
     - (* 4. unsuspend_spec *)
       iIntros (E a1 a2 a3 HE Ψ) "!# (#HA & Htok & Hintr) HΨ".
       wp_pures.

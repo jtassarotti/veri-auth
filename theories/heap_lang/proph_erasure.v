@@ -40,6 +40,8 @@ Fixpoint erase_expr (e : expr) : expr :=
   | InjL e => InjL (erase_expr e)
   | InjR e => InjR (erase_expr e)
   | Case e0 e1 e2 => Case (erase_expr e0) (erase_expr e1) (erase_expr e2)
+  | Box e => Box (erase_expr e)
+  | Unbox e => Unbox (erase_expr e)
   | Fork e => Fork (erase_expr e)
   | AllocN e1 e2 => AllocN (erase_expr e1) (erase_expr e2)
   | Free e => Free (erase_expr e)
@@ -61,6 +63,7 @@ erase_val (v : val) : val :=
   | PairV v1 v2 => PairV (erase_val v1) (erase_val v2)
   | InjLV v => InjLV (erase_val v)
   | InjRV v => InjRV (erase_val v)
+  | BoxV v => BoxV (erase_val v)
   end.
 
 Lemma erase_expr_subst x v e :
@@ -99,6 +102,8 @@ Fixpoint erase_ectx_item (Ki : ectx_item) : list ectx_item :=
   | InjLCtx => [InjLCtx]
   | InjRCtx => [InjRCtx]
   | CaseCtx e1 e2 => [CaseCtx (erase_expr e1) (erase_expr e2)]
+  | BoxCtx => [BoxCtx]
+  | UnboxCtx => [UnboxCtx]
   | AllocNLCtx v2 => [AllocNLCtx (erase_val v2)]
   | AllocNRCtx e1 => [AllocNRCtx (erase_expr e1)]
   | FreeCtx => [FreeCtx]
@@ -355,7 +360,7 @@ Lemma erased_base_step_base_step_FAA l n m σ :
 Proof.
   intros Hl.
   rewrite lookup_erase_heap in Hl.
-  destruct (heap σ !! l) as [[[[]| | | |]|]|] eqn:?; simplify_eq/=.
+  destruct (heap σ !! l) as [[[[]| | | | |]|]|] eqn:?; simplify_eq/=.
   repeat econstructor; first by eauto.
   by rewrite /state_upd_heap /erase_state /= erase_heap_insert_Some.
 Qed.

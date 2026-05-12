@@ -23,6 +23,10 @@ Section atomic.
   Proof. solve_atomic. Qed.
   Global Instance injr_atomic s v : Atomic s (InjR (Val v)).
   Proof. solve_atomic. Qed.
+  Global Instance box_atomic s v : Atomic s (Box (Val v)).
+  Proof. solve_atomic. Qed.
+  Global Instance unbox_atomic s v : Atomic s (Unbox (Val v)).
+  Proof. solve_atomic. Qed.
   (** The instance below is a more general version of [Skip] *)
   Global Instance beta_atomic s f x v1 v2 : Atomic s (App (RecV f x (Val v1)) (Val v2)).
   Proof. destruct f, x; solve_atomic. Qed.
@@ -169,5 +173,12 @@ Section pure_exec.
   Proof. solve_pure_exec. Qed.
   Global Instance pure_case_inr v e1 e2 :
     PureExec True 1 (Case (Val $ InjRV v) e1 e2) (App e2 (Val v)).
+  Proof. solve_pure_exec. Qed.
+
+  Global Instance pure_box (v : val) :
+    PureExec True 1 (Box $ Val v) (Val $ BoxV v).
+  Proof. solve_pure_exec. Qed.
+  Global Instance pure_unbox (v : val) :
+    PureExec True 1 (Unbox $ Val $ BoxV v) (Val v).
   Proof. solve_pure_exec. Qed.
 End pure_exec.
