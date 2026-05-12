@@ -214,8 +214,8 @@ Section authenticatable_definitions.
     (∃ (bs : list bool),
       lb ↦ #false ∗ lr ↦ #false ∗ unfill_proph_bs ps bs) ∨
     (∃ (r : bool) (bs : list bool) (n : nat) (γ : gname),
-      lb ↦ #true ∗ lr ↦ #r ∗ proph_bs ps bs ∗ lg_mapg_frag lb γ ∗
-      □ (good_state -∗ good_state ∗ visit_reached_done γ n)).
+      lb ↦ #true ∗ lr ↦ #r ∗ proph_bs ps bs ∗ lg_mapg_p_frag lb γ ∗
+      □ (tern_state -∗ tern_state ∗ visit_reached_done γ n)).
 
   Definition auth_susp_ser_p_emp (v : val) (s : string) : iProp Σ :=
     ∃ (p : proph_id) (lb lr : loc) (a : val) (h : string) (r : bool),
@@ -411,12 +411,12 @@ Section authenticatable_definitions.
         ser a1
       {{{ RET #s; seq_tok E ∗ intransit (q/2)%Qp ∗
           (∀ (γl : pending_setg_type),
-            good_state -∗ penset_frag γl -∗ ⌜size γl = c⌝ -∗
+            tern_state -∗ penset_frag γl -∗ ⌜size γl = c⌝ -∗
             ([∗ set] γ ∈ γl,
-              ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a1 #lb⌝) -∗
-            good_state ∗ penset_frag γl ∗
+              ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a1 #lb⌝) -∗
+            tern_state ∗ penset_frag γl ∗
             ([∗ set] γ ∈ γl, (∃ n, visit_reached_done γ n) ∗
-              ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a1 #lb⌝)) }}}.
+              ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a1 #lb⌝)) }}}.
 
   (* Like [susp_p_ser_spec] but with [c, a, s] as fixed parameters and without
      [susp_ser_p_real] in the precondition (the prover-side serialization-shape
@@ -430,12 +430,12 @@ Section authenticatable_definitions.
         ser a
       {{{ RET #s; seq_tok E ∗ intransit (q/2)%Qp ∗
           (∀ (γl : pending_setg_type),
-            good_state -∗ penset_frag γl -∗ ⌜size γl = c⌝ -∗
+            tern_state -∗ penset_frag γl -∗ ⌜size γl = c⌝ -∗
             ([∗ set] γ ∈ γl,
-              ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) -∗
-            good_state ∗ penset_frag γl ∗
+              ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) -∗
+            tern_state ∗ penset_frag γl ∗
             ([∗ set] γ ∈ γl, (∃ n, visit_reached_done γ n) ∗
-              ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝)) }}}.
+              ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝)) }}}.
 
   Definition unsusp_p_ser_spec (ser : val) (t : evi_type) : iProp Σ :=
     ∀ (v : val) (s : string),
@@ -467,7 +467,7 @@ Section authenticatable_definitions.
                 susp_ser_p t a1' s_def ∗
                 spec_verifier tᵥ' (fill K' (SOMEV a2')) ∗
                 ([∗ set] γ ∈ γl, ∃ susp lb,
-                  lg_mapg_frag lb γ ∗ lg_mapg_frag susp γ ∗
+                  lg_mapg_p_frag lb γ ∗ lg_mapg_frag susp γ ∗
                   ⌜p_sub_obj t a1' #lb⌝ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
                 sub_susp_count t a2' c id c a2' ∗
                 ser_v_proph t id a2' s_def ∗
@@ -598,7 +598,7 @@ Section authenticatable_definitions.
     (∃ v, ⌜v2 = InjLV v⌝) ∨
       (∃ γ (susp lb lr : loc) un_a v1' h,
         ⌜v1 = (#lb, #lr, un_a, #h, v1')%V ∧ v2 = InjRV #susp⌝ ∗ 
-          lg_mapg_frag lb γ ∗ lg_mapg_frag susp γ).
+          lg_mapg_p_frag lb γ ∗ lg_mapg_frag susp γ).
 
   Definition auth_pv (un_vₚ vₚ vᵥ : val) (s : string) : iProp Σ :=
     ∃ (lb lr : loc) (ps : proph_id),
@@ -647,10 +647,10 @@ Section authentikit_definitions.
       ⌜↑ver_susp_set ⊆ E ∧ ↑tableN ⊆ E⌝ -∗ £ 1 -∗
       seq_tok E -∗ ser_v_proph t id x s -∗ v_ser_spec ser t -∗
 			sub_susp_count t x 0 id Nc x -∗ auth_v a s id -∗
-      stok_set id -∗ mapg_removed id -∗
+      stok_set id -∗ mapg_removed id -∗ tern_state -∗
 			spec_verifier tᵥ (fill K (finish #()))
 			={⊤}=∗ spec_verifier tᵥ (fill K (SOMEV #())) ∗ seq_tok E ∗
-        stok_unset ∗
+        stok_unset ∗ tern_state ∗
         (∀ γ, visit_reached_done γ id -∗ visit_finished γ id)).
 
   Definition v_susp_big_sep_lam (m : gmap val val) (id : nat) agv : iProp Σ :=
@@ -690,11 +690,11 @@ Section authentikit_definitions.
     ⌜. *)
 
   Definition is_v_susp_table (l : loc) : iProp Σ :=
-    ∃ (d : val) (m : gmap val val) (m' : mapg_type) (vm : state_mapg_type)
+    (∃ (d : val) (m : gmap val val) (m' : mapg_type) (vm : state_mapg_type)
         (dm : done_mapg_type) (ps : pending_setg_type) (ctr pn : nat) gm,
       l ↦ᵥ d ∗ ⌜is_map d m⌝ ∗ v_susp_big_sep m m' ∗ mapg_auth m' ∗
       ⌜size (mapg_alive m') = size m⌝ ∗ visited_mapg_auth vm dm ps pn ctr gm ∗
-      ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm.
+      ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ tern_state) ∨ un_state.
 
   Definition inv_v_susp_table (l: loc) := seq_inv tableN (is_v_susp_table l).
 

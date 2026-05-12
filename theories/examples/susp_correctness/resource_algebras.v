@@ -1435,11 +1435,14 @@ Section state_res.
   Definition state_car := optionUR unitO.
 
   Definition state (o : state_car) := own stateG_name (●{DfracOwn (1/2)} o).
-  (* good_state represents the good case.
-    false_state represents the bad case.
+  (* tern_state represents the good case.
+    un_state represents the bad case.
     Explained in more detail later. *)
-  Definition good_state := state None.
-  Definition false_state := state (Some ()).
+  Definition tern_state := state None.
+  Definition un_state := own stateG_name (●□ (Some () : state_car)).
+
+  Global Instance un_state_persistent : Persistent un_state.
+  Proof. apply _. Qed.
 
   Lemma state_agree (o o' : state_car) :
     state o -∗ state o' -∗ ⌜o' = o⌝ ∗ state o ∗ state o'.
@@ -1452,14 +1455,16 @@ Section state_res.
   Qed.
 
   Lemma state_update_bad :
-    good_state -∗ good_state ==∗ false_state ∗ false_state.
+    tern_state -∗ tern_state ==∗ un_state ∗ un_state.
   Proof.
-    rewrite /good_state /false_state /state.
+    rewrite /tern_state /un_state /state.
     iIntros "H1 H2". iCombine "H1 H2" as "H".
     iMod (own_update with "H") as "H".
     { apply (auth_update_auth None (Some ()) (Some ())).
       apply alloc_option_local_update. done. }
-    iDestruct "H" as "[H1 H2]". by iFrame.
+    iMod (own_update with "H") as "#H".
+    { apply auth_update_auth_persist. }
+    by iFrame "#".
   Qed.
 
 End state_res.

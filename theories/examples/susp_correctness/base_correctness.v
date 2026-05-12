@@ -236,7 +236,7 @@ Section authenticatable.
         rewrite /p_Auth_string /string_ser' /string_ser /string_ser_str.
         wp_pures. by iApply "HΨ". }
       iSplit.
-      { (* susp_p_ser_spec — spec changed (new c, good_state/false_state). *)
+      { (* susp_p_ser_spec — spec changed (new c, tern_state/un_state). *)
         admit. }
       iSplit.
       { iIntros (t v un_v a3 Ψ) "!# (%Hunsusp & HA) HΨ". wp_pures.

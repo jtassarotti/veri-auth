@@ -798,7 +798,7 @@ Section authentikit_helpers.
       Two γ-sets of size [c] both ranging over labels of [a] (via
       [lg_mapg_frag] and [p_sub_obj]) must coincide. This is the key fact
       that lets [p_finish] reconcile the [γl] supplied by the caller with
-      the [γl0] returned by [susp_p_ser_spec]'s [good_state] post.
+      the [γl0] returned by [susp_p_ser_spec]'s [tern_state] post.
 
       Reasoning sketch:
       - [Hser : susp_ser_p_real t c a s] structurally exposes the c
