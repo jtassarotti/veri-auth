@@ -458,17 +458,19 @@ Section authenticatable_definitions.
               lg_mapg_auth mlg mlg_p ∗ mapg_auth m ∗
               spec_verifier tᵥ' (fill K' (v_deser_par #s_pred)) }}}
             suspend un_a1
-          {{{ a1' s_real c, RET a1';
-              (∃ t_real, susp_p_ser_spec_at ser t_real c a1' s_real) ∗
-              ((⌜s_pred = s_real⌝ ∗ ∃ γl mlg' a2',
+          {{{ a1' s_real c t_real, RET a1';
+              susp_p_ser_spec_at ser t_real c a1' s_real ∗
+              ((⌜s_pred = s_real ∧ t_real = t⌝ ∗ ∃ γl mlg' a2',
                 lg_mapg_auth mlg' mlg_p ∗ mapg_auth (mapg_insert_def m id a1') ∗
                 ⌜size γl = c⌝ ∗ penset_frag γl ∗
                 (lrel_tern_as_lrel A) a1' a2' a3 ∗
                 susp_ser_p t a1' s_def ∗
                 spec_verifier tᵥ' (fill K' (SOMEV a2')) ∗
-                ([∗ set] γ ∈ γl, ∃ susp lb,
-                  lg_mapg_p_frag lb γ ∗ lg_mapg_frag susp γ ∗
-                  ⌜p_sub_obj t a1' #lb⌝ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
+                ([∗ set] γ ∈ γl, 
+                  (∃ lb,
+                    lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a1' #lb⌝) ∗ 
+                  ∃ susp, 
+                    lg_mapg_frag susp γ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
                 sub_susp_count t a2' c id c a2' ∗
                 ser_v_proph t id a2' s_def ∗
                 visited_map_update_pending vm d ps pn γl ctr gm) ∨
@@ -689,6 +691,139 @@ Section authentikit_definitions.
       ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ tern_state) ∨ un_state.
 
   Definition inv_v_susp_table (l: loc) := seq_inv tableN (is_v_susp_table l).
+
+
+  Definition p_finish_spec (finish ser a : val) (s : string) (c : nat) : iProp Σ :=
+    ∀ E pr_s ls t q,
+      ⌜↑prover_susp_set ⊆ E⌝ -∗
+      {{{ seq_tok E ∗ intransit q ∗ proph_proof pr_s ls ∗
+          susp_p_ser_spec_at ser t c a s }}}
+          finish #pr_s
+      {{{ ls', RET #s;
+            seq_tok E ∗ proph_proof pr_s ls' ∗
+            ⌜ls = s :: ls'⌝ ∗
+            (∀ vm d ps pn ctr gm (γl : pending_setg_type),
+              tern_state -∗ penset_frag γl -∗
+              pencount_frag pn -∗
+              visited_mapg_auth vm d ps pn ctr gm -∗
+              ⌜size γl = c⌝ -∗
+              ([∗ set] γ ∈ γl, ∃ lb,
+                lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) ==∗
+              tern_state ∗ pencount_frag (pn - size γl) ∗
+              visited_mapg_pending_removed vm d ps pn γl ctr gm) }}}.
+
+  Definition p_buffer_elem (finish_s_pn : (val * string * nat)) : iProp Σ :=
+    ∃ (finish ser a : val) (s : string) (pn : nat) (t : evi_type),
+      ⌜finish_s_pn = (finish, s, pn)⌝ ∗
+      susp_p_ser_spec_at ser t pn a s ∗
+      p_finish_spec finish ser a s pn ∗ 
+      (tern_state -∗ ∃ γl, tern_state ∗ penset_frag γl ∗ ⌜pn = size γl⌝ ∗
+        ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝)).
+
+  Definition p_buffer (buf : list (val * string * nat)) : iProp Σ :=
+    [∗ list] k ↦ finish_s_pn ∈ buf, p_buffer_elem finish_s_pn.
+
+  Definition sum_list (l : list nat) : nat :=
+    fold_right Nat.add 0 l.
+
+  Definition p_proof_state (v : val) (ps ps_fix : list string) (lpn : list nat) : iProp Σ :=
+    ∃ (prf1 buf1 : val) (bufl : list val) (pn : nat),
+      ⌜List.length ps = List.length bufl⌝ ∗
+      ⌜List.length ps = List.length lpn⌝ ∗ ⌜pn = sum_list lpn⌝ ∗
+      ⌜v = (prf1, buf1)%V⌝ ∗ p_buffer (List.combine (List.combine bufl ps) lpn) ∗
+      ⌜is_proof prf1 ps_fix⌝ ∗ ⌜is_list bufl buf1⌝.
+
+  Definition v_proof_state (v : val) (ps : list string) : iProp Σ :=
+    ∃ (prf : val) (cntr : nat),
+      ⌜v = (prf, #cntr)%V ∧ is_proof prf ps⌝ ∗ id_ctr_frag cntr.
+
+  Definition lastn {A} (n : nat) (l : list A) : list A :=
+    List.skipn (length l - n) l.
+
+  Definition lrel_auth_comp_tern (A : lrel_tern Σ) : lrel Σ := LRel (λ v1 v2 v3,
+    ∀ t2 K2 t3 K3 p (ps ps1 ps2 ps_fix : list string) (lpn : list nat) (w1 w2 : val),
+      {{{ seq_tok ⊤ ∗ spec_verifier t2 (fill K2 (v2 w2)) ∗
+          spec_ideal t3 (fill K3 (v3 #())) ∗ pencount_frag (sum_list lpn) ∗
+          p_proof_state w1 ps1 ps_fix lpn ∗ v_proof_state w2 ps2 ∗
+          proph_proof p ps ∗ ⌜ps = reverse ps2 ++ ps1⌝ ∗
+          intransit 1%Qp ∗ tern_state ∗ stok_unset
+      }}}
+        v1 w1
+      {{{ ps1' lpn' (w1' a1 a3 : val), RET (w1', a1)%V;
+          seq_tok ⊤ ∗ spec_ideal t3 (fill K3 a3) ∗ intransit 1%Qp ∗
+          proph_proof p ps ∗ p_proof_state w1' ps1' ps_fix lpn' ∗
+          
+          ((∃ ps2' (w2' a2 : val),
+            pencount_frag (sum_list lpn') ∗ stok_unset ∗
+            ⌜ps = reverse ps2' ++ ps1'⌝ ∗ A a1 a2 a3 ∗ 
+            spec_verifier t2 (fill K2 (SOMEV (w2', a2)%V)) ∗
+            v_proof_state w2' ps2' ∗ tern_state) ∨
+              
+            ((⌜List.length ps < List.length ps1'⌝) ∨
+              ⌜lastn (List.length ps1') ps ≠ ps1'⌝ ∗
+              (lrel_tern_bin A) a1 a3 ∗ un_state))
+            
+            (* (∃ K3 ps2' (v2' w2' : val),
+              spec_verifier t2 (fill K3 (v2' w2')) ∗
+                (lrel_tern_bin A) a1 a3 ∗
+                p_bad_proof_state w1' ps1' ∗
+                v_proof_state p w2' ps2' ∗
+                £ (List.length ps2' + List.length ps1' - 
+                    List.length ps1 - List.length ps2) ∗
+                (spec_verifier t2 (fill K3 (v2' w2')) ∗
+                v_proof_state p w2' ps2' ∗
+                £ (List.length ps2') ∗
+                seq_tok ⊤
+                ={⊤}=∗
+                  ((∃ a2 w2'' x ps2'',
+                      spec_verifier t2 (fill K2 (SOMEV (w2'', a2)%V)) ∗
+                      v_proof_state p w2'' ps2'' ∗
+                      (lrel_tern_un A) a2 ∗
+                      ⌜reverse ps1 ++ ps2 = reverse ps1' ++ ps2''⌝ ∗
+                      ⌜ps2'' ++ x = ps2'⌝ ∗
+                      £ (List.length ps2'')) ∨
+                  spec_verifier t2 (fill K2 NONEV)) ∗
+                  seq_tok ⊤)) ∨
+
+            (spec_verifier t2 (fill K2 NONEV) ∗ (lrel_tern_bin A) a1 a3 ∗
+                p_bad_proof_state w1' ps1')) *)
+            (* Plus some postconditions to carry for bad cases *)
+      }}})%I.
+
+  Definition lrel_auth_comp_bin (A : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ v1 v3,
+    ∀ t3 K3 p (ps ps1 ps_fix : list string) (lpn : list nat) (w1 : val),
+      {{{ seq_tok ⊤ ∗ spec_ideal t3 (fill K3 (v3 #())) ∗
+          p_proof_state w1 ps1 ps_fix lpn ∗ proph_proof p ps ∗
+          ⌜lastn (List.length ps1) ps ≠ ps1⌝
+      }}}
+        v1 w1
+      {{{ ps1' (w1' a1 a3 : val), RET (w1', a1)%V;
+          ⌜lastn (List.length ps1') ps ≠ ps1'⌝ ∗
+          proph_proof p ps ∗ 
+          seq_tok ⊤ ∗ p_proof_state w1' ps1' ps_fix lpn ∗
+          spec_ideal t3 (fill K3 a3) ∗ A a1 a3
+      }}})%I.
+
+  Definition lrel_auth_comp_un (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v2,
+    (□ ∀ t2 K2 (ps2 : list string) (w2 : val),
+      seq_tok ⊤ ∗ spec_verifier t2 (fill K2 (v2 w2)) ∗
+      v_proof_state w2 ps2
+      ={⊤}=∗ 
+        seq_tok ⊤ ∗ 
+        ((∃ ps2' (w2' a2 : val), 
+          v_proof_state w2' ps2' ∗
+          spec_verifier t2 (fill K2 (SOMEV (w2', a2)%V)) ∗ A a2) ∨
+          spec_verifier t2 (fill K2 NONEV))))%I.
+
+  Definition lrel_auth_comp' (A : lrel_tern Σ) : lrel_tern Σ :=
+    LRelTern (lrel_auth_comp_tern A)
+             (lrel_auth_comp_bin (lrel_tern_bin A))
+             (lrel_auth_comp_un (lrel_tern_un A)).
+
+  Program Definition lrel_auth_comp : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_auth_comp' A.
+  Next Obligation. Admitted.
+
+  Definition auth_ctx {Θ} (Δ : ctxO Σ Θ) := ext (ext Δ lrel_auth) lrel_auth_comp.
 
 End authentikit_definitions.
   

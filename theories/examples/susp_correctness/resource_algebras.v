@@ -1454,8 +1454,25 @@ Section state_res.
     iPureIntro. symmetry. apply leibniz_equiv. exact Heq.
   Qed.
 
+  Lemma state_un_agree (o : state_car) :
+    state o -∗ un_state -∗ ⌜o = Some tt⌝ ∗ state o.
+  Proof.
+    rewrite /state /un_state.
+    iIntros "H1 #H2".
+    iDestruct (own_valid_2 with "H1 H2") as %Hv.
+    apply auth_auth_dfrac_op_valid in Hv as [_ [Heq _]].
+    iFrame "H1". iPureIntro. apply leibniz_equiv. exact Heq.
+  Qed.
+
+  Lemma tern_state_un_state_excl :
+    tern_state -∗ un_state -∗ False.
+  Proof.
+    iIntros "H1 #H2".
+    iDestruct (state_un_agree with "H1 H2") as "[%Heq _]". done.
+  Qed.
+
   Lemma state_update_bad :
-    tern_state -∗ tern_state ==∗ un_state ∗ un_state.
+    tern_state -∗ tern_state ==∗ un_state.
   Proof.
     rewrite /tern_state /un_state /state.
     iIntros "H1 H2". iCombine "H1 H2" as "H".
