@@ -1039,7 +1039,7 @@ Section proof.
     interp_unfold!.
     rewrite interp_var0_ext1 interp_var1_ext2.
     iDestruct 1 as "(#Hevi & #Hevi_bi & #Hevi_un)".
-    iDestruct "Hevi" as (tA ???? ??? -> ->) "#(_ & Hpunserspec & Hpserspec & Hpsuspspec & Hpunsuspspec & Hvserspec & _ & Hvcountspec)".
+    iDestruct "Hevi" as (tA ???? ??? -> ->) "#(Hpunserspec & Hpserspec & Hpsuspspec & Hpunsuspspec & Hvserspec & _ & Hvcountspec)".
     iIntros (????) "Hv Hi Htok".
     v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.

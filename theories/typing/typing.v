@@ -311,7 +311,7 @@ Local Fixpoint is_closed_expr_set (X : stringset) (e : expr) : bool :=
   | Val v => is_closed_val_set v
   | Var x => bool_decide (x ∈ X)
   | Rec f x e => is_closed_expr_set (maybe_insert_binder f (maybe_insert_binder x X)) e
-  | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Fork e
+  | UnOp _ e | Fst e | Snd e | InjL e | InjR e | Box e | Unbox e | Fork e
   | Free e | Load e | Hash e =>
      is_closed_expr_set X e
   | App e1 e2 | BinOp _ e1 e2 | Pair e1 e2 | AllocN e1 e2 | Store e1 e2 | FAA e1 e2 | Xchg e1 e2 =>
@@ -325,7 +325,7 @@ with is_closed_val_set (v : val) : bool :=
   | LitV _ => true
   | RecV f x e => is_closed_expr_set (maybe_insert_binder f (maybe_insert_binder x ∅)) e
   | PairV v1 v2 => is_closed_val_set v1 && is_closed_val_set v2
-  | InjLV v | InjRV v => is_closed_val_set v
+  | InjLV v | InjRV v | BoxV v => is_closed_val_set v
   end.
 
 Lemma is_closed_expr_set_sound (X : stringset) (e : expr) :

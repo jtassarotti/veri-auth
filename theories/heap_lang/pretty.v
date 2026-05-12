@@ -39,6 +39,7 @@ Global Instance pretty_val : Pretty val :=
     | PairV v1 v2 => "(" +:+ go v1 +:+ ", " +:+ go v2 +:+ ")"
     | InjLV v => "inl (" +:+ go v +:+ ")"
     | InjRV v => "inr (" +:+ go v +:+ ")"
+    | BoxV v => "box (" +:+ go v +:+ ")"
     end.
 
 Global Instance pretty_un_op : Pretty un_op :=

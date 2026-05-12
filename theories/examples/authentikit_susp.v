@@ -130,9 +130,10 @@ Definition p_unauth : val :=
   Λ: λ: "evi" "a" "prf_state",
     let, ("pf_stream", "buffer") := "prf_state" in
     let, ("serialize", <>, "suspend", "unsuspend") := "evi" in
+    let: "a" := Unbox "a" in
     let: "un_a" :=
       let, ("b", "r", "un_a", <>, "pfl") := "a" in
-      (if: !"r" then #() 
+      (if: !"r" then #()
       else
         resolve_proph: "pfl" to: (SOMEV #true);;
         "b" <- #true);;

@@ -143,7 +143,7 @@ Section authenticatable_definitions.
     | tint => False
     | tauth =>
         ∃ (p : proph_id) (lb lr : loc) (a : val) (h : string),
-          v = (#lb, #lr, a, #h, #p)%V ∧ sv = #lb
+          v = BoxV (#lb, #lr, a, #h, #p)%V ∧ sv = #lb
     end.
 
   Fixpoint v_sub_obj (t : evi_type) (v sv: val) :=
@@ -206,7 +206,7 @@ Section authenticatable_definitions.
 
   Definition auth_susp_ser_p_fill (v : val) (s : string) : iProp Σ :=
     ∃ (p : proph_id) (lb lr : loc) (a : val) (h : string) (r : bool),
-      ⌜v = (#lb, #lr, a, #h, #p)%V ∧ s = filled_string h⌝ ∗
+      ⌜v = BoxV (#lb, #lr, a, #h, #p)%V ∧ s = filled_string h⌝ ∗
       lg_mapg_unalloc lb ∗
       seq_inv (prover_susp_n v) (susp_p_fill_inv p lb lr).
 
@@ -219,7 +219,7 @@ Section authenticatable_definitions.
 
   Definition auth_susp_ser_p_emp (v : val) (s : string) : iProp Σ :=
     ∃ (p : proph_id) (lb lr : loc) (a : val) (h : string) (r : bool),
-      ⌜v = (#lb, #lr, a, #h, #p)%V ∧ s = suspended_string⌝ ∗
+      ⌜v = BoxV (#lb, #lr, a, #h, #p)%V ∧ s = suspended_string⌝ ∗
       seq_inv (prover_susp_n v) (susp_p_unfill_inv p lb lr).
 
   (* What it will actually serialize to *)
@@ -229,7 +229,7 @@ Section authenticatable_definitions.
   (* What it would serialize to without suspension *)
   Definition auth_susp_ser_p (v : val) (s : string) : iProp Σ :=
     ∃ (p : proph_id) (lb lr : loc) (a : val) (h : string),
-      ⌜v = (#lb, #lr, a, #h, #p)%V ∧ s = simple_string h⌝.
+      ⌜v = BoxV (#lb, #lr, a, #h, #p)%V ∧ s = simple_string h⌝.
 
   Definition auth_fill_ser_v (v : val) (s : string) : iProp Σ :=
     ∃ (h : string), ⌜s = filled_string h ∧ v = InjLV #h⌝.
@@ -273,7 +273,7 @@ Section authenticatable_definitions.
     | tstring | tint => v = un_v
     | tauth =>
       ∃ (lb lr : loc) (a : val) (h : string) (p : proph_id),
-        v = (#lb, #lr, a, #h, #p)%V ∧ un_v = (a, #h)%V
+        v = BoxV (#lb, #lr, a, #h, #p)%V ∧ un_v = (a, #h)%V
     end.
 
   (* unsuspended *)
@@ -541,17 +541,9 @@ Section authenticatable_definitions.
       ={⊤}=∗ 
         ser_v t a2 s ∗ spec_verifier tᵥ (fill K (SOMEV #s))).
 
-  Definition invalid_val (A : lrel_tern Σ) : iProp Σ :=
-    □ ∀ (p : proph_id) v2 v3,
-      (lrel_tern_tern A) #p v2 v3 -∗ False.
-
-  #[global] Instance invalid_val_persistent A : Persistent (invalid_val A).
-  Proof. apply _. Qed.
-
   Definition lrel_tern_evidence (A : lrel_tern Σ) : lrel Σ := LRel (λ v1 v2 _,
     ∃ (t : evi_type) (p_ser_susp p_ser_unsusp p_susp p_unsusp v_ser v_deser v_count : val),
       ⌜v1 = (p_ser_susp, p_ser_unsusp, p_susp, p_unsusp)%V⌝ ∗ ⌜v2 = (v_ser, v_deser, v_count)%V⌝ ∗
-      invalid_val A ∗
       unsusp_p_ser_spec p_ser_unsusp t ∗ susp_p_ser_spec p_ser_susp t ∗
       suspend_v_deser_spec p_ser_susp p_susp v_deser A t ∗ unsuspend_spec p_unsusp A t ∗
       v_ser_spec v_ser t ∗ v_auth_ser_spec v_ser A t ∗
@@ -581,7 +573,7 @@ Section authenticatable_definitions.
 
   Definition auth_p (un_a v : val) (s : string) : iProp Σ :=
     ∃ (lb lr : loc) (ps : proph_id),
-      ⌜v = (#lb, #lr, un_a, #(hash s), #ps)%V⌝ ∗
+      ⌜v = BoxV (#lb, #lr, un_a, #(hash s), #ps)%V⌝ ∗
         (seq_inv (prover_susp_n v) (susp_p_fill_inv ps lb lr) ∨
         seq_inv (prover_susp_n v) (susp_p_unfill_inv ps lb lr)).
 
@@ -597,19 +589,19 @@ Section authenticatable_definitions.
   Definition susplb_gname (v1 v2 : val) : iProp Σ :=
     (∃ v, ⌜v2 = InjLV v⌝) ∨
       (∃ γ (susp lb lr : loc) un_a v1' h,
-        ⌜v1 = (#lb, #lr, un_a, #h, v1')%V ∧ v2 = InjRV #susp⌝ ∗ 
+        ⌜v1 = BoxV (#lb, #lr, un_a, #h, v1')%V ∧ v2 = InjRV #susp⌝ ∗
           lg_mapg_p_frag lb γ ∗ lg_mapg_frag susp γ).
 
   Definition auth_pv (un_vₚ vₚ vᵥ : val) (s : string) : iProp Σ :=
     ∃ (lb lr : loc) (ps : proph_id),
-      ⌜vₚ = (#lb, #lr, un_vₚ, #(hash s), #ps)%V⌝ ∗
-      ((⌜vᵥ = InjLV #(hash s)⌝ ∗ 
+      ⌜vₚ = BoxV (#lb, #lr, un_vₚ, #(hash s), #ps)%V⌝ ∗
+      ((⌜vᵥ = InjLV #(hash s)⌝ ∗
         seq_inv (prover_susp_n vₚ) (susp_p_fill_inv ps lb lr)) ∨
       (∃ (s' : string) (susp : loc) pid,
         ⌜vᵥ = InjRV #susp⌝ ∗ susplb_gname vₚ vᵥ ∗
         seq_inv (prover_susp_n vₚ) (susp_p_unfill_inv ps lb lr) ∗
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
-        seq_inv (ver_susp_n vᵥ) 
+        seq_inv (ver_susp_n vᵥ)
           (auth_susp_v_ser_proph_inv pid vᵥ s'))).
 
   Definition lrel_auth_tern (A : lrel_tern Σ) : lrel Σ := LRel (λ v1 v2 v3,
