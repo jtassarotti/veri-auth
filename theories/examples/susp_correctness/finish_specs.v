@@ -308,7 +308,10 @@ Section finish_specs.
                 simplify_eq.
                 iMod (visit_update_finished with "Hvmauth Hxvisdone Hintr Hxlbfrag
                   Hxsusp Hxxc") as "(#Hxvisfin & Hintr & Hvmauth & Hxxc & Hxsusp)".
-                { admit. }
+                { assert (x2 = pv0) as ->.
+                  { rewrite Hyyx' in H14. rewrite H14 in H13. simpl in H13.
+                    fold_leibniz. by apply (inj to_agree) in H13. }
+                  exact Hxmsub. }
 
                 iFrame.
                 iPoseProof ("Hbigsep" with 
@@ -394,16 +397,16 @@ Section finish_specs.
             (λ d', ⌜is_map d' (delete #pid m)⌝)%I
             with "[//] [] [$Hv //]") as (?) "[Hv %Hmdel] /="; 
             try by iIntros "!#" (?).
-          Unshelve. 3: done. 2: shelve.
+          Unshelve. 2: done.
 
-          iPoseProof (big_sepM_mono 
+          iPoseProof (big_sepM_mono
               (v_susp_big_sep_lam m)
-              (v_susp_big_sep_lam (delete #pid m)) 
+              (v_susp_big_sep_lam (delete #pid m))
             with "Hbigsep") as "Hbigsep".
           { iIntros (?? Hlook) "Hbigsep".
             rewrite /v_susp_big_sep_lam.
             iDestruct "Hbigsep" as (?????????[?[??]]) "($ & $ & $ & $)".
-            iPureIntro. exists q0. 
+            iPureIntro. exists q0.
             split; eauto. split; last eauto.
             rewrite lookup_delete_Some in Hlook.
             destruct! Hlook; simplify_eq.
@@ -415,7 +418,7 @@ Section finish_specs.
             (λ d', ⌜is_map d' (<[ #pid := _ ]> (delete #pid m))⌝)%I
             with "[//] [] [$Hv //]") as (?) "[Hv %Hmins] /=".
           { by iIntros "!#" (? Hins). }
-          Unshelve. 3: done. 2: shelve.
+          Unshelve. 2: done.
           rewrite insert_delete_insert in Hmins.
 
           iPoseProof (big_sepM_mono 
