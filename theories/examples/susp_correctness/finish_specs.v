@@ -80,10 +80,9 @@ Section finish_specs.
           (intros ->; destruct (Hidunused k) as [Hu _]; apply Hu; rewrite Hkx Heq; reflexivity).
         iApply "Hvis"; try done. } *)
       
-      iFrame. admit.
-      (* iModIntro.
-      iIntros (?) "Hvisit".
-      by iPoseProof (id_token_visit_reached_done_invalid with "Hidtok Hvisit") as "Hfalse". *)
+      iFrame.
+      replace (E ∪ ↑ver_susp_n (InjLV #(hash s))) with E by set_solver.
+      by iModIntro.
 
     - v_pures. v_bind (ser _).
       iMod ("Hserspec" with "Hc Hser Hv") as "(Hc & Hser & Hv) /=".
@@ -223,7 +222,7 @@ Section finish_specs.
           
           rewrite -mapg_alive_remove.
           iAssert (intransit 1) with "[Hintr Hintr']" as "Hintr".
-          { admit. }
+          { iCombine "Hintr Hintr'" as "Hintr". iExact "Hintr". }
 
           iDestruct ("Hnmspc" with "[//] Hpvfrag") as "%Hpnmspc".
 
@@ -244,7 +243,7 @@ Section finish_specs.
           { iDestruct "Hxauth" as "[[-> Hidtok]|
               (%&%&%&%&%& ->& %& #Hgpfrag &% & #Hxlbfrag & #Hxvisdone & Hgetidtok & -> & #Hxinv)]".
             - iPoseProof (id_token_unused with "Hvmauth Hidtok") as "(%Hidunused & Hvmauth & Hidtok)".
-              iFrame. iSplitR. { admit. }
+              iFrame. iSplitR. { iPureIntro. set_solver. }
               iSplitL "Hintr". 
               { iLeft. iFrame. eauto. }
               iRight. iApply (big_sepM_mono with "Hvisinv").
@@ -260,7 +259,13 @@ Section finish_specs.
               { intros ?. simplify_eq. }
 
               assert ((E ∖ ↑ver_susp_n (InjRV #susp0) ∪ ↑ver_susp_n (InjRV #susp0)) = E) as ?.
-              { admit. }
+              { rewrite difference_union_L. set_solver. }
+
+              assert (↑ver_susp_n (InjRV #susp0) ⊈ E ∖ ↑ver_susp_n (InjRV #susp0)) as Hnsubset.
+              { intros Hcont. apply (nclose_infinite (ver_susp_n (InjRV #susp0))).
+                assert (↑ver_susp_n (InjRV #susp0) ≡@{coPset} ∅) as ->.
+                { apply set_equiv. intros yy. split; [intros Hyy; specialize (Hcont yy Hyy); set_solver|set_solver]. }
+                apply empty_finite. }
 
               iMod (na_inv_acc with "Hxinv Htok") as "(Hxinvo & Htok & Hclose_inv)"; try solve_ndisj.
               iDestruct "Hxinvo" as ">[Hinv_1|Hinv_2]".
@@ -270,12 +275,13 @@ Section finish_specs.
                 iPoseProof ("Hgetidtok" with "Hxvisfin") as "Hidtok".
                 iPoseProof (id_token_unused with "Hvmauth Hidtok") as "(%Hidunused & $ & Hidtok)".
                 iFrame "Htok Hmauth Hbigsep". iModIntro.
-                iSplitR. { admit. }
+                iSplitR. { iPureIntro. done. }
                 iSplitR "Hvisinv".
                 { iRight. rewrite H10. 
                   iFrame "Hgpfrag Hidtok Hxinv Hclose_inv Hxlbfrag".
                   repeat (iSplit; eauto). iSplitR. { by iIntros. }
-                  repeat (iSplit; eauto); last admit.
+                  repeat (iSplit; eauto).
+                  all: try by iPureIntro.
                   iLeft. iFrame "∗ #". iExists s0.
                   repeat (iSplit; eauto). }
 
@@ -309,10 +315,10 @@ Section finish_specs.
                     "[$Hlc $Hxxser $Hxxserspec $Hxxauth $Hxxfrag $Hxxc $Hxxfin]") as "$".
                 { eauto. }
 
-                iSplitR. { admit. }
+                iSplitR. { iPureIntro. done. }
                 iSplitR "Hvisinv Hvmauth".
                 { iRight. rewrite H10. iFrame "∗ #".
-                  iModIntro. repeat (iSplit; eauto); [|admit].
+                  iModIntro. repeat (iSplit; eauto).
                   iRight. iFrame "∗ #". eauto. }
 
                 iLeft. iFrame. iModIntro. iExists γ0.
