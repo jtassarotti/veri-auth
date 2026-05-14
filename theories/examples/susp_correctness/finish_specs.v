@@ -447,7 +447,9 @@ Section finish_specs.
           iMod ("Hclose_tab" with "[$Htabtok Hl Hmauth Hbigsep Hvmauth Hvisinv Hst']") as "Htabtok".
           { iNext. iLeft. iFrame "% ∗".
             iSplit; [|iSplit].
-            - iPureIntro. admit.
+            - iPureIntro.
+              rewrite map_size_insert_Some; last by exists (#ctr, finish)%V.
+              done.
             - iPureIntro. intros ??.
               destruct (decide (pid = ctr')); simplify_eq.
               + specialize (Hidinv ctr' H7).
