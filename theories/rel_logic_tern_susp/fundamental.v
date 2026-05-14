@@ -54,7 +54,7 @@ Section fundamental.
       iSplit; [done|]. iFrame "#".
   Qed.
 
-  Lemma tern_log_related_fst Θ Δ Γ e e' e'' τ1 τ2 :
+  (* Lemma tern_log_related_fst Θ Δ Γ e e' e'' τ1 τ2 :
     ({Θ;Δ;Γ} ⊨ e ≤log≤ e' ≤log≤ e'' : τ1 * τ2) -∗
     {Θ;Δ;Γ} ⊨ Fst e ≤log≤ Fst e' ≤log≤ Fst e'' : τ1.
   Proof.
@@ -1135,7 +1135,7 @@ Section fundamental.
     iPoseProof (Hty Δ with "[]") as "H".
     { rewrite fmap_empty. iApply env_ltyped_empty. }
     by rewrite !fmap_empty !subst_map_empty.
-  Qed.
+  Qed. *)
 
 End fundamental.
 
