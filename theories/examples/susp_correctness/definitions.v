@@ -768,7 +768,7 @@ Section authentikit_definitions.
 
   Definition lrel_auth_comp_tern (A : lrel_tern Σ) : lrel Σ := LRel (λ v1 v2 v3,
     ∀ t2 K2 t3 K3 p (ps ps1 ps2 ps_fix : list string) (lpn : list nat) (w1 w2 : val),
-      {{{ seq_tok ⊤ ∗ spec_verifier t2 (fill K2 (v2 w2)) ∗
+      {{{ tabseq_tok ⊤ ∗ seq_tok ⊤ ∗ spec_verifier t2 (fill K2 (v2 w2)) ∗
           spec_ideal t3 (fill K3 (v3 #())) ∗ pencount_frag (sum_list lpn) ∗
           p_proof_state w1 ps1 ps_fix lpn ∗ v_proof_state w2 ps2 ∗
           proph_proof p ps ∗ ⌜ps = reverse ps2 ++ ps1⌝ ∗
@@ -776,8 +776,9 @@ Section authentikit_definitions.
       }}}
         v1 w1
       {{{ ps1' lpn' (w1' a1 a3 : val), RET (w1', a1)%V;
-          seq_tok ⊤ ∗ spec_ideal t3 (fill K3 a3) ∗ intransit 1%Qp ∗
-          proph_proof p ps ∗ p_proof_state w1' ps1' ps_fix lpn' ∗
+          tabseq_tok ⊤ ∗ seq_tok ⊤ ∗ spec_ideal t3 (fill K3 a3) ∗ 
+          intransit 1%Qp ∗ proph_proof p ps ∗ 
+          p_proof_state w1' ps1' ps_fix lpn' ∗
           
           ((∃ ps2' (w2' a2 : val),
             pencount_frag (sum_list lpn') ∗ stok_unset ∗
