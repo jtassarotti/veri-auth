@@ -675,9 +675,9 @@ Section authentikit_helpers.
      to find the tauth-leaf labelled [susp] and transitions its γ from
      visit_done → visit_finished using [sub_susp_count_finishes_susp]. *)
   Lemma visit_update_finished :
-    ∀ t t' v (c pid Nc : nat) (susp : loc) (p : proph_id) γ m d ps pn ctr gm,
+    ∀ t t' v (c pid Nc : nat) (susp : loc) (p : proph_id) γ vm d ps pn ctr gm,
       v_sub_obj t' v #susp →
-      visited_mapg_auth m d ps pn ctr gm -∗
+      visited_mapg_auth vm d ps pn ctr gm -∗
       visit_reached_done γ -∗
       intransit 1 -∗
       lg_mapg_frag susp γ -∗
@@ -686,7 +686,7 @@ Section authentikit_helpers.
       ==∗
         visit_finished γ ∗
         intransit (1/2) ∗
-        visited_map_update_finished m d ps pn γ ctr gm ∗
+        visited_map_update_finished vm d ps pn γ ctr gm ∗
         sub_susp_count_frags t v c pid Nc ∗
         susp ↦ᵥ{#3/4} InjLV (#pid, #p).
   Proof.
