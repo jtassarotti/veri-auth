@@ -687,8 +687,9 @@ Section authentikit_definitions.
       tern_state -∗
 			spec_verifier tᵥ (fill K (finish #()))
 			={⊤}=∗ ∃ (E' : coPset),
-        □(∀ pid susp, ⌜pid ≤ id⌝ -∗ pval_frag pid susp -∗
-          ⌜↑(ver_susp_n susp) ⊆ E'⌝) -∗
+        (⌜E' = E⌝ ∨ 
+          (∃ (susp : loc), ⌜a = InjRV #susp⌝ ∗
+            ⌜E' = E ∪ ↑(ver_susp_n susp)⌝)) ∗
         spec_verifier tᵥ (fill K (SOMEV #())) ∗
         tabseq_tok ⊤ ∗ seq_tok E' ∗
         tern_state ∗ intransit 1).
@@ -696,9 +697,9 @@ Section authentikit_definitions.
         (∀ γ, visit_reached_done γ id -∗ visit_finished γ id)). *)
 
   Definition v_susp_big_sep_lam (m : gmap val val) (id : nat) agv : iProp Σ :=
-    ∃ (ctr Nc: nat) (finish x a ser : val) (susp : loc) (t : evi_type) (s : string) (q : Qp),
+    ∃ (ctr Nc: nat) (finish x a ser : val) (t : evi_type) (s : string) (q : Qp),
       (⌜ctr > 0 ∧ m !! #id = Some (#ctr, finish)%V ∧ agv ≡ to_frac_agree q x⌝ ∗
-      £ 1 ∗ ser_v_proph t id x s ∗ v_ser_spec ser t ∗ auth_v id a s ∗ pval_frag id susp ∗
+      £ 1 ∗ ser_v_proph t id x s ∗ v_ser_spec ser t ∗ auth_v id a s ∗
       sub_susp_count_frags t x ctr id Nc ∗ v_finish_spec' finish x a ser)%I.
 
   Definition v_susp_big_sep (m : gmap val val) (m' : mapg_type) : iProp Σ :=

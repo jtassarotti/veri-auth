@@ -24,7 +24,7 @@ Section finish_specs.
 
     iMod (na_inv_acc with "Htab Htabtok") as "(Htabo & Htabtok & Hclose_tab)"; try solve_ndisj.
     iMod (lc_fupd_elim_later with "Hlc Htabo") as "Htabo".
-    iDestruct "Htabo" as "[(%&%&%&%&%&%& %idctr &% &% &% & Hl & %Hm &
+    iDestruct "Htabo" as "[(%&%&%&%&%&%& %idctr &%&%&%&%&% & Hl & %Hm &
         Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hst')|Hst']";
       last first.
     { by iPoseProof (tern_state_un_state_excl with "Hst Hst'") as "?". }
@@ -51,8 +51,8 @@ Section finish_specs.
           iPoseProof (visit_update_finished with "Hvmauth Hvisdone Hintr Hlbfrag Hsusp Hxc") as "Hxc".
            } *)
 
-    iDestruct "Hvauth" as "[(-> & Hidtok & Hintr & %)|
-        (%&%&%&%&%& -> &% & #Hpvfrag & % & #Hlbfrag & #Hvisdone & Hgetidtok & -> & Hvinv & Htrvinv & % & Hclose_inv)]".
+    iDestruct "Hvauth" as "[(-> & Hidtok & Hintr)|
+        (%&%&%&%&%& -> &% & Hpid & #Hpvfrag & % & #Hlbfrag & #Hvisdone & Hgetidtok & -> & Hvinv & Htrvinv & % & Hclose_inv)]".
     - v_pures. v_bind (ser _).
       iMod ("Hserspec" with "Hc Hser Hv") as "(Hc & Hser & Hv) /=".
       v_pures. v_bind (Hash _).
@@ -80,9 +80,7 @@ Section finish_specs.
           (intros ->; destruct (Hidunused k) as [Hu _]; apply Hu; rewrite Hkx Heq; reflexivity).
         iApply "Hvis"; try done. } *)
       
-      iFrame.
-      replace (E ∪ ↑ver_susp_n (InjLV #(hash s))) with E by set_solver.
-      by iModIntro.
+      iFrame. by iLeft.
 
     - v_pures. v_bind (ser _).
       iMod ("Hserspec" with "Hc Hser Hv") as "(Hc & Hser & Hv) /=".
@@ -123,7 +121,7 @@ Section finish_specs.
         iMod ("Hclose_inv" with "[$Htok Hsusp Hrest]") as "Htok".
         { iNext. iLeft. iFrame "∗ #". eauto. }
 
-        v_pures. by iFrame.
+        v_pures. iFrame. eauto.
         (* iModIntro.
         iIntros (?) "Hvisit".
         iDestruct (visit_reached_done_inj with "Hvisdone Hvisit") as %->.
@@ -151,7 +149,7 @@ Section finish_specs.
         iDestruct (big_sepM_delete _ (mapg_alive m') pid _ Hin with "Hbigsep") as "[Hms Hbigsep]".
 
         iDestruct "Hms" as (ctr ????????[Hcgt [Hin' ?]]) 
-            "(Hlc & Hxser & Hxserspec & Hxauth & Hxfrag & Hxc & Hxfin)".
+            "(Hlc & Hxser & Hxserspec & Hxauth & Hxpval & Hxfrag & Hxc & Hxfin)".
 
         iDestruct (pval_frag_agree with "Hxfrag Hpvfrag") as "<-".
 
