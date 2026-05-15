@@ -680,7 +680,8 @@ Section authentikit_definitions.
 
   Definition v_finish_spec' (finish x a ser : val) : iProp Σ :=
 		□(∀ (E: coPset) tᵥ K (s : string) (t : evi_type) id Nc,
-      □(∀ pid susp, ⌜pid < id⌝ -∗ pval_frag pid susp -∗
+      □(∀ pid susp γ, ⌜pid < id⌝ -∗ pval_frag pid susp -∗
+        lg_mapg_frag susp γ -∗ visit_reached_done γ -∗ 
         ⌜↑(ver_susp_n susp) ⊆ E⌝) -∗
       tabseq_tok ⊤ -∗ seq_tok E -∗ £ 1 -∗ 
       ser_v_proph t id x s -∗ v_ser_spec ser t -∗

@@ -149,9 +149,9 @@ Section finish_specs.
         iDestruct (big_sepM_delete _ (mapg_alive m') pid _ Hin with "Hbigsep") as "[Hms Hbigsep]".
 
         iDestruct "Hms" as (ctr ????????[Hcgt [Hin' ?]]) 
-            "(Hlc & Hxser & Hxserspec & Hxauth & Hxpval & Hxfrag & Hxc & Hxfin)".
+            "(Hlc & Hxser & Hxserspec & Hxauth & Hxc & Hxfin)".
 
-        iDestruct (pval_frag_agree with "Hxfrag Hpvfrag") as "<-".
+        (* iDestruct (pval_frag_agree with "Hxfrag Hpvfrag") as "<-". *)
 
         iDestruct "Hxc" as "(Hcap' & % & Hxc & Hxagg)".
         iDestruct (cap_frag_agree with "Hcap Hcap'") as "->".
@@ -225,23 +225,26 @@ Section finish_specs.
           iDestruct ("Hnmspc" with "[//] Hpvfrag") as "%Hpnmspc".
 
           iAssert (
-            |={⊤}=> ∃ E', ⌜E' ∪ ↑ver_susp_n a = E⌝ ∗ 
+            |={⊤}=> ∃ E',
+              □(∀ gpid gsusp gγ, ⌜gpid < pid⌝ -∗ pval_frag gpid gsusp -∗
+                lg_mapg_frag gsusp gγ -∗ visit_reached_done gγ -∗ 
+                ⌜↑(ver_susp_n gsusp) ⊆ E'⌝) ∗
               seq_tok E' ∗ auth_transit_v E' pid a s0 ∗
               ((∃ γ vm',
                   ⌜vm' = (<[ γ := finished_val ]>vm)⌝ ∗
                   vm_big_sep (delete #pid m) vm' ∗
-                  visited_mapg_auth vm' dm ps pn idctr gm pvm) ∨
+                  visited_mapg_auth vm' dm ps pn idctr gm pvm m_v rs) ∨
                (vm_big_sep (delete #pid m) vm ∗
-                visited_mapg_auth vm dm ps pn idctr gm pvm)) ∗
+                visited_mapg_auth vm dm ps pn idctr gm pvm m_v rs)) ∗
               mapg_auth (<[pid:=csum.Cinr (to_agree ())]> m') ∗
               [∗ map] k↦y0 ∈ mapg_alive (<[pid:=csum.Cinr (to_agree ())]> m'), 
                     v_susp_big_sep_lam m k y0)%I
               with "[Htok Hintr Hxauth Hvisinv Hvmauth Hmauth Hbigsep]"
-            as ">(%&%& Htok & Hxauth & Hvisvm & Hmauth & Hbigsep)".
+            as ">(%& #Hnmspc' & Htok & Hxauth & Hvisvm & Hmauth & Hbigsep)".
           { iDestruct "Hxauth" as "[[-> Hidtok]|
-              (%&%&%&%&%& ->& %& #Hgpfrag &% & #Hxlbfrag & #Hxvisdone & Hgetidtok & -> & #Hxinv)]".
+              (%&%&%&%&%& ->& %& Hgpid & #Hgpfrag &% & #Hxlbfrag & #Hxvisdone & Hgetidtok & -> & #Hxinv)]".
             - iPoseProof (id_token_unused with "Hvmauth Hidtok") as "(%Hidunused & Hvmauth & Hidtok)".
-              iFrame. iSplitR. { iPureIntro. set_solver. }
+              iFrame. iSplitR. { admit. }
               iSplitL "Hintr". 
               { iLeft. iFrame. eauto. }
               iRight. iApply (big_sepM_mono with "Hvisinv").
