@@ -296,19 +296,24 @@ Section visited_map_res.
     (∀ id γ, m !! γ = Some (done_val id) →
        gm !! id = Some (Cinr (to_agree (γ : leibnizO gname)))).
 
-  (** [id_susp_gamma_coherent gm pvm m_v]: forward direction only. For
-      every bound id in [gm], the susp loc recorded in [pvm] is bound to
-      the same γ in the verifier-side [lg_map_v]. The converse does not
-      hold: an id may have a [pvm] entry (and thus a [pval_frag]) before
-      it is ever bound to a γ. Multiple ids may also share a susp.
-      Used by [id_susp_γ_lookup] to mint persistent
-      [pval_frag id susp ∗ lg_mapg_frag susp γ] from
-      [m !! γ = Some (done_val id)]. *)
+  (** [id_susp_gamma_coherent gm pvm m_v]: forward + backward.
+      - Forward: every bound id in [gm] has its [pvm] susp bound to the
+        same γ in the verifier-side [lg_map_v]. Used by [id_susp_γ_lookup]
+        to mint persistent [pval_frag id susp ∗ lg_mapg_frag susp γ] from
+        [m !! γ = Some (done_val id)].
+      - Backward: if [pvm[id] = to_agree susp] and [m_v[susp] = Cinr γ],
+        then [gm[id] = Cinr γ]. Used by
+        [id_token_pval_lgmap_done_inconsistent] to refute the four-frag
+        combination of a pending id-token and an already-bound susp/γ. *)
   Definition id_susp_gamma_coherent
       (gm : id_mapg_type) (pvm : pvalmap_type) (m_v : lg_mapg_type) : Prop :=
-    ∀ id γ, gm !! id = Some (Cinr (to_agree (γ : leibnizO gname))) →
-      ∃ susp, pvm !! id ≡ Some (to_agree susp) ∧
-              m_v !! susp ≡ Some (Cinr (to_agree (γ : leibnizO gname))).
+    (∀ id γ, gm !! id = Some (Cinr (to_agree (γ : leibnizO gname))) →
+       ∃ susp, pvm !! id ≡ Some (to_agree susp) ∧
+               m_v !! susp ≡ Some (Cinr (to_agree (γ : leibnizO gname)))) ∧
+    (∀ id susp γ,
+       pvm !! id ≡ Some (to_agree susp) →
+       m_v !! susp ≡ Some (Cinr (to_agree (γ : leibnizO gname))) →
+       gm !! id = Some (Cinr (to_agree (γ : leibnizO gname)))).
 
   (** [id_ref_coherent pvm rs]: each [(from, to)] in [rs] has [to < from]
       and the locs [pvm] records for [from] and [to] differ. The
@@ -993,15 +998,31 @@ Section visited_map_res.
         * exfalso. have Hcin := Hgmm2 ctr γ' Hm.
           rewrite Hgm_ctr in Hcin. discriminate.
         * rewrite lookup_insert_ne; [|done]. by apply Hgmm2.
-    - (* id_susp_gamma_coherent: forward direction; pvm at ctr is new but
-         gm[ctr] is Cinl so we never query it. Other ids unchanged. *)
-      intros id γ' Hgm'.
-      destruct (decide (id = ctr)) as [-> | Hne_id].
-      + rewrite lookup_insert in Hgm'. discriminate.
-      + rewrite lookup_insert_ne in Hgm'; [|done].
-        destruct (Hisgc id γ' Hgm') as (susp & Hpvm_id & Hmv_susp).
-        exists susp. split; [|exact Hmv_susp].
-        rewrite lookup_insert_ne; [exact Hpvm_id|]. done.
+    - (* id_susp_gamma_coherent: forward + backward on extended pvm/gm. *)
+      destruct Hisgc as [Hisgc_fwd Hisgc_back]. split.
+      + (* forward: pvm at ctr is new but gm[ctr] is Cinl so never queried. *)
+        intros id γ' Hgm'.
+        destruct (decide (id = ctr)) as [-> | Hne_id].
+        * rewrite lookup_insert in Hgm'. discriminate.
+        * rewrite lookup_insert_ne in Hgm'; [|done].
+          destruct (Hisgc_fwd id γ' Hgm') as (susp & Hpvm_id & Hmv_susp).
+          exists susp. split; [|exact Hmv_susp].
+          rewrite lookup_insert_ne; [exact Hpvm_id|]. done.
+      + (* backward: for id = ctr with new pvm[ctr] = to_agree l, would need
+           m_v[l] = Cinr γ ⟹ gm[ctr] = Cinr γ. But gm[ctr] = Cinl, so we
+           need m_v[l] ≠ Cinr γ. Requires l ∉ dom m_v which currently
+           cannot be derived from the auth's accumulator alone — needs the
+           accumulator/pvm-loc-inj strengthening. ADMITTED. *)
+        intros id susp γ' Hpvm' Hmv'.
+        destruct (decide (id = ctr)) as [-> | Hne_id].
+        * rewrite lookup_insert in Hpvm'.
+          apply Some_equiv_inj, (inj to_agree) in Hpvm'.
+          fold_leibniz. subst susp.
+          (* would-need: m_v !! l ≠ Some (Cinr (to_agree γ')) *)
+          admit.
+        * rewrite lookup_insert_ne in Hpvm'; [|done].
+          rewrite lookup_insert_ne; [|done].
+          by apply (Hisgc_back id susp γ').
     - (* id_ref_coherent: existing entries in rs have from ≠ ctr and to ≠ ctr
          because their pvm lookups must exist (old pvm[ctr] = None). *)
       intros from' to' Hrs'.
@@ -1011,7 +1032,7 @@ Section visited_map_res.
         rewrite Hpvm_ctr in Hpf. by inversion Hpf.
       + rewrite lookup_insert_ne; [exact Hpt|]. intros ->.
         rewrite Hpvm_ctr in Hpt. by inversion Hpt.
-  Qed.
+  Admitted.
 
   (** [id_token id] implies [id < ctr]: the id has been allocated (is in
       [dom gm = set_seq 0 ctr]) so it is strictly below the counter. *)
@@ -1047,7 +1068,7 @@ Section visited_map_res.
     iIntros (Hmγ) "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
     pose proof Hgmm as [_ Hgmm2].
     pose proof (Hgmm2 id γ Hmγ) as Hgm_id.
-    pose proof (Hisgc id γ Hgm_id) as (susp & Hpvm_id & Hmv_susp).
+    pose proof ((proj1 Hisgc) id γ Hgm_id) as (susp & Hpvm_id & Hmv_susp).
     rewrite /pval_frag.
     iMod (own_update _ _
       (● pvm ⋅ ◯ {[id := to_agree susp]})
@@ -1193,6 +1214,60 @@ Section lg_map.
     iDestruct (own_valid_2 with "H1 H2") as %Hv.
     rewrite -auth_frag_op singleton_op auth_frag_valid singleton_valid in Hv.
     done.
+  Qed.
+
+  (** A pending [id_token id] is inconsistent with the loc [pvm[id] = l]
+      pointing into [m_v] at an entry bound to some γ. The backward
+      direction of [id_susp_gamma_coherent] forces that combination to
+      imply [gm[id] = Cinr γ], contradicting the [Cinl] witness from
+      [id_token id]. [visit_reached_done γ] is unused in the proof
+      (the linkage holds independent of γ's done-status); we keep it in
+      the signature for caller convenience. *)
+  Lemma id_token_pval_lgmap_done_inconsistent
+      m d ps pn ctr gm pvm m_v rs id l γ :
+    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗
+    id_token id -∗ pval_frag id l -∗
+    lg_mapg_frag l γ -∗ visit_reached_done γ -∗
+    False.
+  Proof.
+    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs &
+              %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)
+            Hidtok Hpvf #Hlbf _".
+    rewrite /id_token /pval_frag /lg_mapg_frag.
+    destruct Hisgc as [_ Hisgc_back].
+    (* gm[id] = Some (Cinl (Excl ())) *)
+    iDestruct (own_valid_2 with "Hgm Hidtok") as %Hvgm.
+    apply auth_both_valid_discrete in Hvgm as [Hinclgm Hvalidgm].
+    apply (singleton_included_exclusive_l gm id (Cinl (Excl ())))
+      in Hinclgm; [|apply _|exact Hvalidgm].
+    assert (gm !! id = Some (Cinl (Excl ()))) as Hgm_id
+      by (apply some_cinl_excl_unit_equiv_eq; exact Hinclgm).
+    (* pvm[id] ≡ Some (to_agree l) *)
+    iDestruct (pvalmap_auth_frag_eq with "Hpvm Hpvf") as %Hpvf_eq.
+    (* m_v[l] ≡ Some (Cinr (to_agree γ)) — extracted as in
+       bind_id_existing_susp:1551–1569 *)
+    iDestruct (own_valid_2 with "Hmv Hlbf") as %Hv_mv.
+    apply auth_both_valid_discrete in Hv_mv as [Hinc_mv Hvalid_mv].
+    apply singleton_included_l in Hinc_mv as (x_mv & Hx_mv & Hle_mv).
+    assert (m_v !! l ≡ Some (Cinr (to_agree (γ : leibnizO gname))))
+      as Hmv_l.
+    { assert (✓ x_mv) as Hvx.
+      { eapply (lookup_valid_Some _ l); first exact Hvalid_mv. exact Hx_mv. }
+      assert (Cinr (to_agree (γ : leibnizO gname)) ≡ x_mv) as Heq_x.
+      { apply Some_included in Hle_mv as [Heq2 | Hinc]; [exact Heq2|].
+        apply csum_included in Hinc
+          as [Hbot | [(? & ? & Heq1 & _) | (b & b' & Heq1 & Heq2 & Hle)]].
+        - exfalso. rewrite Hbot in Hvx. by inversion Hvx.
+        - by inversion Heq1.
+        - injection Heq1 as Hbeq. subst x_mv. rewrite -Hbeq in Hle.
+          assert (✓ b') as Hvb' by (by apply (Cinr_valid (A:=exclR unitO)) in Hvx).
+          pose proof (agree_valid_included _ _ Hvb' Hle) as Heq_ag.
+          by rewrite Heq_ag. }
+      rewrite Hx_mv -Heq_x //. }
+    (* Apply backward conjunct of id_susp_gamma_coherent *)
+    specialize (Hisgc_back id l γ Hpvf_eq Hmv_l).
+    rewrite Hgm_id in Hisgc_back.
+    by inversion Hisgc_back.
   Qed.
 
   (** Combined [vmeta_token l ∗ own spec_meta_name (◯ GSet (dom m))]
@@ -1449,22 +1524,49 @@ Section lg_map.
           -- rewrite lookup_insert in Hm'. injection Hm' as ->.
              exfalso. exact (Hne_id eq_refl).
           -- rewrite lookup_insert_ne in Hm'; done.
-    - (* id_susp_gamma_coherent on new state *)
-      intros id γ' Hgm'.
-      destruct (decide (id = from)) as [-> | Hne_id].
-      + rewrite lookup_insert in Hgm'. injection Hgm' as Hγ'_eq.
-        subst γ'. exists l. split; [exact Hpvf_eq|].
-        by rewrite lookup_insert.
-      + rewrite lookup_insert_ne in Hgm'; [|done].
-        destruct (Hisgc id γ' Hgm') as (susp & Hpvm_id & Hmv_susp).
-        exists susp. split; [exact Hpvm_id|].
+    - (* id_susp_gamma_coherent on new state: forward + backward *)
+      destruct Hisgc as [Hisgc_fwd Hisgc_back]. split.
+      + (* forward *)
+        intros id γ' Hgm'.
+        destruct (decide (id = from)) as [-> | Hne_id].
+        * rewrite lookup_insert in Hgm'. injection Hgm' as Hγ'_eq.
+          subst γ'. exists l. split; [exact Hpvf_eq|].
+          by rewrite lookup_insert.
+        * rewrite lookup_insert_ne in Hgm'; [|done].
+          destruct (Hisgc_fwd id γ' Hgm') as (susp & Hpvm_id & Hmv_susp).
+          exists susp. split; [exact Hpvm_id|].
+          destruct (decide (susp = l)) as [-> | Hne_susp].
+          -- exfalso. assert (l ∈ dom m_v) as Hl_in.
+             { apply elem_of_dom.
+               destruct (m_v !! l) eqn:Hl; [eauto|].
+               rewrite Hl in Hmv_susp. by inversion Hmv_susp. }
+             apply not_elem_of_dom in Hl_nin. set_solver.
+          -- rewrite lookup_insert_ne; done.
+      + (* backward: pvm[id] = to_agree susp ∧ new m_v[susp] = Cinr γ' ⟹
+           new gm[id] = Cinr γ'. Case susp = l (γ' must = γ via new m_v[l]):
+           if id = from, done by lookup_insert. If id ≠ from, need to show
+           no other id has pvm[id] = to_agree l with old gm[id] not Cinr.
+           This requires pvm loc-injectivity which isn't yet enforced.
+           Case susp ≠ l: new m_v[susp] = old m_v[susp]; use Hisgc_back. *)
+        intros id susp γ' Hpvm' Hmv'.
         destruct (decide (susp = l)) as [-> | Hne_susp].
-        * exfalso. assert (l ∈ dom m_v) as Hl_in.
-          { apply elem_of_dom.
-            destruct (m_v !! l) eqn:Hl; [eauto|].
-            rewrite Hl in Hmv_susp. by inversion Hmv_susp. }
-          apply not_elem_of_dom in Hl_nin. set_solver.
-        * rewrite lookup_insert_ne; done.
+        * rewrite lookup_insert in Hmv'.
+          apply Some_equiv_inj in Hmv'.
+          apply (inj Cinr), (inj to_agree) in Hmv'.
+          fold_leibniz. subst γ'.
+          destruct (decide (id = from)) as [-> | Hne_id].
+          -- by rewrite lookup_insert.
+          -- (* Would need pvm loc-injectivity: pvm[id] = to_agree l = pvm[from],
+                so id = from, contradicting Hne_id. ADMITTED. *)
+             admit.
+        * rewrite lookup_insert_ne in Hmv'; [|done].
+          destruct (decide (id = from)) as [-> | Hne_id].
+          -- (* pvm[from] = to_agree l ≠ to_agree susp (susp ≠ l) *)
+             exfalso. rewrite Hpvf_eq in Hpvm'.
+             apply Some_equiv_inj, (inj to_agree) in Hpvm'.
+             fold_leibniz. exact (Hne_susp (eq_sym Hpvm')).
+          -- rewrite lookup_insert_ne; [|done].
+             by apply (Hisgc_back id susp γ').
     - (* id_ref_coherent on new state *)
       intros from' to' Hrs'.
       destruct (decide (from' = from)) as [-> | Hne].
@@ -1486,7 +1588,7 @@ Section lg_map.
       + exfalso. rewrite lookup_insert in Hγ'.
         rewrite /done_val /pending_val in Hγ'. by inversion Hγ'.
       + rewrite lookup_insert_ne in Hγ'; [|done]. by apply Hl_pcoh.
-  Qed.
+  Admitted.
 
   (** [bind_id_existing_susp]: bind an existing id [from] (whose susp loc
       [susp_from] is *already* in [m_v]) to a γ that the susp is already
@@ -1626,13 +1728,32 @@ Section lg_map.
           -- rewrite lookup_insert in Hm'. injection Hm' as ->.
              exfalso. exact (Hne_id eq_refl).
           -- rewrite lookup_insert_ne in Hm'; done.
-    - (* id_susp_gamma_coherent on new state *)
-      intros id γ' Hgm'.
-      destruct (decide (id = from)) as [-> | Hne_id].
-      + rewrite lookup_insert in Hgm'. injection Hgm' as Hγ'_eq.
-        subst γ'. exists susp_from. split; [exact Hpvf_eq|exact Hmv_susp_from].
-      + rewrite lookup_insert_ne in Hgm'; [|done].
-        by apply (Hisgc id γ').
+    - (* id_susp_gamma_coherent on new state: forward + backward.
+         m_v and pvm unchanged; only gm changes at `from`. *)
+      destruct Hisgc as [Hisgc_fwd Hisgc_back]. split.
+      + (* forward *)
+        intros id γ' Hgm'.
+        destruct (decide (id = from)) as [-> | Hne_id].
+        * rewrite lookup_insert in Hgm'. injection Hgm' as Hγ'_eq.
+          subst γ'. exists susp_from. split; [exact Hpvf_eq|exact Hmv_susp_from].
+        * rewrite lookup_insert_ne in Hgm'; [|done].
+          by apply (Hisgc_fwd id γ').
+      + (* backward: m_v, pvm unchanged. Case id = from: pvm[from] = to_agree
+           susp_from, m_v[susp_from] = Cinr γ; so susp = susp_from, γ' = γ.
+           New gm[from] = Cinr γ ✓.
+           Case id ≠ from: gm unchanged, reuse Hisgc_back. *)
+        intros id susp γ' Hpvm' Hmv'.
+        destruct (decide (id = from)) as [-> | Hne_id].
+        * rewrite lookup_insert.
+          (* identify susp = susp_from via pvm injective at `from` *)
+          rewrite Hpvf_eq in Hpvm'.
+          apply Some_equiv_inj, (inj to_agree) in Hpvm'.
+          fold_leibniz. subst susp.
+          rewrite Hmv_susp_from in Hmv'.
+          apply Some_equiv_inj, (inj Cinr), (inj to_agree) in Hmv'.
+          fold_leibniz. by subst γ'.
+        * rewrite lookup_insert_ne; [|done].
+          by apply (Hisgc_back id susp γ').
     - (* id_ref_coherent on new state *)
       intros from' to' Hrs'.
       destruct (decide (from' = from)) as [-> | Hne].
