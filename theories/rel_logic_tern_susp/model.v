@@ -119,61 +119,6 @@ End lrel_un_ofe.
 
 Arguments lrel_unC : clear implicits.
 
-(** Binary semantic type (prover–ideal values) *)
-Record lrel_bin Σ := LRelBin {
-  lrel_bin_car :> val → val → iProp Σ;
-  lrel_bin_persistent v1 v2 : Persistent (lrel_bin_car v1 v2)
-}.
-
-Arguments LRelBin {_} _%I {_}.
-Arguments lrel_bin_car {_} _ _ _ : simpl never.
-Global Existing Instance lrel_bin_persistent.
-
-Section lrel_bin_ofe.
-  Context `{Σ : gFunctors}.
-
-  Global Instance lrel_bin_equiv : Equiv (lrel_bin Σ) := λ A B, ∀ w1 w2, A w1 w2 ≡ B w1 w2.
-  Global Instance lrel_bin_dist : Dist (lrel_bin Σ) := λ n A B, ∀ w1 w2, A w1 w2 ≡{n}≡ B w1 w2.
-  Lemma lrel_bin_ofe_mixin : OfeMixin (lrel_bin Σ).
-  Proof. by apply (iso_ofe_mixin (lrel_bin_car : lrel_bin Σ → (val -d> val -d> iPropO Σ))). Qed.
-  Canonical Structure lrel_binC := Ofe (lrel_bin Σ) lrel_bin_ofe_mixin.
-
-  Global Instance lrel_bin_cofe : Cofe lrel_binC.
-  Proof.
-    apply (iso_cofe_subtype' (λ A : val -d> val -d> iPropO Σ,
-      ∀ w1 w2, Persistent (A w1 w2)) (@LRelBin _) lrel_bin_car)=>//.
-    - apply _.
-    - apply limit_preserving_forall=> w1.
-      apply limit_preserving_forall=> w2.
-      apply bi.limit_preserving_Persistent.
-      intros n P Q HPQ. apply (HPQ w1 w2).
-  Qed.
-
-  Global Instance lrel_bin_inhabited : Inhabited (lrel_bin Σ) := populate (LRelBin inhabitant).
-
-  Global Instance lrel_bin_car_ne n : Proper (dist n ==> (=) ==> (=) ==> dist n) lrel_bin_car.
-  Proof. by intros A A' ? w1 w2 <- w3 w4 <-. Qed.
-  Global Instance lrel_bin_car_proper : Proper ((≡) ==> (=) ==> (=) ==> (≡)) lrel_bin_car.
-  Proof.
-    intros ?? H ??????. simplify_eq.
-    apply equiv_dist => n.
-    rewrite equiv_dist in H.
-    rewrite H //.
-  Qed.
-
-  Lemma lrel_bin_equivI (A B : lrel_bin Σ) :
-    A ≡@{lrel_bin Σ} B ⊣⊢@{iProp Σ} (∀ w1 w2, A w1 w2 ≡@{iProp Σ} B w1 w2).
-  Proof.
-    iSplit.
-    - iIntros "H" (??). by iRewrite "H".
-    - iStopProof. uPred.unseal.
-      split. intros n x Hnx Heq ????. done.
-  Qed.
-
-End lrel_bin_ofe.
-
-Arguments lrel_binC : clear implicits.
-
 (** Ternary semantic type (prover–verifier–ideal values) *)
 Record lrel Σ := LRel {
   lrel_car :> val → val → val → iProp Σ;
@@ -237,76 +182,69 @@ End lrel_ofe.
 
 Arguments lrelC : clear implicits.
 
-(** Combined ternary+binary+unary type interpretation *)
+(** Combined ternary+unary type interpretation *)
 Record lrel_tern Σ := LRelTern {
   lrel_tern_tern : lrel Σ;
-  lrel_tern_bin  : lrel_bin Σ;
   lrel_tern_un   : lrel_un Σ;
 }.
 
-Arguments LRelTern {_} _ _ _.
+Arguments LRelTern {_} _ _.
 Arguments lrel_tern_tern {_} _ : simpl never.
-Arguments lrel_tern_bin {_} _ : simpl never.
 Arguments lrel_tern_un {_} _ : simpl never.
 
 Section lrel_tern_ofe.
   Context `{Σ : gFunctors}.
 
   Global Instance lrel_tern_equiv : Equiv (lrel_tern Σ) :=
-    λ A B, (lrel_tern_tern A ≡ lrel_tern_tern B ∧
-            lrel_tern_bin A ≡ lrel_tern_bin B) ∧
+    λ A B, lrel_tern_tern A ≡ lrel_tern_tern B ∧
            lrel_tern_un A ≡ lrel_tern_un B.
   Global Instance lrel_tern_dist : Dist (lrel_tern Σ) :=
-    λ n A B, (lrel_tern_tern A ≡{n}≡ lrel_tern_tern B ∧
-              lrel_tern_bin A ≡{n}≡ lrel_tern_bin B) ∧
+    λ n A B, lrel_tern_tern A ≡{n}≡ lrel_tern_tern B ∧
              lrel_tern_un A ≡{n}≡ lrel_tern_un B.
   Lemma lrel_tern_ofe_mixin : OfeMixin (lrel_tern Σ).
   Proof.
     by apply (iso_ofe_mixin
-      (λ A : lrel_tern Σ, (lrel_tern_tern A, lrel_tern_bin A, lrel_tern_un A)
-        : prodO (prodO (lrelC Σ) (lrel_binC Σ)) (lrel_unC Σ))).
+      (λ A : lrel_tern Σ, (lrel_tern_tern A, lrel_tern_un A)
+        : prodO (lrelC Σ) (lrel_unC Σ))).
   Qed.
   Canonical Structure lrel_ternC := Ofe (lrel_tern Σ) lrel_tern_ofe_mixin.
 
   Global Instance lrel_tern_cofe : Cofe lrel_ternC.
   Proof.
     apply (iso_cofe_subtype'
-      (λ p : prodO (prodO (lrelC Σ) (lrel_binC Σ)) (lrel_unC Σ), True)
-      (fun p _ => LRelTern p.1.1 p.1.2 p.2)
-      (λ A, (lrel_tern_tern A, lrel_tern_bin A, lrel_tern_un A))).
+      (λ p : prodO (lrelC Σ) (lrel_unC Σ), True)
+      (fun p _ => LRelTern p.1 p.2)
+      (λ A, (lrel_tern_tern A, lrel_tern_un A))).
     - done.
     - done.
-    - intros [[??] ?] _. done.
+    - intros [??] _. done.
     - apply _.
   Qed.
 
   Global Instance lrel_tern_inhabited : Inhabited (lrel_tern Σ) :=
-    populate (LRelTern inhabitant inhabitant inhabitant).
+    populate (LRelTern inhabitant inhabitant).
 
   Global Instance lrel_tern_tern_ne n : Proper (dist n ==> dist n) (@lrel_tern_tern Σ).
-  Proof. by intros A B [[? _] _]. Qed.
-  Global Instance lrel_tern_bin_ne n : Proper (dist n ==> dist n) (@lrel_tern_bin Σ).
-  Proof. by intros A B [[_ ?] _]. Qed.
+  Proof. by intros A B [? _]. Qed.
   Global Instance lrel_tern_un_ne n : Proper (dist n ==> dist n) (@lrel_tern_un Σ).
   Proof. by intros A B [_ ?]. Qed.
   Global Instance lrel_tern_tern_proper : Proper ((≡) ==> (≡)) (@lrel_tern_tern Σ) := ne_proper _.
-  Global Instance lrel_tern_bin_proper : Proper ((≡) ==> (≡)) (@lrel_tern_bin Σ) := ne_proper _.
   Global Instance lrel_tern_un_proper : Proper ((≡) ==> (≡)) (@lrel_tern_un Σ) := ne_proper _.
 
   Global Instance LRelTern_ne n :
-    Proper (dist n ==> dist n ==> dist n ==> dist n) (@LRelTern Σ).
-  Proof. by intros ?? H1 ?? H2 ?? H3. Qed.
+    Proper (dist n ==> dist n ==> dist n) (@LRelTern Σ).
+  Proof. by intros ?? H1 ?? H2. Qed.
 
 End lrel_tern_ofe.
 
 Arguments lrel_ternC : clear implicits.
 
-(** Conjunction coercion: A : lrel_tern Σ coerces to λ v1 v2 v3, A.tern v1 v2 v3 ∧ A.bin v1 v3 ∧ A.un v2 *)
+(** Conjunction coercion: A : lrel_tern Σ coerces to λ v1 v2 v3, A.tern v1 v2 v3 ∧ A.un v1 *)
 Section lrel_tern_coerce.
   Context `{Σ : gFunctors}.
 
   Definition lrel_tern_as_lrel (A : lrel_tern Σ) : lrel Σ :=
-    LRel (λ v1 v2 v3, lrel_tern_tern A v1 v2 v3 ∧ lrel_tern_bin A v1 v3 ∧ lrel_tern_un A v2)%I.
+    LRel (λ v1 v2 v3, lrel_tern_tern A v1 v2 v3 ∧ lrel_tern_un A v1)%I.
   Global Coercion lrel_tern_as_lrel : lrel_tern >-> lrel.
 
   Global Instance lrel_tern_as_lrel_persistent (A : lrel_tern Σ) v1 v2 v3 :
@@ -324,26 +262,22 @@ Section lrel_tern_coerce.
     lrel_tern_as_lrel A v1 v2 v3 ⊢ lrel_tern_tern A v1 v2 v3.
   Proof. rewrite /lrel_tern_as_lrel. cbv [lrel_car]. iIntros "[$ _]". Qed.
 
-  Lemma lrel_tern_proj_bin (A : lrel_tern Σ) v1 v2 v3 :
-    lrel_tern_as_lrel A v1 v2 v3 ⊢ lrel_tern_bin A v1 v3.
-  Proof. rewrite /lrel_tern_as_lrel. cbv [lrel_car]. iIntros "[_ [$ _]]". Qed.
-
   Lemma lrel_tern_proj_un (A : lrel_tern Σ) v1 v2 v3 :
-    lrel_tern_as_lrel A v1 v2 v3 ⊢ lrel_tern_un A v2.
-  Proof. rewrite /lrel_tern_as_lrel. cbv [lrel_car]. iIntros "[_ [_ $]]". Qed.
+    lrel_tern_as_lrel A v1 v2 v3 ⊢ lrel_tern_un A v1.
+  Proof. rewrite /lrel_tern_as_lrel. cbv [lrel_car]. iIntros "[_ $]". Qed.
 
-  (** Proof mode: iDestruct "H" as "[Htern [Hbin Hun]]" *)
+  (** Proof mode: iDestruct "H" as "[Htern Hun]" *)
   Global Instance into_and_lrel_tern_as_lrel (A : lrel_tern Σ) (v1 v2 v3 : val) b :
     IntoAnd b (lrel_tern_as_lrel A v1 v2 v3)
       (lrel_tern_tern A v1 v2 v3)
-      (lrel_tern_bin A v1 v3 ∧ lrel_tern_un A v2)%I.
+      (lrel_tern_un A v1).
   Proof. rewrite /IntoAnd /lrel_tern_as_lrel. cbv [lrel_car]. done. Qed.
 
   (** Proof mode: iSplit on ⊢ ⟦τ⟧Δ v1 v2 v3 *)
   Global Instance from_and_lrel_tern_as_lrel (A : lrel_tern Σ) (v1 v2 v3 : val) :
     FromAnd (lrel_tern_as_lrel A v1 v2 v3)
       (lrel_tern_tern A v1 v2 v3)
-      (lrel_tern_bin A v1 v3 ∧ lrel_tern_un A v2)%I.
+      (lrel_tern_un A v1).
   Proof. rewrite /FromAnd /lrel_tern_as_lrel. cbv [lrel_car]. iIntros "[$ $]". Qed.
 
 End lrel_tern_coerce.
@@ -404,47 +338,12 @@ Notation "'REL' e1 '<<' e2 '<<' e3 ':' A" :=
    A at level 200,
     format "'REL'  e1  '/ ' '<<'  e2  '/ ' '<<'  e3  '/ ' :  A").
 
-(** Binary relational judgment (prover–ideal) *)
-Section refines_bin.
-  Context `{!authG Σ, !seqG Σ}.
-
-  Definition refines_bin (E : coPset) (eₚ eᵢ : expr) (A : lrel_bin Σ) : iProp Σ :=
-    (∀ Kᵢ tᵢ,
-        (* TODO: change to wand *)
-        spec_ideal tᵢ (fill Kᵢ eᵢ) ∗ seq_tok E -∗
-        WP eₚ @ E {{ vₚ, ∃ (vᵢ : val), spec_ideal tᵢ (fill Kᵢ vᵢ) ∗ A vₚ vᵢ ∗ seq_tok E }})%I.
-
-  Global Instance refines_bin_ne E n :
-    Proper ((=) ==> (=) ==> (dist n) ==> (dist n)) (refines_bin E).
-  Proof. solve_proper. Qed.
-
-  Global Instance refines_bin_proper E :
-    Proper ((=) ==> (=) ==> (≡) ==> (≡)) (refines_bin E).
-  Proof. solve_proper. Qed.
-
-End refines_bin.
-
-Notation "'REL' e1 '<<ᵢ' e2 '@' E ':' A" :=
-  (refines_bin E e1%E e2%E A)
-  (at level 100, E at next level, e1, e2 at next level,
-   A at level 200,
-   format "'REL'  e1  '/ ' '<<ᵢ'  e2  '/ ' '@'  E  :  A").
-
-Notation "'REL' e1 '<<ᵢ' e2 ':' A" :=
-  (refines_bin ⊤ e1%E e2%E A)
-  (at level 100, e1, e2 at next level,
-   A at level 200,
-   format "'REL'  e1  '/ ' '<<ᵢ'  e2  '/ ' :  A").
-
-(** Unary spec judgment (verifier) *)
+(** Unary judgment (prover) *)
 Section refines_un.
   Context `{!authG Σ, !seqG Σ}.
 
-  Definition refines_un (E : coPset) (eᵥ : expr) (A : lrel_un Σ) : iProp Σ :=
-    (∀ Kᵥ tᵥ,
-        spec_verifier tᵥ (fill Kᵥ eᵥ) -∗
-        seq_tok E -∗
-        |={E}=> ∃ vᵥ : val, spec_verifier tᵥ (fill Kᵥ (of_val vᵥ)) ∗ A vᵥ ∗ seq_tok E)%I.
+  Definition refines_un (E : coPset) (eₚ : expr) (A : lrel_un Σ) : iProp Σ :=
+    (seq_tok E -∗ WP eₚ @ E {{ vₚ, A vₚ ∗ seq_tok E }})%I.
 
   Global Instance refines_un_ne E n :
     Proper ((=) ==> (dist n) ==> (dist n)) (refines_un E).
@@ -456,17 +355,17 @@ Section refines_un.
 
 End refines_un.
 
-Notation "'VER' e '@' E ':' A" :=
+Notation "'PRV' e '@' E ':' A" :=
   (refines_un E e%E A)
   (at level 100, E at next level, e at next level,
    A at level 200,
-   format "'VER'  e  '/ ' '@'  E  :  A").
+   format "'PRV'  e  '/ ' '@'  E  :  A").
 
-Notation "'VER' e ':' A" :=
+Notation "'PRV' e ':' A" :=
   (refines_un ⊤ e%E A)
   (at level 100, e at next level,
    A at level 200,
-   format "'VER'  e  '/ ' :  A").
+   format "'PRV'  e  '/ ' :  A").
 
 Section semtypes.
   Context `{!authG Σ, !seqG Σ}.
@@ -560,7 +459,7 @@ Notation "∃; x .. y , P" :=
   (lrel_exists (λne x, .. (lrel_exists (λne y, P%lrel)) ..))
 (at level 200, x binder, y binder, right associativity) : lrel_scope.
 
-(** Unary semantic types (verifier) *)
+(** Unary semantic types (prover) *)
 Section semtypes_un.
   Context `{authG Σ, seqG Σ}.
 
@@ -576,7 +475,7 @@ Section semtypes_un.
   Definition lrel_un_string : lrel_un Σ := LRelUn (λ w, ∃ s : string, ⌜w = #s⌝)%I.
 
   Definition lrel_un_arr (A1 A2 : lrel_un Σ) : lrel_un Σ := LRelUn (λ w,
-    □ ∀ v, A1 v -∗ VER App w v @ ⊤ : A2)%I.
+    □ ∀ v, A1 v -∗ PRV App w v @ ⊤ : A2)%I.
   Program Definition lrel_un_arr' : lrel_unC Σ -n> lrel_unC Σ -n> lrel_unC Σ := λne A1 A2, lrel_un_arr A1 A2.
   Solve Obligations with solve_proper.
 
@@ -605,55 +504,9 @@ Section semtypes_un.
 
 End semtypes_un.
 
-(** Binary semantic types (prover–ideal) *)
-Section semtypes_bin.
-  Context `{authG Σ, seqG Σ}.
-
-  Implicit Types e : expr.
-  Implicit Types E : coPset.
-  Implicit Types A B : lrel_bin Σ.
-
-  Definition lrel_bin_true : lrel_bin Σ := LRelBin (λ w1 w2, True)%I.
-
-  Definition lrel_bin_unit : lrel_bin Σ := LRelBin (λ w1 w2, ⌜w1 = #() ∧ w2 = #()⌝%I).
-  Definition lrel_bin_bool : lrel_bin Σ := LRelBin (λ w1 w2, ∃ b : bool, ⌜w1 = #b ∧ w2 = #b⌝)%I.
-  Definition lrel_bin_int : lrel_bin Σ := LRelBin (λ w1 w2, ∃ n : Z, ⌜w1 = #n ∧ w2 = #n⌝)%I.
-  Definition lrel_bin_string : lrel_bin Σ := LRelBin (λ w1 w2, ∃ s : string, ⌜w1 = #s ∧ w2 = #s⌝)%I.
-
-  Definition lrel_bin_arr (A1 A2 : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ w1 w2,
-    □ ∀ v1 v2, A1 v1 v2 -∗ REL App w1 v1 <<ᵢ App w2 v2 @ ⊤ : A2)%I.
-  Program Definition lrel_bin_arr' : lrel_binC Σ -n> lrel_binC Σ -n> lrel_binC Σ := λne A1 A2, lrel_bin_arr A1 A2.
-  Solve Obligations with solve_proper.
-
-  Definition lrel_bin_prod (A B : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ w1 w2,
-    ∃ v1 v2 v1' v2',
-      ⌜w1 = (v1,v1')%V⌝ ∧ ⌜w2 = (v2,v2')%V⌝ ∧ A v1 v2 ∗ B v1' v2')%I.
-  Program Definition lrel_bin_prod' : lrel_binC Σ -n> lrel_binC Σ -n> lrel_binC Σ := λne A1 A2, lrel_bin_prod A1 A2.
-  Solve Obligations with solve_proper.
-
-  Definition lrel_bin_sum (A B : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ w1 w2,
-    ∃ v1 v2, (⌜w1 = InjLV v1⌝ ∧ ⌜w2 = InjLV v2⌝ ∧ A v1 v2)
-              ∨  (⌜w1 = InjRV v1⌝ ∧ ⌜w2 = InjRV v2⌝ ∧ B v1 v2))%I.
-  Program Definition lrel_bin_sum' : lrel_binC Σ -n> lrel_binC Σ -n> lrel_binC Σ := λne A1 A2, lrel_bin_sum A1 A2.
-  Solve Obligations with solve_proper.
-
-  Definition lrel_bin_option (A : lrel_bin Σ) : lrel_bin Σ := lrel_bin_sum lrel_bin_unit A.
-
-  Definition lrel_bin_forall {T : ofe} (C : T -n> lrel_bin Σ) : lrel_bin Σ := LRelBin (λ w1 w2,
-    ∀ A : T, (lrel_bin_arr lrel_bin_true (C A)) w1 w2)%I.
-  Program Definition lrel_bin_forall' {T : ofe} : (T -n> lrel_binC Σ) -n> lrel_binC Σ := λne C, lrel_bin_forall C.
-  Next Obligation. rewrite /lrel_bin_forall; solve_proper. Qed.
-
-  Definition lrel_bin_exists {T : ofe} (C : T -n> lrel_bin Σ) : lrel_bin Σ := LRelBin (λ w1 w2,
-    ∃ A : T, C A w1 w2)%I.
-  Program Definition lrel_bin_exists' {T : ofe} : (T -n> lrel_binC Σ) -n> lrel_binC Σ := λne C, lrel_bin_exists C.
-  Next Obligation. solve_proper. Qed.
-
-End semtypes_bin.
-
 Section semtypes_tern.
   Context `{authG Σ, seqG Σ}.
 
   Definition lrel_tern_true : lrel_tern Σ :=
-    LRelTern lrel_true lrel_bin_true lrel_un_true.
+    LRelTern lrel_true lrel_un_true.
 End semtypes_tern.
