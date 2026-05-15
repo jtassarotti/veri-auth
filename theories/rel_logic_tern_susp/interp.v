@@ -73,16 +73,13 @@ Section semtypes.
 
   Definition lrel_ktype (C : lrel_ternC Σ -n> lrel_ternC Σ) (rec : lrel_ternC Σ) : lrel_ternC Σ :=
     LRelTern (LRel (λ w1 w2 w3, ▷ lrel_tern_tern (C rec) w1 w2 w3)%I)
-             (LRelBin (λ w1 w3, ▷ lrel_tern_bin (C rec) w1 w3)%I)
              (LRelUn (λ w, ▷ lrel_tern_un (C rec) w)%I).
 
   Global Instance lrel_ktype_contractive C : Contractive (lrel_ktype C).
   Proof.
     intros n P Q HPQ.
-    split; [split|].
+    split.
     - intros w1 w2 w3; rewrite /lrel_car /=.
-      f_contractive; f_equiv; by apply C.
-    - intros w1 w3; rewrite /lrel_bin_car /=.
       f_contractive; f_equiv; by apply C.
     - intros w; rewrite /lrel_un_car /=.
       f_contractive; f_equiv; by apply C.
@@ -91,12 +88,8 @@ Section semtypes.
   Global Instance lrel_ktype_ne : NonExpansive2 lrel_ktype.
   Proof.
     intros n C1 C2 HC rec1 rec2 Hrec.
-    split; [split|].
+    split.
     - intros w1 w2 w3; rewrite /lrel_car /=.
-      f_contractive. do 2 f_equiv. f_equiv.
-      1: eapply dist_lt; [exact HC | exact Hlt].
-      eapply dist_lt; [exact Hrec | exact Hlt].
-    - intros w1 w3; rewrite /lrel_bin_car /=.
       f_contractive. do 2 f_equiv. f_equiv.
       1: eapply dist_lt; [exact HC | exact Hlt].
       eapply dist_lt; [exact Hrec | exact Hlt].
@@ -141,56 +134,49 @@ Section semtypes.
   (** Combined constructors for [lrel_tern] *)
   Definition lrel_tern_prod (A B : lrel_ternC Σ) : lrel_ternC Σ :=
     LRelTern (lrel_prod' (lrel_tern_tern A) (lrel_tern_tern B))
-             (lrel_bin_prod' (lrel_tern_bin A) (lrel_tern_bin B))
              (lrel_un_prod' (lrel_tern_un A) (lrel_tern_un B)).
   Program Definition lrel_tern_prod' : lrel_ternC Σ -n> lrel_ternC Σ -n> lrel_ternC Σ :=
     λne A B, lrel_tern_prod A B.
-  Solve Obligations with intros ?????; split; [split|]; solve_proper.
+  Solve Obligations with intros ?????; split; solve_proper.
 
   Definition lrel_tern_sum (A B : lrel_ternC Σ) : lrel_ternC Σ :=
     LRelTern (lrel_sum' (lrel_tern_tern A) (lrel_tern_tern B))
-             (lrel_bin_sum' (lrel_tern_bin A) (lrel_tern_bin B))
              (lrel_un_sum' (lrel_tern_un A) (lrel_tern_un B)).
   Program Definition lrel_tern_sum' : lrel_ternC Σ -n> lrel_ternC Σ -n> lrel_ternC Σ :=
     λne A B, lrel_tern_sum A B.
-  Solve Obligations with intros ?????; split; [split|]; solve_proper.
+  Solve Obligations with intros ?????; split; solve_proper.
 
   Definition lrel_tern_arr (A B : lrel_ternC Σ) : lrel_ternC Σ :=
     LRelTern (lrel_arr' (lrel_tern_as_lrel A) (lrel_tern_as_lrel B))
-             (lrel_bin_arr' (lrel_tern_bin A) (lrel_tern_bin B))
              (lrel_un_arr' (lrel_tern_un A) (lrel_tern_un B)).
   Program Definition lrel_tern_arr' : lrel_ternC Σ -n> lrel_ternC Σ -n> lrel_ternC Σ :=
     λne A B, lrel_tern_arr A B.
-  Solve Obligations with intros ?????; split; [split|]; solve_proper.
+  Solve Obligations with intros ?????; split; solve_proper.
 
   Program Definition lrel_tern_forall {κ} : (kindO Σ κ -n> lrel_ternC Σ) -n> lrel_ternC Σ :=
     λne C, LRelTern
       (LRel (λ w1 w2 w3, ∀ A : kindO Σ κ, (lrel_arr lrel_true (lrel_tern_as_lrel (C A))) w1 w2 w3)%I)
-      (LRelBin (λ w1 w3, ∀ A : kindO Σ κ, (lrel_bin_arr lrel_bin_true (lrel_tern_bin (C A))) w1 w3)%I)
       (LRelUn (λ w, ∀ A : kindO Σ κ, (lrel_un_arr lrel_un_true (lrel_tern_un (C A))) w)%I).
-  Solve Obligations with intros ????; split; [split|]; solve_proper.
+  Solve Obligations with intros ????; split; solve_proper.
 
   Program Definition lrel_tern_exists {κ} : (kindO Σ κ -n> lrel_ternC Σ) -n> lrel_ternC Σ :=
     λne C, LRelTern
       (LRel (λ w1 w2 w3, ∃ A : kindO Σ κ, (lrel_tern_as_lrel (C A)) w1 w2 w3)%I)
-      (LRelBin (λ w1 w3, ∃ A : kindO Σ κ, lrel_tern_bin (C A) w1 w3)%I)
       (LRelUn (λ w, ∃ A : kindO Σ κ, lrel_tern_un (C A) w)%I).
   Next Obligation.
-    intros κ n C1 C2 HC. split; [split|].
+    intros κ n C1 C2 HC. split.
     - intros w1 w2 w3. rewrite /lrel_tern_as_lrel /lrel_car /=.
       f_equiv => A. apply lrel_tern_as_lrel_ne, HC.
-    - intros w1 w3. rewrite /lrel_tern_bin /lrel_bin_car /=.
-      f_equiv => A. apply lrel_tern_bin_ne, HC.
     - intros w. rewrite /lrel_tern_un /lrel_un_car /=.
       f_equiv => A. apply lrel_tern_un_ne, HC.
   Qed.
 
   #[local] Definition interp_tconstr {Θ κ} (c : tconstr κ) : ctxO Σ Θ -n> kindO Σ κ := λne _,
     match c in tconstr κ return kindO Σ κ with
-    | TUnit    => LRelTern lrel_unit lrel_bin_unit lrel_un_unit
-    | TNat     => LRelTern lrel_int lrel_bin_int lrel_un_int
-    | TBool    => LRelTern lrel_bool lrel_bin_bool lrel_un_bool
-    | TString  => LRelTern lrel_string lrel_bin_string lrel_un_string
+    | TUnit    => LRelTern lrel_unit lrel_un_unit
+    | TNat     => LRelTern lrel_int lrel_un_int
+    | TBool    => LRelTern lrel_bool lrel_un_bool
+    | TString  => LRelTern lrel_string lrel_un_string
     | TProd    => lrel_tern_prod'
     | TSum     => lrel_tern_sum'
     | TArrow   => lrel_tern_arr'
@@ -368,28 +354,6 @@ Section interp_unfold.
     lrel_arr (lrel_tern_as_lrel (interp τ1 Δ)) (lrel_tern_as_lrel (interp τ2 Δ)).
   Proof. rewrite interp_unseal //. Qed.
 
-  (** Binary projection unfold lemmas *)
-  Lemma interp_bin_unit_unfold : lrel_tern_bin (interp t_unit Δ) = lrel_bin_unit.
-  Proof. rewrite interp_unseal //. Qed.
-  Lemma interp_bin_nat_unfold : lrel_tern_bin (interp t_nat Δ) = lrel_bin_int.
-  Proof. rewrite interp_unseal //. Qed.
-  Lemma interp_bin_bool_unfold : lrel_tern_bin (interp t_bool Δ) = lrel_bin_bool.
-  Proof. rewrite interp_unseal //. Qed.
-  Lemma interp_bin_string_unfold : lrel_tern_bin (interp t_string Δ) = lrel_bin_string.
-  Proof. rewrite interp_unseal //. Qed.
-  Lemma interp_bin_prod_unfold τ1 τ2 :
-    lrel_tern_bin (interp (t_prod τ1 τ2) Δ) =
-    lrel_bin_prod (lrel_tern_bin (interp τ1 Δ)) (lrel_tern_bin (interp τ2 Δ)).
-  Proof. rewrite interp_unseal //. Qed.
-  Lemma interp_bin_sum_unfold τ1 τ2 :
-    lrel_tern_bin (interp (t_sum τ1 τ2) Δ) =
-    lrel_bin_sum (lrel_tern_bin (interp τ1 Δ)) (lrel_tern_bin (interp τ2 Δ)).
-  Proof. rewrite interp_unseal //. Qed.
-  Lemma interp_bin_arr_unfold τ1 τ2 :
-    lrel_tern_bin (interp (t_arr τ1 τ2) Δ) =
-    lrel_bin_arr (lrel_tern_bin (interp τ1 Δ)) (lrel_tern_bin (interp τ2 Δ)).
-  Proof. rewrite interp_unseal //. Qed.
-
   (** Unary projection unfold lemmas *)
   Lemma interp_un_unit_unfold : lrel_tern_un (interp t_unit Δ) = lrel_un_unit.
   Proof. rewrite interp_unseal //. Qed.
@@ -417,10 +381,6 @@ Section interp_unfold.
     lrel_tern_tern (interp (∀: κ, τ) Δ) v1 v2 v3 ≡
     (∀ A : kindO Σ κ, lrel_arr lrel_true (lrel_tern_as_lrel (interp τ (ext Δ A))) v1 v2 v3)%I.
   Proof. rewrite interp_unseal //. Qed.
-  Lemma interp_bin_forall_unfold κ (τ : type (Θ ▹ κ) ⋆) v1 v3 :
-    lrel_tern_bin (interp (∀: κ, τ) Δ) v1 v3 ≡
-    (∀ A : kindO Σ κ, lrel_bin_arr lrel_bin_true (lrel_tern_bin (interp τ (ext Δ A))) v1 v3)%I.
-  Proof. rewrite interp_unseal //. Qed.
   Lemma interp_un_forall_unfold κ (τ : type (Θ ▹ κ) ⋆) v :
     lrel_tern_un (interp (∀: κ, τ) Δ) v ≡
     (∀ A : kindO Σ κ, lrel_un_arr lrel_un_true (lrel_tern_un (interp τ (ext Δ A))) v)%I.
@@ -429,10 +389,6 @@ Section interp_unfold.
   Lemma interp_tern_exists_unfold κ (τ : type (Θ ▹ κ) ⋆) v1 v2 v3 :
     lrel_tern_tern (interp (∃: κ, τ) Δ) v1 v2 v3 ≡
     (∃ A : kindO Σ κ, lrel_tern_as_lrel (interp τ (ext Δ A)) v1 v2 v3)%I.
-  Proof. rewrite interp_unseal //. Qed.
-  Lemma interp_bin_exists_unfold κ (τ : type (Θ ▹ κ) ⋆) v1 v3 :
-    lrel_tern_bin (interp (∃: κ, τ) Δ) v1 v3 ≡
-    (∃ A : kindO Σ κ, lrel_tern_bin (interp τ (ext Δ A)) v1 v3)%I.
   Proof. rewrite interp_unseal //. Qed.
   Lemma interp_un_exists_unfold κ (τ : type (Θ ▹ κ) ⋆) v :
     lrel_tern_un (interp (∃: κ, τ) Δ) v ≡
@@ -443,13 +399,6 @@ Section interp_unfold.
   Lemma interp_rec_star_tern_unfold (τ : type (Θ ▹ ⋆)%kind ⋆) v1 v2 v3 :
     lrel_tern_tern (interp (μ: ⋆; τ) Δ) v1 v2 v3 ≡
     (▷ lrel_tern_tern (interp τ (ext Δ (interp (μ: ⋆; τ) Δ))) v1 v2 v3)%I.
-  Proof. 
-    rewrite interp_unseal /interp_def /= -/interp_def.
-    rewrite /= {1}interp_rec_unfold //.
-  Qed.
-  Lemma interp_rec_star_bin_unfold (τ : type (Θ ▹ ⋆)%kind ⋆) v1 v3 :
-    lrel_tern_bin (interp (μ: ⋆; τ) Δ) v1 v3 ≡
-    (▷ lrel_tern_bin (interp τ (ext Δ (interp (μ: ⋆; τ) Δ))) v1 v3)%I.
   Proof. 
     rewrite interp_unseal /interp_def /= -/interp_def.
     rewrite /= {1}interp_rec_unfold //.
@@ -467,11 +416,10 @@ Section interp_unfold.
     (▷ lrel_tern_as_lrel (interp τ (ext Δ (interp (μ: ⋆; τ) Δ))) v1 v2 v3)%I.
   Proof.
     trans (lrel_tern_tern (interp (μ: ⋆; τ) Δ) v1 v2 v3 ∧
-           lrel_tern_bin (interp (μ: ⋆; τ) Δ) v1 v3 ∧
-           lrel_tern_un (interp (μ: ⋆; τ) Δ) v2)%I.
+           lrel_tern_un (interp (μ: ⋆; τ) Δ) v1)%I.
     { rewrite /lrel_tern_as_lrel. cbv [lrel_car]. done. }
-    rewrite interp_rec_star_tern_unfold interp_rec_star_bin_unfold interp_rec_star_un_unfold.
-    rewrite -!bi.later_and.
+    rewrite interp_rec_star_tern_unfold interp_rec_star_un_unfold.
+    rewrite -bi.later_and.
     f_equiv. rewrite /lrel_tern_as_lrel. cbv [lrel_car]. done.
   Qed.
 
@@ -484,25 +432,20 @@ Section interp_unfold.
       lrel_tern_as_lrel (interp τ2 Δ) a2 b2 c2).
   Proof.
     iSplit.
-    - iIntros "[Htern [Hbin Hun]]".
+    - iIntros "[Htern Hun]".
       rewrite interp_tern_prod_unfold.
       iDestruct "Htern" as (a1 a2 b1 b2 c1 c2 -> -> ->) "[Ha Hb]".
-      rewrite interp_bin_prod_unfold.
-      iDestruct "Hbin" as (xa1 xa2 xc1 xc2) "(%Heq1 & %Heq2 & Ha' & Hb')".
-      simplify_eq/=.
       rewrite interp_un_prod_unfold.
-      iDestruct "Hun" as (xb1 xb2) "(%Heq3 & Ha'' & Hb'')".
-      simplify_eq/=.
-      iExists xa1, xc1, xb1, xb2, xa2, xc2. do 3 (iSplit; [done|]).
-      iSplitL "Ha Ha' Ha''"; (iSplit; [|iSplit]); iFrame.
-    - iDestruct 1 as (a1 a2 b1 b2 c1 c2) "(% & % & % & [Ha [Ha' Ha'']] & [Hb [Hb' Hb'']])".
-      simplify_eq. iSplit; [|iSplit].
+      iDestruct "Hun" as (xa1 xa2) "(%Heq & Ha' & Hb')".
+      injection Heq as -> ->.
+      iExists xa1, xa2, a2, c1, b1, c2. do 3 (iSplit; [done|]).
+      iSplitL "Ha Ha'"; iSplit; iFrame.
+    - iDestruct 1 as (a1 a2 b1 b2 c1 c2) "(% & % & % & [Ha Ha'] & [Hb Hb'])".
+      simplify_eq. iSplit.
       + rewrite interp_tern_prod_unfold.
         iExists a1, b1, c1, a2, b2, c2. do 3 (iSplit; [done|]). iFrame.
-      + rewrite interp_bin_prod_unfold.
-        iExists a1, c1, a2, c2. do 2 (iSplit; [done|]). iFrame.
       + rewrite interp_un_prod_unfold.
-        iExists b1, b2. iSplit; [done|]. iFrame.
+        iExists a1, a2. iSplit; [done|]. iFrame.
   Qed.
 
   (** Combined sum factoring lemma *)
@@ -515,30 +458,24 @@ Section interp_unfold.
         lrel_tern_as_lrel (interp τ2 Δ) w1 w2 w3)).
   Proof.
     iSplit.
-    - iIntros "[Htern [Hbin Hun]]".
+    - iIntros "[Htern Hun]".
       rewrite interp_tern_sum_unfold.
       iDestruct "Htern" as (a1 a2 a3) "[(-> & -> & -> & Ha) | (-> & -> & -> & Ha)]";
-        rewrite interp_bin_sum_unfold;
-        iDestruct "Hbin" as (xb1 xb2) "[(% & % & Ha') | (% & % & Ha')]";
-          try simplify_eq; rewrite interp_un_sum_unfold;
-          iDestruct "Hun" as (xu) "[(% & Ha'') | (% & Ha'')]";
-          try simplify_eq;
-          iExists xb1, xu, xb2; [iLeft|iRight];
-          do 3 (iSplit; [done|]); (iSplit; [|iSplit]); iFrame.
-    - iDestruct 1 as (w1 w2 w3) "[(% & % & % & [Ha [Ha' Ha'']]) | (% & % & % & [Ha [Ha' Ha'']])]";
-        simplify_eq; (iSplit; [|iSplit]).
+        rewrite interp_un_sum_unfold;
+        iDestruct "Hun" as (xu) "[[%Heq Ha']|[%Heq Ha']]";
+        try (by inversion Heq); injection Heq as ->.
+      + iExists xu, a2, a3. iLeft. do 3 (iSplit; [done|]). iSplit; iFrame.
+      + iExists xu, a2, a3. iRight. do 3 (iSplit; [done|]). iSplit; iFrame.
+    - iDestruct 1 as (w1 w2 w3) "[(% & % & % & [Ha Ha']) | (% & % & % & [Ha Ha'])]";
+        simplify_eq; iSplit.
       + rewrite interp_tern_sum_unfold.
         iExists w1, w2, w3. iLeft. do 3 (iSplit; [done|]). iFrame.
-      + rewrite interp_bin_sum_unfold.
-        iExists w1, w3. iLeft. do 2 (iSplit; [done|]). iFrame.
       + rewrite interp_un_sum_unfold.
-        iExists w2. iLeft. iSplit; [done|]. iFrame.
+        iExists w1. iLeft. iSplit; [done|]. iFrame.
       + rewrite interp_tern_sum_unfold.
         iExists w1, w2, w3. iRight. do 3 (iSplit; [done|]). iFrame.
-      + rewrite interp_bin_sum_unfold.
-        iExists w1, w3. iRight. do 2 (iSplit; [done|]). iFrame.
       + rewrite interp_un_sum_unfold.
-        iExists w2. iRight. iSplit; [done|]. iFrame.
+        iExists w1. iRight. iSplit; [done|]. iFrame.
   Qed.
 
   (** Combined base type lemmas *)
@@ -547,11 +484,11 @@ Section interp_unfold.
     ⌜v1 = #() ∧ v2 = #() ∧ v3 = #()⌝.
   Proof.
     rewrite /lrel_tern_as_lrel. cbv [lrel_car].
-    rewrite interp_tern_unit_unfold interp_bin_unit_unfold interp_un_unit_unfold.
-    cbv [lrel_unit lrel_bin_unit lrel_un_unit lrel_car lrel_bin_car lrel_un_car].
+    rewrite interp_tern_unit_unfold interp_un_unit_unfold.
+    cbv [lrel_unit lrel_un_unit lrel_car lrel_un_car].
     iSplit.
     - iIntros "[% _]". done.
-    - iIntros "%". destruct_and!. iSplit; [|iSplit]; iPureIntro; done.
+    - iIntros "%". destruct_and!. iSplit; iPureIntro; done.
   Qed.
 
   Lemma interp_bool_combined v1 v2 v3 :
@@ -559,12 +496,12 @@ Section interp_unfold.
     (∃ b : bool, ⌜v1 = #b ∧ v2 = #b ∧ v3 = #b⌝).
   Proof.
     rewrite /lrel_tern_as_lrel. cbv [lrel_car].
-    rewrite interp_tern_bool_unfold interp_bin_bool_unfold interp_un_bool_unfold.
-    cbv [lrel_bool lrel_bin_bool lrel_un_bool lrel_car lrel_bin_car lrel_un_car].
+    rewrite interp_tern_bool_unfold interp_un_bool_unfold.
+    cbv [lrel_bool lrel_un_bool lrel_car lrel_un_car].
     iSplit.
-    - iIntros "[[%b %] [_ _]]". iExists b. done.
+    - iIntros "[[%b %] _]". iExists b. done.
     - iIntros "[%b %]". destruct_and!. subst.
-      iSplit; [|iSplit]; iExists b; iPureIntro; done.
+      iSplit; [iExists b; iPureIntro; done|iExists b; iPureIntro; done].
   Qed.
 
   Lemma interp_nat_combined v1 v2 v3 :
@@ -572,12 +509,12 @@ Section interp_unfold.
     (∃ n : Z, ⌜v1 = #n ∧ v2 = #n ∧ v3 = #n⌝).
   Proof.
     rewrite /lrel_tern_as_lrel. cbv [lrel_car].
-    rewrite interp_tern_nat_unfold interp_bin_nat_unfold interp_un_nat_unfold.
-    cbv [lrel_int lrel_bin_int lrel_un_int lrel_car lrel_bin_car lrel_un_car].
+    rewrite interp_tern_nat_unfold interp_un_nat_unfold.
+    cbv [lrel_int lrel_un_int lrel_car lrel_un_car].
     iSplit.
-    - iIntros "[[%n %] [_ _]]". iExists n. done.
+    - iIntros "[[%n %] _]". iExists n. done.
     - iIntros "[%n %]". destruct_and!. subst.
-      iSplit; [|iSplit]; iExists n; iPureIntro; done.
+      iSplit; [iExists n; iPureIntro; done|iExists n; iPureIntro; done].
   Qed.
 
   Lemma interp_string_combined v1 v2 v3 :
@@ -585,12 +522,12 @@ Section interp_unfold.
     (∃ s : string, ⌜v1 = #s ∧ v2 = #s ∧ v3 = #s⌝).
   Proof.
     rewrite /lrel_tern_as_lrel. cbv [lrel_car].
-    rewrite interp_tern_string_unfold interp_bin_string_unfold interp_un_string_unfold.
-    cbv [lrel_string lrel_bin_string lrel_un_string lrel_car lrel_bin_car lrel_un_car].
+    rewrite interp_tern_string_unfold interp_un_string_unfold.
+    cbv [lrel_string lrel_un_string lrel_car lrel_un_car].
     iSplit.
-    - iIntros "[[%s %] [_ _]]". iExists s. done.
+    - iIntros "[[%s %] _]". iExists s. done.
     - iIntros "[%s %]". destruct_and!. subst.
-      iSplit; [|iSplit]; iExists s; iPureIntro; done.
+      iSplit; [iExists s; iPureIntro; done|iExists s; iPureIntro; done].
   Qed.
 
   (** Structural unfolds: [TApp] / [TLam]. *)
@@ -644,28 +581,27 @@ End interp_unfold.
 
     Rewrites the goal (or a hypothesis) by repeatedly matching known
     projection / structural shapes of [interp].  Ordered with the
-    unary-projection patterns first, then binary, then ternary, to match
-    the convention used by [rel_logic_bin_susp/interp.v]. *)
+    ternary-projection patterns first, then unary. *)
 Ltac interp_unfold_tac :=
   match goal with
   | |- context [interp (_ * _)] =>
-      first [rewrite interp_tern_prod_unfold | rewrite interp_bin_prod_unfold | rewrite interp_un_prod_unfold]
+      first [rewrite interp_tern_prod_unfold | rewrite interp_un_prod_unfold]
   | |- context [interp (_ + _)] =>
-      first [rewrite interp_tern_sum_unfold | rewrite interp_bin_sum_unfold | rewrite interp_un_sum_unfold]
+      first [rewrite interp_tern_sum_unfold | rewrite interp_un_sum_unfold]
   | |- context [interp (_ → _)] =>
-      first [rewrite interp_tern_arr_unfold | rewrite interp_bin_arr_unfold | rewrite interp_un_arr_unfold]
+      first [rewrite interp_tern_arr_unfold | rewrite interp_un_arr_unfold]
   | |- context [interp (t_forall _ _)] =>
-      first [rewrite interp_tern_forall_unfold | rewrite interp_bin_forall_unfold | rewrite interp_un_forall_unfold]
+      first [rewrite interp_tern_forall_unfold | rewrite interp_un_forall_unfold]
   | |- context [interp (t_exists _ _)] =>
-      first [rewrite interp_tern_exists_unfold | rewrite interp_bin_exists_unfold | rewrite interp_un_exists_unfold]
+      first [rewrite interp_tern_exists_unfold | rewrite interp_un_exists_unfold]
   | |- context [interp ()] =>
-      first [rewrite interp_tern_unit_unfold | rewrite interp_bin_unit_unfold | rewrite interp_un_unit_unfold]
+      first [rewrite interp_tern_unit_unfold | rewrite interp_un_unit_unfold]
   | |- context [interp t_nat] =>
-      first [rewrite interp_tern_nat_unfold | rewrite interp_bin_nat_unfold | rewrite interp_un_nat_unfold]
+      first [rewrite interp_tern_nat_unfold | rewrite interp_un_nat_unfold]
   | |- context [interp t_bool] =>
-      first [rewrite interp_tern_bool_unfold | rewrite interp_bin_bool_unfold | rewrite interp_un_bool_unfold]
+      first [rewrite interp_tern_bool_unfold | rewrite interp_un_bool_unfold]
   | |- context [interp t_string] =>
-      first [rewrite interp_tern_string_unfold | rewrite interp_bin_string_unfold | rewrite interp_un_string_unfold]
+      first [rewrite interp_tern_string_unfold | rewrite interp_un_string_unfold]
 
   (* Structural *)
   | |- context [interp (TApp _ _)] => rewrite interp_app_unfold
@@ -832,11 +768,10 @@ Qed.
 #[global] Instance from_exist_interp_t_exists `{authG Σ, seqG Σ} {Θ} (Δ : ctxO Σ Θ) κ (τ : type (Θ ▹ κ) ⋆) (v1 v2 v3 : val):
   FromExist (⟦ ∃: κ, τ ⟧ Δ v1 v2 v3) (λ A, ⟦ τ ⟧ (ext Δ A) v1 v2 v3).
 Proof.
-  rewrite /FromExist. iIntros "#H". iDestruct "H" as (A) "[#HAtern [#HAbin #HAun]]".
-  iSplit; [|iSplit].
+  rewrite /FromExist. iIntros "#H". iDestruct "H" as (A) "[#HAtern #HAun]".
+  iSplit.
   { iEval (rewrite interp_tern_exists_unfold). iExists A.
-    iSplit; [iExact "HAtern"|]. iSplit; [iExact "HAbin" | iExact "HAun"]. }
-  { iEval (rewrite interp_bin_exists_unfold). iExists A. iExact "HAbin". }
+    iSplit; [iExact "HAtern" | iExact "HAun"]. }
   { iEval (rewrite interp_un_exists_unfold). iExists A. iExact "HAun". }
 Qed.
 
@@ -921,18 +856,6 @@ Section interp_subst.
     destruct (Γ !! x) => /=; [|done].
     constructor. intros w1 w2 w3. apply equiv_dist. intros n.
     apply lrel_tern_as_lrel_ne.
-    exact (proj1 (equiv_dist _ _) (shift_eq t Δ A) n).
-  Qed.
-
-  Lemma shift_env_bin_eq (Θ : Ctx kind) (Γ : gmap string (typ ⋆ Θ)) (Δ : ctxO Σ Θ) κ (A : kindO Σ κ) :
-    (λ σ : typ ⋆ Θ, lrel_tern_bin (interp σ Δ)) <$> Γ ≡
-    (λ σ : typ ⋆ (Θ ▹ κ), lrel_tern_bin (interp σ (ext Δ A))) <$> ⤉ Γ.
-  Proof.
-    rewrite -map_fmap_compose => x.
-    rewrite !lookup_fmap.
-    destruct (Γ !! x) => /=; [|done].
-    constructor. intros w1 w2. apply equiv_dist. intros n.
-    apply lrel_tern_bin_ne.
     exact (proj1 (equiv_dist _ _) (shift_eq t Δ A) n).
   Qed.
 
@@ -1026,63 +949,7 @@ End env_typed.
 Notation "⟦ Γ ⟧*" := (env_ltyped Γ).
 Notation "⟦ τ ⟧" := (interp τ).
 
-(** * Binary environment typing (prover–ideal) *)
-Section env_typed_bin.
-  Context `{authG Σ, seqG Σ}.
-  Implicit Types A B : lrel_bin Σ.
-  Implicit Types Γ : gmap string (lrel_bin Σ).
-
-  Definition env_ltyped_bin (Γ : gmap string (lrel_bin Σ)) (vs : gmap string (val * val)) : iProp Σ :=
-    ([∗ map] i ↦ A; '(v1,v2) ∈ Γ;vs, A v1 v2)%I.
-
-  Notation "⟦ Γ ⟧*ᵢ" := (env_ltyped_bin Γ).
-
-  Global Instance env_ltyped_bin_ne n :
-    Proper (dist n ==> (=) ==> dist n) env_ltyped_bin.
-  Proof.
-    intros Γ Γ' HΓ ? vvs ->. apply big_sepM2_ne_2; [done..|solve_proper].
-  Qed.
-
-  Global Instance env_ltyped_bin_proper :
-    Proper ((≡) ==> (=) ==> (≡)) env_ltyped_bin.
-  Proof. solve_proper_from_ne. Qed.
-
-  Lemma env_ltyped_bin_lookup Γ vs x A :
-    Γ !! x = Some A →
-    ⟦ Γ ⟧*ᵢ vs ⊢ ∃ v1 v2, ⌜ vs !! x = Some (v1,v2) ⌝ ∧ A v1 v2.
-  Proof.
-    intros ?. rewrite /env_ltyped_bin big_sepM2_lookup_l //.
-    iDestruct 1 as ([] ?) "H". eauto with iFrame.
-  Qed.
-
-  Lemma env_ltyped_bin_insert Γ vs x A v1 v2 :
-    A v1 v2 -∗ ⟦ Γ ⟧*ᵢ vs -∗
-    ⟦ (binder_insert x A Γ) ⟧*ᵢ (binder_insert x (v1, v2) vs).
-  Proof.
-    destruct x as [|x]=> /=; first by auto.
-    rewrite /env_ltyped_bin. iIntros "HA HΓ".
-    by iApply (big_sepM2_insert_2 with "[HA] [HΓ]").
-  Qed.
-
-  Lemma env_ltyped_bin_empty :
-    ⊢ ⟦ ∅ ⟧*ᵢ ∅.
-  Proof. apply (big_sepM2_empty' _). Qed.
-
-  Lemma env_ltyped_bin_empty_inv vs :
-    ⟦ ∅ ⟧*ᵢ vs ⊢ ⌜vs = ∅⌝.
-  Proof. apply big_sepM2_empty_r. Qed.
-
-  Global Instance env_ltyped_bin_persistent Γ vs : Persistent (⟦ Γ ⟧*ᵢ vs).
-  Proof.
-    apply big_sepM2_persistent.
-    intros ?? [] ??. apply _.
-  Qed.
-
-End env_typed_bin.
-
-Notation "⟦ Γ ⟧*ᵢ" := (env_ltyped_bin Γ).
-
-(** * Unary environment typing (verifier) *)
+(** * Unary environment typing (prover) *)
 Section env_typed_un.
   Context `{authG Σ, seqG Σ}.
   Implicit Types A B : lrel_un Σ.
@@ -1134,6 +1001,18 @@ Section env_typed_un.
     intros ???  ??. apply _.
   Qed.
 
+  Lemma env_tern_to_un {Θ} (Δ : ctxO Σ Θ) (Γ : stringmap (typ ⋆ Θ)) vs :
+    env_ltyped ((λ (σ : typ ⋆ Θ), lrel_tern_as_lrel (interp σ Δ)) <$> Γ) vs ⊢
+    env_ltyped_un ((λ (σ : typ ⋆ Θ), lrel_tern_un (interp σ Δ)) <$> Γ) (fst ∘ fst <$> vs).
+  Proof.
+    rewrite /env_ltyped /env_ltyped_un.
+    iIntros "H".
+    rewrite big_sepM2_fmap_l.
+    rewrite big_sepM2_fmap_l big_sepM2_fmap_r.
+    iApply (big_sepM2_mono with "H").
+    intros k σ [[v1 v2] v3] _ _. simpl. apply lrel_tern_proj_un.
+  Qed.
+
 End env_typed_un.
 
 Notation "⟦ Γ ⟧*ᵤ" := (env_ltyped_un Γ).
@@ -1164,51 +1043,26 @@ Notation "'{' Θ ';' Δ ';' Γ '}' ⊨ e '≤log≤' e' '≤log≤' e'' : τ" :=
    τ at level 200,
    format "'[hv' '{' Θ ';'  Δ ';'  Γ '}'  ⊨  '/  ' e  '/' '≤log≤'  '/  ' e'  '/' '≤log≤'  '/  ' e''  :  τ ']'").
 
-(** * Binary semantic typing (prover–ideal) *)
-Section bin_log_related.
-  Context `{authG Σ, seqG Σ}.
-
-  Definition bin_log_related (E : coPset) (Θ : Ctx kind)
-    (Δ : ctxO Σ Θ) (Γ : stringmap (type Θ ⋆)) (eₚ eᵢ : expr) (τ : type Θ ⋆) : iProp Σ :=
-    (∀ (vs : gmap string (val * val)),
-        ⟦ (λ (σ : type Θ ⋆), lrel_tern_bin (interp σ Δ)) <$> Γ ⟧*ᵢ vs -∗
-        REL (subst_map (fst <$> vs) eₚ)
-        <<ᵢ  (subst_map (snd <$> vs) eᵢ) @ E
-        : lrel_tern_bin (interp τ Δ))%I.
-
-End bin_log_related.
-
-Notation "'{' E ';' Θ ';' Δ ';' Γ '}' ⊨ᵢ eₚ '≤log≤' eᵢ : τ" :=
-  (bin_log_related E Θ Δ Γ eₚ%E eᵢ%E τ%ty)
-  (at level 100, E at next level, Δ, Θ at next level, Γ at next level, eₚ, eᵢ at next level,
-   τ at level 200,
-   format "'[hv' '{' E ';'  Θ ';'  Δ ';'  Γ '}'  ⊨ᵢ  '/  ' eₚ  '/' '≤log≤'  '/  ' eᵢ  :  τ ']'").
-Notation "'{' Θ ';' Δ ';' Γ '}' ⊨ᵢ eₚ '≤log≤' eᵢ : τ" :=
-  (bin_log_related ⊤ Θ Δ Γ eₚ%E eᵢ%E τ%ty)
-  (at level 100, Δ at next level, Γ at next level, eₚ, eᵢ at next level,
-   τ at level 200,
-   format "'[hv' '{' Θ ';'  Δ ';'  Γ '}'  ⊨ᵢ  '/  ' eₚ  '/' '≤log≤'  '/  ' eᵢ  :  τ ']'").
-
-(** * Unary semantic typing (verifier) *)
+(** * Unary semantic typing (prover) *)
 Section un_log_related.
   Context `{authG Σ, seqG Σ}.
 
   Definition un_log_related (E : coPset) (Θ : Ctx kind)
-    (Δ : ctxO Σ Θ) (Γ : stringmap (type Θ ⋆)) (eᵥ : expr) (τ : type Θ ⋆) : iProp Σ :=
+    (Δ : ctxO Σ Θ) (Γ : stringmap (type Θ ⋆)) (eₚ : expr) (τ : type Θ ⋆) : iProp Σ :=
     (∀ (vs : gmap string val),
         ⟦ (λ (σ : type Θ ⋆), lrel_tern_un (interp σ Δ)) <$> Γ ⟧*ᵤ vs -∗
-        VER (subst_map vs eᵥ) @ E
+        PRV (subst_map vs eₚ) @ E
         : lrel_tern_un (interp τ Δ))%I.
 
 End un_log_related.
 
-Notation "'{' E ';' Θ ';' Δ ';' Γ '}' ⊨ᵤ eᵥ : τ" :=
-  (un_log_related E Θ Δ Γ eᵥ%E τ%ty)
-  (at level 100, E at next level, Δ, Θ at next level, Γ at next level, eᵥ at next level,
+Notation "'{' E ';' Θ ';' Δ ';' Γ '}' ⊨ᵤ eₚ : τ" :=
+  (un_log_related E Θ Δ Γ eₚ%E τ%ty)
+  (at level 100, E at next level, Δ, Θ at next level, Γ at next level, eₚ at next level,
    τ at level 200,
-   format "'[hv' '{' E ';'  Θ ';'  Δ ';'  Γ '}'  ⊨ᵤ  '/  ' eᵥ  :  τ ']'").
-Notation "'{' Θ ';' Δ ';' Γ '}' ⊨ᵤ eᵥ : τ" :=
-  (un_log_related ⊤ Θ Δ Γ eᵥ%E τ%ty)
-  (at level 100, Δ at next level, Γ at next level, eᵥ at next level,
+   format "'[hv' '{' E ';'  Θ ';'  Δ ';'  Γ '}'  ⊨ᵤ  '/  ' eₚ  :  τ ']'").
+Notation "'{' Θ ';' Δ ';' Γ '}' ⊨ᵤ eₚ : τ" :=
+  (un_log_related ⊤ Θ Δ Γ eₚ%E τ%ty)
+  (at level 100, Δ at next level, Γ at next level, eₚ at next level,
    τ at level 200,
-   format "'[hv' '{' Θ ';'  Δ ';'  Γ '}'  ⊨ᵤ  '/  ' eᵥ  :  τ ']'").
+   format "'[hv' '{' Θ ';'  Δ ';'  Γ '}'  ⊨ᵤ  '/  ' eₚ  :  τ ']'").
