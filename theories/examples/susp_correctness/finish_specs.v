@@ -24,7 +24,7 @@ Section finish_specs.
 
     iMod (na_inv_acc with "Htab Htabtok") as "(Htabo & Htabtok & Hclose_tab)"; try solve_ndisj.
     iMod (lc_fupd_elim_later with "Hlc Htabo") as "Htabo".
-    iDestruct "Htabo" as "[(%&%&%&%&%&%& %idctr &% &% & Hl & %Hm & 
+    iDestruct "Htabo" as "[(%&%&%&%&%&%& %idctr &% &% &% & Hl & %Hm &
         Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hst')|Hst']";
       last first.
     { by iPoseProof (tern_state_un_state_excl with "Hst Hst'") as "?". }
@@ -231,10 +231,10 @@ Section finish_specs.
               seq_tok E' ∗ auth_transit_v E' pid a s0 ∗
               ((∃ γ vm',
                   ⌜vm' = (<[ γ := finished_val ]>vm)⌝ ∗
-                  vm_big_sep (delete #pid m) vm' ∗ 
-                  visited_mapg_auth vm' dm ps pn idctr gm) ∨
-               (vm_big_sep (delete #pid m) vm ∗ 
-                visited_mapg_auth vm dm ps pn idctr gm)) ∗
+                  vm_big_sep (delete #pid m) vm' ∗
+                  visited_mapg_auth vm' dm ps pn idctr gm pvm) ∨
+               (vm_big_sep (delete #pid m) vm ∗
+                visited_mapg_auth vm dm ps pn idctr gm pvm)) ∗
               mapg_auth (<[pid:=csum.Cinr (to_agree ())]> m') ∗
               [∗ map] k↦y0 ∈ mapg_alive (<[pid:=csum.Cinr (to_agree ())]> m'), 
                     v_susp_big_sep_lam m k y0)%I
@@ -501,7 +501,7 @@ Section finish_specs.
 
     iApply "HΦ". iFrame.
     iModIntro. repeat (iSplit; eauto).
-    iIntros (???????) "Hst Hpset Hpc Hvm % #HbigL".
+    iIntros (????????) "Hst Hpset Hpc Hvm % #HbigL".
     
     iPoseProof ("Hgood" with "Hst Hpset [//] HbigL") as "($ & Hpset & #HbigL')".
     iPoseProof (big_sepS_sep
@@ -528,10 +528,10 @@ Section finish_specs.
           ⌜ps_proph = ps_proph' ++ x⌝ ∗ ⌜ps_proph' = ps_real⌝ ∗
           ⌜is_proof prf' ps'⌝ ∗ ⌜ps' = reverse ps_proph' ++ ps⌝ ∗
           proph_proof p x ∗ seq_tok ⊤ ∗
-          (∀ vm d pset ctr gm,
-            tern_state -∗ visited_mapg_auth vm d pset pn ctr gm -∗
+          (∀ vm d pset ctr gm pvm,
+            tern_state -∗ visited_mapg_auth vm d pset pn ctr gm pvm -∗
             pencount_frag pn ==∗
-            tern_state ∗ visited_mapg_auth vm d ∅ 0 ctr gm ∗
+            tern_state ∗ visited_mapg_auth vm d ∅ 0 ctr gm pvm ∗
             pencount_frag 0) }}}.
   Proof.
     iIntros (?????????? ?) 
@@ -548,8 +548,8 @@ Section finish_specs.
       iFrame "∗ %". instantiate (1 := []).
       
       iModIntro. iFrame. repeat (iSplit; eauto).
-      iIntros (?????) "$ Hvm Hpenc".
-      iDestruct "Hvm" as "(Hms & Hd & Hps & Hpn & Hgm & Hctr & %Hdom & %Hgmm & %Hdid & %Hpcoh)".
+      iIntros (??????) "$ Hvm Hpenc".
+      iDestruct "Hvm" as "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & %Hdom & %Hdompvm & %Hgmm & %Hdid & %Hpcoh)".
       destruct Hpcoh as [Hsize Hpend].
       symmetry in Hsize. apply size_empty_inv, leibniz_equiv in Hsize as ->.
       iModIntro. iFrame.
@@ -586,12 +586,12 @@ Section finish_specs.
       simplify_list_eq.
       repeat (iSplit; eauto).
 
-      iIntros (?????) "Hgood Hvm Hpc".
+      iIntros (??????) "Hgood Hvm Hpc".
 
       iPoseProof ("Hgoodtr1" with "Hgood") as (?) "(Hgood & Hpset & % & HbigS)".
 
       assert (sum_list lpn + pn = pn + sum_list lpn) as <- by lia.
-      iMod ("Hgoodtr2" $! vm d pset (sum_list lpn + size γl) ctr gm with "Hgood Hpset Hpc Hvm [//] HbigS")
+      iMod ("Hgoodtr2" $! vm d pset (sum_list lpn + size γl) ctr gm pvm with "Hgood Hpset Hpc Hvm [//] HbigS")
         as "(Hgood & Hpc & Hvm_rem)".
       
       iEval (rewrite visited_mapg_pending_remove_rewrite) in "Hvm_rem".
