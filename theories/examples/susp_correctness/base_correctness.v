@@ -7,7 +7,7 @@ From auth.examples.susp_correctness Require Export definitions helpers.
 
 Section authenticatable.
   Context `{!authG Σ, !seqG Σ, !correctnessG Σ}.
-  
+
 
 
   Lemma refines_Auth_sum Θ (Δ : ctxO Σ Θ) :
@@ -32,9 +32,7 @@ Section authenticatable.
     iIntros (vA1 vA2 vA3) "!# #HA".
     interp_unfold! in "HA".
     iDestruct "HA" as "(HA_tern & #HA_un)".
-    rewrite interp_var2_ext3 interp_var1_ext2.
-    iDestruct "HA_tern" as (tA p_ssA p_usA p_spA p_uspA v_sA v_dA v_cA -> ->)
-      "(#HusserA & #HsserA & HsuspvdeserA & #HunsuspA & HvserA & HvauthserA & HvcountA)".
+    iDestruct "HA_tern" as (tA p_ssA p_usA p_spA p_uspA v_sA v_dA v_cA -> ->) "#HrestA".
     fold v_ser_spec.
     iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
@@ -43,9 +41,7 @@ Section authenticatable.
     iIntros (vB1 vB2 vB3) "!# #HB".
     interp_unfold! in "HB".
     iDestruct "HB" as "(HB_tern & #HB_un)".
-    rewrite interp_var2_ext3 interp_var0_ext1.
-    iDestruct "HB_tern" as (tB p_ssB p_usB p_spB p_uspB v_sB v_dB v_cB -> ->)
-      "(#HusserB & #HsserB & HsuspvdeserB & #HunsuspB & HvserB & HvauthserB & HvcountB)".
+    iDestruct "HB_tern" as (tB p_ssB p_usB p_spB p_uspB v_sB v_dB v_cB -> ->) "#HrestB".
     iIntros (????) "Hv Hi Htok".
     rewrite /sum_ser'' /sum_ser /sum_count.
     v_pures; i_pures; wp_pures.
@@ -53,9 +49,11 @@ Section authenticatable.
     iSplit; interp_unfold!; last first.
     { (* final unary  *) admit. }
     (* Ternary evidence for the sum. *)
-    rewrite interp_var2_ext3.
     iExists (tsum tA tB), _, _, _, _, _, _, _.
     iSplit; [done|]. iSplit; [done|].
+    (* Now destruct HrestA/HrestB for use in bullets *)
+    iDestruct "HrestA" as "(HusserA & HsserA & HsuspvdeserA & HunsuspA & HvserA & HvauthserA & HvcountA)".
+    iDestruct "HrestB" as "(HusserB & HsserB & HsuspvdeserB & HunsuspB & HvserB & HvauthserB & HvcountB)".
     iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]].
     - (* 1. unsusp_p_ser_spec *)
       iIntros (v s Ψ) "!# Hser HΨ".
@@ -140,8 +138,7 @@ Section authenticatable.
     - (* 6. v_auth_ser_spec *)
       iIntros (K tᵥ3 a1 a2 a3) "!# #HA Hv".
       rewrite /sum_ser''. v_pures.
-      rewrite interp_tern_sum_unfold.
-      rewrite interp_var1_ext2 interp_var0_ext1.
+      interp_unfold! in "HA".
       iDestruct "HA" as (v1' v2' v3') "[(>-> & >-> & >-> & #HrA) | (>-> & >-> & >-> & #HrB)]".
       + (* InjL *)
         v_pures. v_bind (v_sA _).
@@ -295,16 +292,14 @@ Section authenticatable.
     iIntros (vA1 vA2 vA3) "!# #HA".
     interp_unfold! in "HA".
     iDestruct "HA" as "(HA_tern & #HA_un)".
-    rewrite interp_var1_ext2 interp_var0_ext1.
-    iDestruct "HA_tern" as (tA p_ssA p_usA p_spA p_uspA v_sA v_dA v_cA -> ->)
-      "(HusserA & HsserA & HsuspvdeserA & HunsuspA & HvserA & HvauthserA & HvcountA)".
+    iDestruct "HA_tern" as (tA p_ssA p_usA p_spA p_uspA v_sA v_dA v_cA -> ->) "HrestA".
     iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
     iSplit; interp_unfold!; last first.
     { (* final unary  *) admit. }
-    rewrite interp_var1_ext2.
     iExists tA, _, _, _, _, _, _, _.
     iSplit; [done|]. iSplit; [done|].
+    iDestruct "HrestA" as "(HusserA & HsserA & HsuspvdeserA & HunsuspA & HvserA & HvauthserA & HvcountA)".
     iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]].
     - (* 1. unsusp_p_ser_spec *)
       iIntros (vmu smu Ψ) "!# Hser HΨ".
@@ -324,7 +319,6 @@ Section authenticatable.
       rewrite /rec_fold. wp_pures.
       iEval (rewrite interp_rec_star_unfold) in "HA".
       interp_unfold! in "HA".
-      rewrite interp_var1_ext2 interp_var0_ext1.
       wp_apply ("HunsuspA" with "[//] [$Htok $HA $Hintr]").
       iIntros (un_v s) "(Htok & Hintr & %Hunsusp & #Hser)".
       iApply ("HΨ" $! un_v s). iFrame. iFrame "#". done.

@@ -24,7 +24,6 @@ Section authenticatable.
     iSplit; interp_unfold!; last first.
     { (* final unary  *) admit. }
     (* Ternary evidence for the auth. *)
-    rewrite interp_var1_ext2.
     iExists tauth, _, _, _, _, _, _, _.
     iSplit; [done|]. iSplit; [done|].
     iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]].

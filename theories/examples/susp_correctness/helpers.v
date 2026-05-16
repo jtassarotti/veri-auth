@@ -1142,4 +1142,38 @@ Section authentikit_helpers.
       apply Qp.not_add_le_r.
   Qed.
 
+  (** Explicit [Persistent] instances for the spec definitions, required
+      when downstream proofs mark the specs [Typeclasses Opaque] inside
+      their section.  Without these, [iSplit] / [iFrame] / [iDestruct]
+      can't derive persistence from the [□(...)] body because typeclass
+      search refuses to unfold the opaque name.  Pre-recording the
+      persistence fact here lets the search find it directly. *)
+  Global Instance susp_p_ser_spec_pers ser t :
+    Persistent (susp_p_ser_spec ser t).
+  Proof. rewrite /susp_p_ser_spec. apply _. Qed.
+
+  Global Instance unsusp_p_ser_spec_pers ser t :
+    Persistent (unsusp_p_ser_spec ser t).
+  Proof. rewrite /unsusp_p_ser_spec. apply _. Qed.
+
+  Global Instance suspend_v_deser_spec_pers ser suspend v_deser A t :
+    Persistent (suspend_v_deser_spec ser suspend v_deser A t).
+  Proof. rewrite /suspend_v_deser_spec. apply _. Qed.
+
+  Global Instance unsuspend_spec_pers unsuspend A t :
+    Persistent (unsuspend_spec unsuspend A t).
+  Proof. rewrite /unsuspend_spec. apply _. Qed.
+
+  Global Instance v_ser_spec_pers v_ser t :
+    Persistent (v_ser_spec v_ser t).
+  Proof. rewrite /v_ser_spec. apply _. Qed.
+
+  Global Instance v_auth_ser_spec_pers v_ser A t :
+    Persistent (v_auth_ser_spec v_ser A t).
+  Proof. rewrite /v_auth_ser_spec. apply _. Qed.
+
+  Global Instance v_count_spec_pers v_count t :
+    Persistent (v_count_spec v_count t).
+  Proof. rewrite /v_count_spec. apply _. Qed.
+
 End authentikit_helpers.

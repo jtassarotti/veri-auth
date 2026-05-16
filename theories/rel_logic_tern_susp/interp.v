@@ -582,43 +582,65 @@ End interp_unfold.
     Rewrites the goal (or a hypothesis) by repeatedly matching known
     projection / structural shapes of [interp].  Ordered with the
     ternary-projection patterns first, then unary. *)
+
 Ltac interp_unfold_tac :=
   match goal with
+  (* Compound types: prefer the [_combined] lemma when available — it
+     rewrites the [lrel_tern_as_lrel] wrapper in one shot into a directly
+     destructible form (no follow-up [iDestruct as "[Htern Hun]"] split
+     needed), and falls back to the individual [tern]/[un] projections
+     when only one half is exposed (e.g. inside [iSplit; ...]). *)
   | |- context [interp (_ * _)] =>
-      first [rewrite interp_tern_prod_unfold | rewrite interp_un_prod_unfold]
+      first [ rewrite interp_prod_combined
+            | rewrite interp_tern_prod_unfold
+            | rewrite interp_un_prod_unfold ]
   | |- context [interp (_ + _)] =>
-      first [rewrite interp_tern_sum_unfold | rewrite interp_un_sum_unfold]
+      first [ rewrite interp_sum_combined
+            | rewrite interp_tern_sum_unfold
+            | rewrite interp_un_sum_unfold ]
   | |- context [interp (_ → _)] =>
       first [rewrite interp_tern_arr_unfold | rewrite interp_un_arr_unfold]
   | |- context [interp (t_forall _ _)] =>
       first [rewrite interp_tern_forall_unfold | rewrite interp_un_forall_unfold]
   | |- context [interp (t_exists _ _)] =>
       first [rewrite interp_tern_exists_unfold | rewrite interp_un_exists_unfold]
+  (* Base type projections *)
   | |- context [interp ()] =>
-      first [rewrite interp_tern_unit_unfold | rewrite interp_un_unit_unfold]
+      first [ rewrite interp_unit_combined
+            | rewrite interp_tern_unit_unfold
+            | rewrite interp_un_unit_unfold ]
   | |- context [interp t_nat] =>
-      first [rewrite interp_tern_nat_unfold | rewrite interp_un_nat_unfold]
+      first [ rewrite interp_nat_combined
+            | rewrite interp_tern_nat_unfold
+            | rewrite interp_un_nat_unfold ]
   | |- context [interp t_bool] =>
-      first [rewrite interp_tern_bool_unfold | rewrite interp_un_bool_unfold]
+      first [ rewrite interp_bool_combined
+            | rewrite interp_tern_bool_unfold
+            | rewrite interp_un_bool_unfold ]
   | |- context [interp t_string] =>
-      first [rewrite interp_tern_string_unfold | rewrite interp_un_string_unfold]
-
-  (* Structural *)
+      first [ rewrite interp_string_combined
+            | rewrite interp_tern_string_unfold
+            | rewrite interp_un_string_unfold ]
+  (* Structural unfolds (last: they would otherwise descend into μ-types
+     and leak the [▷] from the [interp_rec] fixpoint). *)
   | |- context [interp (TApp _ _)] => rewrite interp_app_unfold
   | |- context [interp (TLam _)]   => rewrite interp_lam_unfold
-
-  (* De Bruijn variable lookups (up to depth 6) *)
-  | |- context [ofe_mor_car _ _ (interp var0) (ext _ _)] => rewrite interp_var0_ext1
-  | |- context [ofe_mor_car _ _ (interp var1) (ext (ext _ _) _)] => rewrite interp_var1_ext2
-  | |- context [ofe_mor_car _ _ (interp var2) (ext (ext (ext _ _) _) _)] => rewrite interp_var2_ext3
-  | |- context [ofe_mor_car _ _ (interp var3) (ext (ext (ext (ext _ _) _) _) _)] => rewrite interp_var3_ext4
-  | |- context [ofe_mor_car _ _ (interp var4) (ext (ext (ext (ext (ext _ _) _) _) _) _)] => rewrite interp_var4_ext5
-  | |- context [ofe_mor_car _ _ (interp var5) (ext (ext (ext (ext (ext (ext _ _) _) _) _) _) _)] => rewrite interp_var5_ext6
+  (* De Bruijn variable lookups — looser [context [interp varN]] pattern
+     fires through transparent context wrappers like [auth_ctx Δ] which the
+     old [ofe_mor_car _ _ (interp varN) (ext _ _)] pattern could not see
+     through, removing the need for follow-up [rewrite interp_varN_extM]
+     chains after every [interp_unfold!]. *)
+  | |- context [interp var0] => rewrite interp_var0_ext1
+  | |- context [interp var1] => rewrite interp_var1_ext2
+  | |- context [interp var2] => rewrite interp_var2_ext3
+  | |- context [interp var3] => rewrite interp_var3_ext4
+  | |- context [interp var4] => rewrite interp_var4_ext5
+  | |- context [interp var5] => rewrite interp_var5_ext6
   end.
 
 Tactic Notation "interp_unfold" := iEval interp_unfold_tac.
 Tactic Notation "interp_unfold" "!" := iEval (repeat interp_unfold_tac).
-Tactic Notation "interp_unfold" "in" constr(H) := iEval (repeat interp_unfold_tac) in H.
+Tactic Notation "interp_unfold" "in" constr(H) := iEval interp_unfold_tac in H.
 Tactic Notation "interp_unfold" "!" "in" constr(H) := iEval (repeat interp_unfold_tac) in H.
 
 (** * Proof mode instances that will allow us to avoid manually unsealing/unfolding [interp] in many situations *)
