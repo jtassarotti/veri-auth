@@ -310,134 +310,94 @@ Section visited_map_res.
       ∃ susp, pvm !! id ≡ Some (to_agree susp) ∧
               m_v !! susp ≡ Some (Cinr (to_agree (γ : leibnizO gname))).
 
-  (** [id_ref_coherent pvm rs]: each [(from, to)] in [rs] has [to < from]
-      and the locs [pvm] records for [from] and [to] differ. The
-      loc-inequality is established at allocation time by the
-      [vmeta_token] freshness of the new susp loc. *)
+  (** [id_ref_coherent gm pvm rs]: each [(from, to)] in [rs] has [to < from],
+      `from` is bound in [gm] (Cinr side — established at the same step
+      where the rs entry is allocated), and the locs [pvm] records for
+      [from] and [to] differ. The "from is bound" conjunct lets
+      [bind_id_*_susp] internally derive [rs[from] = None] from
+      [id_token from] (gm[from] = Cinl), so callers don't need to thread
+      [⌜rs !! from = None⌝] as a precondition. *)
   Definition id_ref_coherent
-      (pvm : pvalmap_type) (rs : id_ref_type) : Prop :=
+      (gm : id_mapg_type) (pvm : pvalmap_type) (rs : id_ref_type) : Prop :=
     ∀ from to, rs !! from = Some to →
       to < from ∧
+      (∃ γ, gm !! from = Some (Cinr (to_agree (γ : leibnizO gname)))) ∧
       ∃ susp_from susp_to,
         pvm !! from ≡ Some (to_agree susp_from) ∧
         pvm !! to ≡ Some (to_agree susp_to) ∧
         susp_from ≠ susp_to.
 
-  (** [visited_mapg_auth] now also tracks the verifier-side [lg_map]
-      [m_v] (at [lg_mapG_v_name]) and the id-ref map [rs] (at
-      [id_refG_name]). The pure invariants tie them together:
-      - [dom gm = set_seq 0 ctr] / [dom pvm = set_seq 0 ctr]: counter
-        bookkeeping.
-      - [gm_m_coherent]: gm ↔ m linkage.
-      - [id_susp_gamma_coherent]: gm-bound id → susp → γ link.
-      - [id_ref_coherent]: every (from, to) is well-ordered and uses
-        distinct susps. *)
-  Definition visited_mapg_auth (m : state_mapg_type) (d : done_mapg_type)
-      (ps : pending_setg_type) (pending_n : nat) (ctr : nat)
-      (gm : id_mapg_type) (pvm : pvalmap_type) (m_v : lg_mapg_type)
-      (rs : id_ref_type) : iProp Σ :=
-    own visited_state_name (● m) ∗ own visited_done_name (● d) ∗
-    own pending_set_name (● GSet ps) ∗ pencount_frag pending_n ∗
-    own pending_id_name (● gm) ∗
-    id_ctr_frag ctr ∗
-    pvalmap_auth pvm ∗
-    own lg_mapG_v_name (● m_v) ∗
-    own spec_meta_name (◯ GSet (dom m_v)) ∗
-    id_ref_auth rs ∗
-    ⌜dom gm = set_seq 0 ctr⌝ ∗
-    ⌜dom pvm = set_seq 0 ctr⌝ ∗
-    ⌜gm_m_coherent m gm⌝ ∗
-    ⌜id_susp_gamma_coherent gm pvm m_v⌝ ∗
-    ⌜id_ref_coherent pvm rs⌝ ∗
-    ⌜done_id_coherent m d⌝ ∗ ⌜pending_coherent m ps pending_n⌝.
+  (** [visited_mapg_auth m pn ctr] bundles the entire visited-map authority
+      and exposes only the three externally-meaningful parameters:
+      - [m] : the state map (used by clients e.g. via [vm_big_sep]).
+      - [pn] : pending count (paired with external [pencount_frag pn]).
+      - [ctr] : id counter (paired with external [id_ctr_frag ctr]).
 
+      The remaining six maps are existentially quantified inside:
+      [d] (done-map), [ps] (pending set), [gm] (id-alloc map),
+      [pvm] (id→susp map), [m_v] (verifier-side lg_map), [rs] (id_ref map).
+      Clients hold fragments at these maps' gnames ([visit_done],
+      [penset_frag], [lg_mapg_frag], [pval_frag], [id_ref_frag], …) and
+      never need them as Coq-level maps. *)
+  Definition visited_mapg_auth (m : state_mapg_type) (pn : nat) (ctr : nat) : iProp Σ :=
+    ∃ (d : done_mapg_type) (ps : pending_setg_type)
+      (gm : id_mapg_type) (pvm : pvalmap_type)
+      (m_v : lg_mapg_type) (rs : id_ref_type),
+      own visited_state_name (● m) ∗ own visited_done_name (● d) ∗
+      own pending_set_name (● GSet ps) ∗ pencount_frag pn ∗
+      own pending_id_name (● gm) ∗
+      id_ctr_frag ctr ∗
+      pvalmap_auth pvm ∗
+      own lg_mapG_v_name (● m_v) ∗
+      own spec_meta_name (◯ GSet (dom m_v)) ∗
+      id_ref_auth rs ∗
+      ⌜dom gm = set_seq 0 ctr⌝ ∗
+      ⌜dom pvm = set_seq 0 ctr⌝ ∗
+      ⌜gm_m_coherent m gm⌝ ∗
+      ⌜id_susp_gamma_coherent gm pvm m_v⌝ ∗
+      ⌜id_ref_coherent gm pvm rs⌝ ∗
+      ⌜done_id_coherent m d⌝ ∗ ⌜pending_coherent m ps pn⌝.
+
+  (** Shape wrappers. Each now defers entirely to [visited_mapg_auth]
+      (which existentially hides the six internal maps). The wrappers
+      express only the externally-visible state transition (changes to
+      [m], [pn], [ctr]). *)
   Definition visited_map_update_pending
-      (m : state_mapg_type) (d : done_mapg_type) (ps : pending_setg_type) pn (γs : gset gname) (ctr : nat) (gm : id_mapg_type) (pvm : pvalmap_type) (m_v : lg_mapg_type) (rs : id_ref_type) : iProp Σ :=
-    let m' := set_fold (λ γ m, <[ γ := pending_val ]>m) m γs in
-    let ps' := ps ∪ γs in
-    own visited_state_name (● m') ∗
-    own visited_done_name (● d) ∗
-    own pending_set_name (● GSet ps') ∗ pencount_frag (pn + size γs) ∗
-    own pending_id_name (● gm) ∗
-    id_ctr_frag ctr ∗
-    pvalmap_auth pvm ∗
-    own lg_mapG_v_name (● m_v) ∗
-    own spec_meta_name (◯ GSet (dom m_v)) ∗
-    id_ref_auth rs ∗
-    ⌜dom gm = set_seq 0 ctr⌝ ∗
-    ⌜dom pvm = set_seq 0 ctr⌝ ∗
-    ⌜gm_m_coherent m' gm⌝ ∗
-    ⌜id_susp_gamma_coherent gm pvm m_v⌝ ∗
-    ⌜id_ref_coherent pvm rs⌝ ∗
-    ⌜done_id_coherent m' d⌝ ∗
-    ⌜pending_coherent m' ps' (pn + size γs)⌝.
+      (m : state_mapg_type) (γs : gset gname) (pn : nat) (ctr : nat) : iProp Σ :=
+    visited_mapg_auth (set_fold (λ γ m, <[ γ := pending_val ]>m) m γs)
+                      (pn + size γs) ctr.
 
-  (** Shape predicate for the post-state of a done-binding step. The
-      transition is provided by [bind_id_existing_susp] (no [pvm]/[m_v]
-      writes) or [bind_id_fresh_susp] (also writes [pvm]/[m_v]); this
-      predicate covers the [m] / [d] / [gm] / [rs] updates common to
-      both. Takes a [to] parameter so the [rs[from := to]] write is
-      included. *)
   Definition visited_map_update_done
-      (m : state_mapg_type) (d : done_mapg_type) (ps : pending_setg_type) pn γ n (to : nat) (ctr : nat) (gm : id_mapg_type) (pvm : pvalmap_type) (m_v : lg_mapg_type) (rs : id_ref_type) : iProp Σ :=
-    visited_mapg_auth
-      (<[ γ := done_val n ]>m)
-      (<[ γ := to_agree (tt : unitO) ]>d)
-      ps pn ctr
-      (<[ n := Cinr (to_agree (γ : leibnizO gname)) ]>gm)
-      pvm m_v
-      (<[ n := to ]>rs).
+      (m : state_mapg_type) (γ : gname) (n : nat) (pn : nat) (ctr : nat) : iProp Σ :=
+    visited_mapg_auth (<[ γ := done_val n ]>m) pn ctr.
 
   Definition visited_map_update_finished
-      (m : state_mapg_type) (d : done_mapg_type) (ps : pending_setg_type) pn γ (ctr : nat) (gm : id_mapg_type) (pvm : pvalmap_type) (m_v : lg_mapg_type) (rs : id_ref_type) : iProp Σ :=
-    own visited_state_name (● <[ γ := finished_val ]>m) ∗
-    own visited_done_name (● d) ∗
-    own pending_set_name (● GSet ps) ∗ pencount_frag pn ∗
-    own pending_id_name (● gm) ∗
-    id_ctr_frag ctr ∗
-    pvalmap_auth pvm ∗
-    own lg_mapG_v_name (● m_v) ∗
-    own spec_meta_name (◯ GSet (dom m_v)) ∗
-    id_ref_auth rs ∗
-    ⌜dom gm = set_seq 0 ctr⌝ ∗
-    ⌜dom pvm = set_seq 0 ctr⌝ ∗
-    ⌜gm_m_coherent (<[ γ := finished_val ]>m) gm⌝ ∗
-    ⌜id_susp_gamma_coherent gm pvm m_v⌝ ∗
-    ⌜id_ref_coherent pvm rs⌝ ∗
-    ⌜done_id_coherent (<[ γ := finished_val ]>m) d⌝ ∗
-    ⌜pending_coherent (<[ γ := finished_val ]>m) ps pn⌝.
+      (m : state_mapg_type) (γ : gname) (pn : nat) (ctr : nat) : iProp Σ :=
+    visited_mapg_auth (<[ γ := finished_val ]>m) pn ctr.
 
-  Definition visited_mapg_pending_removed (m : state_mapg_type) (d : done_mapg_type) (ps : pending_setg_type) (pending_n : nat) (γs : gset gname) (ctr : nat) (gm : id_mapg_type) (pvm : pvalmap_type) (m_v : lg_mapg_type) (rs : id_ref_type) : iProp Σ :=
-    own visited_state_name (● m) ∗ own visited_done_name (● d) ∗
-    own pending_set_name (● GSet (ps ∖ γs)) ∗ pencount_frag (pending_n - size γs) ∗
-    own pending_id_name (● gm) ∗
-    id_ctr_frag ctr ∗
-    pvalmap_auth pvm ∗
-    own lg_mapG_v_name (● m_v) ∗
-    own spec_meta_name (◯ GSet (dom m_v)) ∗
-    id_ref_auth rs ∗
-    ⌜dom gm = set_seq 0 ctr⌝ ∗
-    ⌜dom pvm = set_seq 0 ctr⌝ ∗
-    ⌜gm_m_coherent m gm⌝ ∗
-    ⌜id_susp_gamma_coherent gm pvm m_v⌝ ∗
-    ⌜id_ref_coherent pvm rs⌝ ∗
-    ⌜done_id_coherent m d⌝ ∗
-    ⌜pending_coherent m (ps ∖ γs) (pending_n - size γs)⌝.
+  Definition visited_mapg_pending_removed
+      (m : state_mapg_type) (γs : gset gname) (pn : nat) (ctr : nat) : iProp Σ :=
+    visited_mapg_auth m (pn - size γs) ctr.
 
-  Lemma visited_map_update_pending_rewrite m d ps pn γs ctr gm pvm m_v rs :
-    visited_map_update_pending m d ps pn γs ctr gm pvm m_v rs ⊣⊢
-    visited_mapg_auth (set_fold (λ γ m, <[ γ := pending_val ]>m) m γs) d (ps ∪ γs) (pn + size γs) ctr gm pvm m_v rs.
-  Proof. rewrite /visited_map_update_pending /visited_mapg_auth. done. Qed.
+  Lemma visited_map_update_pending_rewrite m γs pn ctr :
+    visited_map_update_pending m γs pn ctr ⊣⊢
+    visited_mapg_auth (set_fold (λ γ m, <[ γ := pending_val ]>m) m γs) (pn + size γs) ctr.
+  Proof. rewrite /visited_map_update_pending. done. Qed.
 
-  Lemma visited_map_update_finished_rewrite m d ps pn γ ctr gm pvm m_v rs :
-    visited_map_update_finished m d ps pn γ ctr gm pvm m_v rs ⊣⊢
-    visited_mapg_auth (<[ γ := finished_val ]>m) d ps pn ctr gm pvm m_v rs.
-  Proof. rewrite /visited_map_update_finished /visited_mapg_auth. done. Qed.
+  Lemma visited_map_update_done_rewrite m γ n pn ctr :
+    visited_map_update_done m γ n pn ctr ⊣⊢
+    visited_mapg_auth (<[ γ := done_val n ]>m) pn ctr.
+  Proof. rewrite /visited_map_update_done. done. Qed.
 
-  Lemma visited_mapg_pending_remove_rewrite m d ps pn γs ctr gm pvm m_v rs :
-    visited_mapg_pending_removed m d ps pn γs ctr gm pvm m_v rs ⊣⊢
-    visited_mapg_auth m d (ps ∖ γs) (pn - size γs) ctr gm pvm m_v rs.
-  Proof. rewrite /visited_mapg_pending_removed /visited_mapg_auth. done. Qed.
+  Lemma visited_map_update_finished_rewrite m γ pn ctr :
+    visited_map_update_finished m γ pn ctr ⊣⊢
+    visited_mapg_auth (<[ γ := finished_val ]>m) pn ctr.
+  Proof. rewrite /visited_map_update_finished. done. Qed.
+
+  Lemma visited_mapg_pending_remove_rewrite m γs pn ctr :
+    visited_mapg_pending_removed m γs pn ctr ⊣⊢
+    visited_mapg_auth m (pn - size γs) ctr.
+  Proof. rewrite /visited_mapg_pending_removed. done. Qed.
 
   Definition visit_pending γ : iProp Σ :=
     own visited_state_name (◯ {[ γ := pending_val ]}).
@@ -467,10 +427,10 @@ Section visited_map_res.
     Timeless (visit_finished γ).
   Proof. rewrite /visit_finished /finished_val. apply _. Qed.
 
-  Lemma pn_agree m d ps pn ctr gm pvm m_v rs pn' :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗ pencount_frag pn' -∗ ⌜pn = pn'⌝.
+  Lemma pn_agree m pn ctr pn' :
+    visited_mapg_auth m pn ctr -∗ pencount_frag pn' -∗ ⌜pn = pn'⌝.
   Proof.
-    iIntros "(Hms & Hd & Hps & H1 & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) H2".
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & H1 & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) H2".
     rewrite /pencount_frag. iCombine "H1 H2" as "H".
     iDestruct (own_valid with "H") as %Hv%dfrac_agree_op_valid_L.
     destruct Hv as [_ ->].
@@ -549,24 +509,24 @@ Section visited_map_res.
     by apply (Cinl_valid (A:=exclR unitO) (B:=agreeR (leibnizO gname))), exclusive_l in Hv.
   Qed.
 
-  Lemma id_ctr_frag_agree m d ps pn ctr gm pvm m_v rs ctr' :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗ id_ctr_frag ctr' -∗
+  Lemma id_ctr_frag_agree m pn ctr ctr' :
+    visited_mapg_auth m pn ctr -∗ id_ctr_frag ctr' -∗
       ⌜ctr = ctr'⌝.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hgm & H1 & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) H2".
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & H1 & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) H2".
     rewrite /id_ctr_frag. iCombine "H1 H2" as "H".
     iDestruct (own_valid with "H") as %Hv%dfrac_agree_op_valid_L.
     destruct Hv as [_ ->].
     iDestruct "H" as "[H1 H2]". by iFrame.
   Qed.
 
-  Lemma visited_insert m d ps pn ctr gm pvm m_v rs :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs ∗ pencount_frag pn ==∗
+  Lemma visited_insert m pn ctr :
+    visited_mapg_auth m pn ctr ∗ pencount_frag pn ==∗
       ∃ γ,
-        visited_map_update_pending m d ps pn {[γ]} ctr gm pvm m_v rs ∗ pencount_frag (pn+1) ∗
+        visited_map_update_pending m {[γ]} pn ctr ∗ pencount_frag (pn+1) ∗
           visit_pending γ ∗ penset_frag {[γ]}.
   Proof.
-    iIntros "((Hms & Hd & Hps & Hpn1 & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) & Hpn2)".
+    iIntros "((%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn1 & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) & Hpn2)".
     set (γ := fresh (dom m ∪ ps)).
     assert (γ ∉ (dom m ∪ ps : gset gname)) as Hfr by apply is_fresh.
     rewrite not_elem_of_union in Hfr.
@@ -579,9 +539,11 @@ Section visited_map_res.
     { apply auth_update_alloc, gset_disj_alloc_empty_local_update. set_solver. }
     iMod (pn_update pn (pn+1) with "Hpn1 Hpn2") as "[Hpn1 Hpn2]".
     iModIntro. iExists γ.
-    rewrite /visited_map_update_pending /visit_pending /penset_frag.
-    rewrite set_fold_singleton size_singleton (union_comm_L ps {[γ]}) /=.
-    iFrame "Hms' Hd Hps' Hpn1 Hp Hpsf Hpn2 Hgm Hctr Hpvm Hmv Hsmeta Hrs".
+    rewrite /visited_map_update_pending /visited_mapg_auth /visit_pending /penset_frag.
+    rewrite set_fold_singleton size_singleton /=.
+    iSplitR "Hp Hpsf Hpn2"; last by iFrame.
+    iExists d, ({[γ]} ∪ ps), gm, pvm, m_v, rs.
+    iFrame "Hms' Hd Hps' Hpn1 Hgm Hctr Hpvm Hmv Hsmeta Hrs".
     iPureIntro. split; [exact Hdom|]. split; [exact Hdompvm|].
     split; [|split; [exact Hisgc|split; [exact Hirc|split]]].
     - (* gm_m_coherent for new m' = <[γ := pending_val]>m *)
@@ -615,11 +577,11 @@ Section visited_map_res.
      binding now writes to gm, pvm, and m_v atomically to maintain
      [id_susp_gamma_coherent]. *)
 
-  Lemma visited_transition_finished m d ps pn ctr gm pvm m_v rs γ n :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗ visit_done γ n
-    ==∗ visited_map_update_finished m d ps pn γ ctr gm pvm m_v rs ∗ visit_finished γ.
+  Lemma visited_transition_finished m pn ctr γ n :
+    visited_mapg_auth m pn ctr -∗ visit_done γ n
+    ==∗ visited_map_update_finished m γ pn ctr ∗ visit_finished γ.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) [Hsfrag #Hrd]".
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) [Hsfrag #Hrd]".
     rewrite /visited_map_update_finished /visit_finished /visit_reached_done.
     (* Derive m !! γ = Some (done_val n) from Hms ⋅ Hsfrag, using exclusivity of done_val. *)
     iDestruct (own_valid_2 with "Hms Hsfrag") as %Hvm.
@@ -687,12 +649,12 @@ Section visited_map_res.
       exclusive at γ ([Cinl (Excl _)]), so singleton inclusion collapses to
       a pointwise equiv, and Leibniz on [optionO natO] turns equiv into
       equality. The auth and fragment are returned unchanged. *)
-  Lemma visit_done_lookup γ n m d ps pn ctr gm pvm m_v rs :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗ visit_done γ n -∗
+  Lemma visit_done_lookup γ n m pn ctr :
+    visited_mapg_auth m pn ctr -∗ visit_done γ n -∗
       ⌜m !! γ = Some (done_val n)⌝ ∗
-      visited_mapg_auth m d ps pn ctr gm pvm m_v rs ∗ visit_done γ n.
+      visited_mapg_auth m pn ctr ∗ visit_done γ n.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) [Hf #Hr]".
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) [Hf #Hr]".
     iDestruct (own_valid_2 with "Hms Hf") as %Hv.
     apply auth_both_valid_discrete in Hv as [Hincl Hvalid].
     apply (singleton_included_exclusive_l m γ (done_val n)) in Hincl;
@@ -709,12 +671,12 @@ Section visited_map_res.
       [done_id_coherent] forces [m !! γ] to be a done/finished entry. The
       state-map fragment then rules out the done branch via
       csum-incompatibility. *)
-  Lemma visit_finished_lookup γ m d ps pn ctr gm pvm m_v rs :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗ visit_finished γ -∗
+  Lemma visit_finished_lookup γ m pn ctr :
+    visited_mapg_auth m pn ctr -∗ visit_finished γ -∗
       ⌜m !! γ = Some finished_val⌝ ∗
-      visited_mapg_auth m d ps pn ctr gm pvm m_v rs ∗ visit_finished γ.
+      visited_mapg_auth m pn ctr ∗ visit_finished γ.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)
             [Hf #Hrd]".
     (* d !! γ ≡ Some (to_agree ()) via auth+frag at visited_done_name. *)
     iDestruct (own_valid_2 with "Hd Hrd") as %Hvd.
@@ -747,13 +709,13 @@ Section visited_map_res.
 
   (** [visit_reached_done γ] forces [m !! γ] into the done/finished family.
       Routes through [done_id_coherent]. *)
-  Lemma visit_reached_done_lookup γ m d ps pn ctr gm pvm m_v rs :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗ visit_reached_done γ -∗
+  Lemma visit_reached_done_lookup γ m pn ctr :
+    visited_mapg_auth m pn ctr -∗ visit_reached_done γ -∗
       ⌜(∃ n, m !! γ = Some (done_val n)) ∨ m !! γ = Some finished_val⌝ ∗
-      visited_mapg_auth m d ps pn ctr gm pvm m_v rs.
+      visited_mapg_auth m pn ctr.
   Proof.
     iIntros "Hauth #Hrd".
-    iDestruct "Hauth" as "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
+    iDestruct "Hauth" as "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
     iDestruct (own_valid_2 with "Hd Hrd") as %Hvd.
     apply auth_both_valid_discrete in Hvd as [Hincl_d Hvalid_d].
     apply singleton_included_l in Hincl_d as (xd & Hxd & Hle_d).
@@ -797,23 +759,11 @@ Section visited_map_res.
     rewrite /done_val /finished_val in Hv. done.
   Qed.
 
-  Lemma get_visit_reached_done γ m d ps pn ctr gm pvm m_v rs :
-    d !! γ = Some (to_agree (tt : unitO)) →
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs ==∗ visited_mapg_auth m d ps pn ctr gm pvm m_v rs ∗ visit_reached_done γ.
-  Proof.
-    iIntros (Hd) "(Hms & Hd_auth & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
-    rewrite /visit_reached_done.
-    iMod (own_update _ _ (● d ⋅ ◯ {[γ := to_agree (tt : unitO)]}) with "Hd_auth") as "[Hd_auth #Hr]".
-    { apply auth_update_dfrac_alloc; [apply _|].
-      apply singleton_included_l. exists (to_agree (tt : unitO)). split; [by rewrite Hd|].
-      apply Some_included_2. by left. }
-    iModIntro. by iFrame "∗ # %".
-  Qed.
 
-  Lemma visited_reached_done_invalid γ m d ps pn ctr gm pvm m_v rs :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗ visit_reached_done γ -∗ visit_pending γ -∗ False.
+  Lemma visited_reached_done_invalid γ m pn ctr :
+    visited_mapg_auth m pn ctr -∗ visit_reached_done γ -∗ visit_pending γ -∗ False.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hreached Hpending".
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hreached Hpending".
     rewrite /visit_pending /visit_reached_done.
     iDestruct (own_valid_2 with "Hd Hreached") as %Hvd.
     apply auth_both_valid_discrete in Hvd as [Hincl_d Hvalid_d].
@@ -868,12 +818,12 @@ Section visited_map_res.
     - iIntros "[%Hdisj H]". rewrite -gset_disj_union // -own_op -auth_frag_op //.
   Qed.
 
-  Lemma pending_set_remove m d ps pn ctr gm pvm m_v rs γs :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗ pencount_frag pn -∗ penset_frag γs -∗
+  Lemma pending_set_remove m pn ctr γs :
+    visited_mapg_auth m pn ctr -∗ pencount_frag pn -∗ penset_frag γs -∗
     ([∗ set] γ ∈ γs, visit_reached_done γ) ==∗
-    visited_mapg_pending_removed m d ps pn γs ctr gm pvm m_v rs ∗ pencount_frag (pn - size γs).
+    visited_mapg_pending_removed m γs pn ctr ∗ pencount_frag (pn - size γs).
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn1 & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hpn2 Hfrag #Hreached".
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn1 & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hpn2 Hfrag #Hreached".
     iAssert (⌜∀ γ, γ ∈ γs →
               (∃ n, m !! γ = Some (done_val n)) ∨ m !! γ = Some finished_val⌝)%I
       as %Hmγs.
@@ -915,12 +865,12 @@ Section visited_map_res.
       id is unused as a done-tag in the visited map. (Since finished_val
       no longer carries an id, there is no analogous statement to make
       about finished entries.) *)
-  Lemma id_token_unused m d ps pn ctr gm pvm m_v rs id :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗ id_token id -∗
+  Lemma id_token_unused m pn ctr id :
+    visited_mapg_auth m pn ctr -∗ id_token id -∗
       ⌜∀ γ, m !! γ ≠ Some (done_val id)⌝ ∗
-      visited_mapg_auth m d ps pn ctr gm pvm m_v rs ∗ id_token id.
+      visited_mapg_auth m pn ctr ∗ id_token id.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Htok".
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Htok".
     iDestruct (own_valid_2 with "Hgm Htok") as %Hvgm.
     apply auth_both_valid_discrete in Hvgm as [Hinclgm Hvalidgm].
     apply (singleton_included_exclusive_l gm id (Cinl (Excl ()))) in Hinclgm; [|apply _|exact Hvalidgm].
@@ -942,15 +892,12 @@ Section visited_map_res.
       precondition is exactly this). The fact follows from
       [id_ref_coherent] on the pre-state: [ctr ∉ dom pvm], and every key
       of [rs] must have a [pvm] entry. *)
-  Lemma id_ctr_frag_alloc m d ps pn ctr gm pvm m_v rs (l : loc) :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗ id_ctr_frag ctr ==∗
-      visited_mapg_auth m d ps pn (S ctr)
-        (<[ctr := Cinl (Excl ())]>gm)
-        (<[ctr := to_agree l]>pvm) m_v rs ∗
-      id_ctr_frag (S ctr) ∗ id_token ctr ∗ pval_frag ctr l ∗
-      ⌜rs !! ctr = None⌝.
+  Lemma id_ctr_frag_alloc m pn ctr (l : loc) :
+    visited_mapg_auth m pn ctr -∗ id_ctr_frag ctr ==∗
+      visited_mapg_auth m pn (S ctr) ∗
+      id_ctr_frag (S ctr) ∗ id_token ctr ∗ pval_frag ctr l.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hid_ctr".
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hid_ctr".
     rewrite /id_ctr_frag /id_token /pvalmap_auth /pval_frag.
     assert (gm !! ctr = None) as Hgm_ctr.
     { apply not_elem_of_dom. rewrite Hdom. intro H.
@@ -959,11 +906,11 @@ Section visited_map_res.
     { apply not_elem_of_dom. rewrite Hdompvm. intro H.
       apply elem_of_set_seq in H. lia. }
     (* rs !! ctr = None: if rs[ctr] = Some to, id_ref_coherent forces
-       pvm[ctr] ≠ None, contradicting Hpvm_ctr. *)
+       gm[ctr] = Some (Cinr ...), contradicting Hgm_ctr. *)
     assert (rs !! ctr = None) as Hrs_ctr.
     { destruct (rs !! ctr) as [to|] eqn:Hr; [|done].
-      exfalso. pose proof (Hirc ctr to Hr) as [_ (sf & _ & Hpf & _)].
-      rewrite Hpvm_ctr in Hpf. by inversion Hpf. }
+      exfalso. pose proof (Hirc ctr to Hr) as [_ [(γ' & Hgm_eq) _]].
+      rewrite Hgm_ctr in Hgm_eq. by inversion Hgm_eq. }
     iCombine "Hctr Hid_ctr" as "Hctr_full".
     iMod (own_update with "Hctr_full") as "[Hctr Hid_ctr']".
     { apply frac_agree_update_2. by rewrite Qp.half_half. }
@@ -977,8 +924,10 @@ Section visited_map_res.
       with "Hpvm") as "[Hpvm #Hpvf]".
     { apply auth_update_alloc.
       apply alloc_singleton_local_update; [exact Hpvm_ctr | done]. }
-    iModIntro. iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta Hrs Hid_ctr' Htok Hpvf".
-    iSplit; last by iPureIntro.
+    iModIntro. rewrite /visited_mapg_auth.
+    iSplitR "Hid_ctr' Htok Hpvf"; last by iFrame.
+    iExists d, ps, (<[ctr := Cinl (Excl ())]>gm), (<[ctr := to_agree l]>pvm), m_v, rs.
+    iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta Hrs".
     iPureIntro.
     split; [|split; [|split; [|split; [|split; [|split; [exact Hdid|exact Hpcoh]]]]]].
     - rewrite dom_insert_L Hdom -(set_seq_S_end_union_L 0) /=. set_solver.
@@ -1005,8 +954,11 @@ Section visited_map_res.
     - (* id_ref_coherent: existing entries in rs have from ≠ ctr and to ≠ ctr
          because their pvm lookups must exist (old pvm[ctr] = None). *)
       intros from' to' Hrs'.
-      destruct (Hirc from' to' Hrs') as [Hlt' (sf & st & Hpf & Hpt & Hneq)].
-      split; [exact Hlt'|]. exists sf, st. split_and!; [| |exact Hneq].
+      destruct (Hirc from' to' Hrs') as [Hlt' [(γ' & Hgm_from) (sf & st & Hpf & Hpt & Hneq)]].
+      split; [exact Hlt'|]. split.
+      { exists γ'. rewrite lookup_insert_ne; [exact Hgm_from|]. intros ->.
+        rewrite Hgm_ctr in Hgm_from. by inversion Hgm_from. }
+      exists sf, st. split_and!; [| |exact Hneq].
       + rewrite lookup_insert_ne; [exact Hpf|]. intros ->.
         rewrite Hpvm_ctr in Hpf. by inversion Hpf.
       + rewrite lookup_insert_ne; [exact Hpt|]. intros ->.
@@ -1015,11 +967,11 @@ Section visited_map_res.
 
   (** [id_token id] implies [id < ctr]: the id has been allocated (is in
       [dom gm = set_seq 0 ctr]) so it is strictly below the counter. *)
-  Lemma id_token_lt_ctr m d ps pn ctr gm pvm m_v rs id :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗ id_token id -∗
-      ⌜id < ctr⌝ ∗ visited_mapg_auth m d ps pn ctr gm pvm m_v rs ∗ id_token id.
+  Lemma id_token_lt_ctr m pn ctr id :
+    visited_mapg_auth m pn ctr -∗ id_token id -∗
+      ⌜id < ctr⌝ ∗ visited_mapg_auth m pn ctr ∗ id_token id.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Htok".
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Htok".
     iDestruct (own_valid_2 with "Hgm Htok") as %Hvgm.
     apply auth_both_valid_discrete in Hvgm as [Hinclgm Hvalidgm].
     apply singleton_included_l in Hinclgm as (x & Hx & _).
@@ -1035,16 +987,16 @@ Section visited_map_res.
       from a known [m !! γ = Some (done_val id)]. The lg-map fragment is
       written out as a raw [own] here since [lg_mapg_frag] is defined later
       in [Section lg_map]. *)
-  Lemma id_susp_γ_lookup m d ps pn ctr gm pvm m_v rs γ id :
+  Lemma id_susp_γ_lookup m pn ctr γ id :
     m !! γ = Some (done_val id) →
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs ==∗
-      visited_mapg_auth m d ps pn ctr gm pvm m_v rs ∗
+    visited_mapg_auth m pn ctr ==∗
+      visited_mapg_auth m pn ctr ∗
       ∃ susp, pval_frag id susp ∗
               own lg_mapG_v_name
                   (◯ ({[susp := Cinr (to_agree (γ : leibnizO gname))]}
                         : gmap loc lg_mapEntry)).
   Proof.
-    iIntros (Hmγ) "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
+    iIntros (Hmγ) "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
     pose proof Hgmm as [_ Hgmm2].
     pose proof (Hgmm2 id γ Hmγ) as Hgm_id.
     pose proof (Hisgc id γ Hgm_id) as (susp & Hpvm_id & Hmv_susp).
@@ -1070,11 +1022,11 @@ Section visited_map_res.
   Qed.
 
   (** [id_ref_frag from to] forces [to < from] (via [id_ref_coherent]). *)
-  Lemma id_ref_frag_lt m d ps pn ctr gm pvm m_v rs from to :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗ id_ref_frag from to -∗
-      ⌜to < from⌝ ∗ visited_mapg_auth m d ps pn ctr gm pvm m_v rs.
+  Lemma id_ref_frag_lt m pn ctr from to :
+    visited_mapg_auth m pn ctr -∗ id_ref_frag from to -∗
+      ⌜to < from⌝ ∗ visited_mapg_auth m pn ctr.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hfrag".
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hfrag".
     iDestruct (id_ref_auth_frag with "Hrs Hfrag") as %Hrs_lookup.
     pose proof (Hirc from to Hrs_lookup) as [Hlt _].
     iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta Hrs". iPureIntro. eauto 10.
@@ -1082,15 +1034,15 @@ Section visited_map_res.
 
   (** [id_ref_frag from to] paired with [pval_frag from susp_from] and
       [pval_frag to susp_to] forces [susp_from ≠ susp_to]. *)
-  Lemma id_ref_frag_locs_neq m d ps pn ctr gm pvm m_v rs from to susp_from susp_to :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗
+  Lemma id_ref_frag_locs_neq m pn ctr from to susp_from susp_to :
+    visited_mapg_auth m pn ctr -∗
     id_ref_frag from to -∗
     pval_frag from susp_from -∗ pval_frag to susp_to -∗
-      ⌜susp_from ≠ susp_to⌝ ∗ visited_mapg_auth m d ps pn ctr gm pvm m_v rs.
+      ⌜susp_from ≠ susp_to⌝ ∗ visited_mapg_auth m pn ctr.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hfrag Hpvf Hpvt".
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hfrag Hpvf Hpvt".
     iDestruct (id_ref_auth_frag with "Hrs Hfrag") as %Hrs_lookup.
-    pose proof (Hirc from to Hrs_lookup) as [_ (susp_f & susp_t & Hpvf_eq & Hpvt_eq & Hneq)].
+    pose proof (Hirc from to Hrs_lookup) as [_ [_ (susp_f & susp_t & Hpvf_eq & Hpvt_eq & Hneq)]].
     iDestruct (pvalmap_auth_frag_eq with "Hpvm Hpvf") as %Hpvf_eq2.
     iDestruct (pvalmap_auth_frag_eq with "Hpvm Hpvt") as %Hpvt_eq2.
     rewrite Hpvf_eq in Hpvf_eq2.
@@ -1310,31 +1262,23 @@ Section lg_map.
       (γ → ()), [m_v] ([l] → Cinr γ), [m] (γ → done_val from), and [rs]
       ([from] → [to]). [pvm] is unchanged. *)
   Lemma bind_id_fresh_susp
-      m d ps pn ctr gm pvm m_v rs
+      m pn ctr
       from to γ γ_to susp_to (l : loc) :
     to < from →
-    rs !! from = None →
     vmeta_token l -∗
     id_token from -∗
     visit_pending γ -∗
     pval_frag from l -∗
     pval_frag to susp_to -∗
     lg_mapg_frag susp_to γ_to -∗
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs ==∗
-      visited_mapg_auth
-        (<[γ := done_val from]>m)
-        (<[γ := to_agree (tt : unitO)]>d)
-        ps pn ctr
-        (<[from := Cinr (to_agree (γ : leibnizO gname))]>gm)
-        pvm
-        (<[l := Cinr (to_agree (γ : leibnizO gname)) : lg_mapEntry]>m_v)
-        (<[from := to]>rs) ∗
+    visited_mapg_auth m pn ctr ==∗
+      visited_mapg_auth (<[γ := done_val from]>m) pn ctr ∗
       visit_done γ from ∗
       lg_mapg_frag l γ ∗
       id_ref_frag from to.
   Proof.
-    iIntros (Hlt Hrsfrom) "Hvtok Htok Hpen #Hpvf #Hpvt #Hlbf
-              (Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs &
+    iIntros (Hlt) "Hvtok Htok Hpen #Hpvf #Hpvt #Hlbf
+              (%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs &
                %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
     rewrite /vmeta_token /pval_frag /id_token /visit_pending
             /visit_done /visit_reached_done /lg_mapg_frag /id_ref_frag.
@@ -1369,6 +1313,12 @@ Section lg_map.
     apply (singleton_included_exclusive_l gm from (Cinl (Excl ()))) in Hinclgm; [|apply _|exact Hvalidgm].
     assert (gm !! from = Some (Cinl (Excl ()))) as Hgm_from_cinl
       by (apply some_cinl_excl_unit_equiv_eq; exact Hinclgm).
+    (* rs !! from = None: id_ref_coherent says rs[from] = Some _ requires
+       gm[from] = Cinr (to_agree _), contradicting Hgm_from_cinl. *)
+    assert (rs !! from = None) as Hrsfrom.
+    { destruct (rs !! from) as [to'|] eqn:Hr; [|done].
+      exfalso. pose proof (Hirc from to' Hr) as [_ [(γ' & Hgm_eq) _]].
+      rewrite Hgm_from_cinl in Hgm_eq. by inversion Hgm_eq. }
     (* pvm[from] ≡ Some (to_agree l) via the input pval_frag *)
     iDestruct (pvalmap_auth_frag_eq with "Hpvm Hpvf") as %Hpvf_eq.
     (* pvm[to] ≡ Some (to_agree susp_to) via the input pval_frag *)
@@ -1384,39 +1334,45 @@ Section lg_map.
     { intros ->. apply not_elem_of_dom in Hl_nin. set_solver. }
     iMod (own_update_2 _ _ _
       (● <[γ := done_val from]>m ⋅ ◯ {[γ := done_val from]})
-      with "Hms Hpen") as "[$ Hms_f]".
+      with "Hms Hpen") as "[Hms Hms_f]".
     { apply auth_update, singleton_local_update_any.
       intros x Hx. unfold pending_val.
       apply (exclusive_local_update _ (done_val from)). done. }
     iMod (own_update _ _
       (● <[γ := to_agree (tt : unitO)]>d ⋅ ◯ {[γ := to_agree (tt : unitO)]})
-      with "Hd") as "[$ #Hd_f]".
+      with "Hd") as "[Hd #Hd_f]".
     { apply auth_update_alloc, alloc_singleton_local_update; done. }
     iMod (own_update_2 _ _ _
       (● <[from := Cinr (to_agree (γ : leibnizO gname))]>gm ⋅
        ◯ {[from := Cinr (to_agree (γ : leibnizO gname))]})
-      with "Hgm Htok") as "[$ _]".
+      with "Hgm Htok") as "[Hgm _]".
     { apply auth_update, singleton_local_update_any.
       intros y _. apply exclusive_local_update. done. }
     iMod (own_update _ _
       (● <[l := Cinr (to_agree (γ : leibnizO gname)) : lg_mapEntry]>m_v ⋅
        ◯ ({[l := Cinr (to_agree (γ : leibnizO gname)) : lg_mapEntry]}
             : gmap loc lg_mapEntry))
-      with "Hmv") as "[$ #Hmv_f]".
+      with "Hmv") as "[Hmv #Hmv_f]".
     { apply auth_update_alloc.
       apply alloc_singleton_local_update; [exact Hl_nin | done]. }
     iMod (own_update _ _
       (● ((to_agree : nat → agree nat) <$> <[from := to]>rs : gmap nat _) ⋅
        ◯ {[from := to_agree to]})
-      with "Hrs") as "[$ #Hrs_f]".
+      with "Hrs") as "[Hrs #Hrs_f]".
     { rewrite fmap_insert.
       apply auth_update_alloc.
       apply alloc_singleton_local_update; [|done].
       rewrite lookup_fmap Hrsfrom //. }
     iModIntro.
+    rewrite /visited_mapg_auth.
+    iSplitR "Hms_f Hd_f Hmv_f Hrs_f"; last by iFrame "Hms_f Hd_f Hmv_f Hrs_f".
+    iExists (<[γ := to_agree (tt : unitO)]>d), ps,
+      (<[from := Cinr (to_agree (γ : leibnizO gname))]>gm),
+      pvm,
+      (<[l := Cinr (to_agree (γ : leibnizO gname)) : lg_mapEntry]>m_v),
+      (<[from := to]>rs).
     rewrite dom_insert_L (comm_L union {[l]} (dom m_v)).
-    iFrame "Hps Hpn Hctr Hpvm Hsmeta'".
-    iSplitR; [|by iFrame "Hms_f Hd_f Hmv_f Hrs_f"].
+    iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta' Hrs".
     iPureIntro.
     split_and!.
     - rewrite dom_insert_L (subseteq_union_1_L {[from]} (dom gm)); [done|].
@@ -1469,11 +1425,14 @@ Section lg_map.
       intros from' to' Hrs'.
       destruct (decide (from' = from)) as [-> | Hne].
       + rewrite lookup_insert in Hrs'. injection Hrs' as ->.
-        split; [exact Hlt|].
+        split; [exact Hlt|]. split.
+        { exists γ. by rewrite lookup_insert. }
         exists l, susp_to. by repeat split.
       + rewrite lookup_insert_ne in Hrs'; [|done].
-        destruct (Hirc from' to' Hrs') as [Hlt' (sf & st & Hpf & Hpt & Hneq)].
-        split; [exact Hlt'|]. exists sf, st. by repeat split.
+        destruct (Hirc from' to' Hrs') as [Hlt' [(γ'' & Hgm_from') (sf & st & Hpf & Hpt & Hneq)]].
+        split; [exact Hlt'|]. split.
+        { exists γ''. rewrite lookup_insert_ne; [exact Hgm_from'|done]. }
+        exists sf, st. by repeat split.
     - intros γ' Hdγ'.
       destruct (decide (γ' = γ)) as [-> | Hne].
       + left. exists from. by rewrite lookup_insert.
@@ -1496,29 +1455,22 @@ Section lg_map.
       (Cinl → Cinr γ at [from]), and [rs] ([from] → [to]). [pvm] and
       [m_v] are unchanged. *)
   Lemma bind_id_existing_susp
-      m d ps pn ctr gm pvm m_v rs
+      m pn ctr
       from to γ susp_from susp_to :
     to < from →
-    rs !! from = None →
     susp_from ≠ susp_to →
     id_token from -∗
     visit_pending γ -∗
     pval_frag from susp_from -∗
     pval_frag to susp_to -∗
     lg_mapg_frag susp_from γ -∗
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs ==∗
-      visited_mapg_auth
-        (<[γ := done_val from]>m)
-        (<[γ := to_agree (tt : unitO)]>d)
-        ps pn ctr
-        (<[from := Cinr (to_agree (γ : leibnizO gname))]>gm)
-        pvm m_v
-        (<[from := to]>rs) ∗
+    visited_mapg_auth m pn ctr ==∗
+      visited_mapg_auth (<[γ := done_val from]>m) pn ctr ∗
       visit_done γ from ∗
       id_ref_frag from to.
   Proof.
-    iIntros (Hlt Hrsfrom Hneq) "Htok Hpen #Hpvf #Hpvt #Hlbf
-              (Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs &
+    iIntros (Hlt Hneq) "Htok Hpen #Hpvf #Hpvt #Hlbf
+              (%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs &
                %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
     rewrite /pval_frag /id_token /visit_pending
             /visit_done /visit_reached_done /lg_mapg_frag /id_ref_frag.
@@ -1545,6 +1497,11 @@ Section lg_map.
     apply (singleton_included_exclusive_l gm from (Cinl (Excl ()))) in Hinclgm; [|apply _|exact Hvalidgm].
     assert (gm !! from = Some (Cinl (Excl ()))) as Hgm_from_cinl
       by (apply some_cinl_excl_unit_equiv_eq; exact Hinclgm).
+    (* rs !! from = None: derived from id_ref_coherent + Hgm_from_cinl. *)
+    assert (rs !! from = None) as Hrsfrom.
+    { destruct (rs !! from) as [to'|] eqn:Hr; [|done].
+      exfalso. pose proof (Hirc from to' Hr) as [_ [(γ' & Hgm_eq) _]].
+      rewrite Hgm_from_cinl in Hgm_eq. by inversion Hgm_eq. }
     iDestruct (pvalmap_auth_frag_eq with "Hpvm Hpvf") as %Hpvf_eq.
     iDestruct (pvalmap_auth_frag_eq with "Hpvm Hpvt") as %Hpvt_eq.
     (* m_v !! susp_from ≡ Some (Cinr (to_agree γ)) from lg_mapg_frag *)
@@ -1569,31 +1526,35 @@ Section lg_map.
       rewrite Hx_mv -Heq_x //. }
     iMod (own_update_2 _ _ _
       (● <[γ := done_val from]>m ⋅ ◯ {[γ := done_val from]})
-      with "Hms Hpen") as "[$ Hms_f]".
+      with "Hms Hpen") as "[Hms Hms_f]".
     { apply auth_update, singleton_local_update_any.
       intros x Hx. unfold pending_val.
       apply (exclusive_local_update _ (done_val from)). done. }
     iMod (own_update _ _
       (● <[γ := to_agree (tt : unitO)]>d ⋅ ◯ {[γ := to_agree (tt : unitO)]})
-      with "Hd") as "[$ #Hd_f]".
+      with "Hd") as "[Hd #Hd_f]".
     { apply auth_update_alloc, alloc_singleton_local_update; done. }
     iMod (own_update_2 _ _ _
       (● <[from := Cinr (to_agree (γ : leibnizO gname))]>gm ⋅
        ◯ {[from := Cinr (to_agree (γ : leibnizO gname))]})
-      with "Hgm Htok") as "[$ _]".
+      with "Hgm Htok") as "[Hgm _]".
     { apply auth_update, singleton_local_update_any.
       intros y _. apply exclusive_local_update. done. }
     iMod (own_update _ _
       (● ((to_agree : nat → agree nat) <$> <[from := to]>rs : gmap nat _) ⋅
        ◯ {[from := to_agree to]})
-      with "Hrs") as "[$ #Hrs_f]".
+      with "Hrs") as "[Hrs #Hrs_f]".
     { rewrite fmap_insert.
       apply auth_update_alloc.
       apply alloc_singleton_local_update; [|done].
       rewrite lookup_fmap Hrsfrom //. }
     iModIntro.
-    iFrame "Hps Hpn Hctr Hpvm Hmv Hsmeta".
-    iSplitR; [|by iFrame "Hms_f Hd_f Hrs_f"].
+    rewrite /visited_mapg_auth.
+    iSplitR "Hms_f Hd_f Hrs_f"; last by iFrame "Hms_f Hd_f Hrs_f".
+    iExists (<[γ := to_agree (tt : unitO)]>d), ps,
+      (<[from := Cinr (to_agree (γ : leibnizO gname))]>gm),
+      pvm, m_v, (<[from := to]>rs).
+    iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta Hrs".
     iPureIntro.
     split_and!.
     - rewrite dom_insert_L (subseteq_union_1_L {[from]} (dom gm)); [done|].
@@ -1637,11 +1598,14 @@ Section lg_map.
       intros from' to' Hrs'.
       destruct (decide (from' = from)) as [-> | Hne].
       + rewrite lookup_insert in Hrs'. injection Hrs' as ->.
-        split; [exact Hlt|].
+        split; [exact Hlt|]. split.
+        { exists γ. by rewrite lookup_insert. }
         exists susp_from, susp_to. by repeat split.
       + rewrite lookup_insert_ne in Hrs'; [|done].
-        destruct (Hirc from' to' Hrs') as [Hlt' (sf & st & Hpf & Hpt & Hneq')].
-        split; [exact Hlt'|]. exists sf, st. by repeat split.
+        destruct (Hirc from' to' Hrs') as [Hlt' [(γ'' & Hgm_from') (sf & st & Hpf & Hpt & Hneq')]].
+        split; [exact Hlt'|]. split.
+        { exists γ''. rewrite lookup_insert_ne; [exact Hgm_from'|done]. }
+        exists sf, st. by repeat split.
     - intros γ' Hdγ'.
       destruct (decide (γ' = γ)) as [-> | Hne].
       + left. exists from. by rewrite lookup_insert.

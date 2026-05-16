@@ -458,21 +458,21 @@ Section authenticatable_definitions.
   Definition suspend_v_deser_spec
       (ser suspend v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
     □(∀ t' (pa a1 un_a1 a2 a3 : val) (s_def s_pred : string)
-         K tᵥ (id : nat) m vm d ps pn ctr gm pvm mlg mlg_p rs,
+         K tᵥ (id : nat) m vm pn ctr mlg_p,
       spec_verifier tᵥ (fill K (v_deser #id))
       ={⊤}=∗ ∃ (v_deser_par : val),
         spec_verifier tᵥ (fill K v_deser_par) ∗
         □(∀ K' tᵥ',
           {{{ ⌜unsusp t' a1 un_a1⌝ ∗
               ▷ A a1 a2 a3 ∗ susp_ser_p t' a1 s_def ∗
-              visited_mapg_auth vm d ps pn ctr gm pvm mlg rs ∗
+              visited_mapg_auth vm pn ctr ∗
               lg_p_auth mlg_p ∗ mapg_auth m ∗
               pencount_frag pn ∗
               spec_verifier tᵥ' (fill K' (v_deser_par #s_pred)) }}}
             suspend un_a1
           {{{ a1' s_real c t_real, RET a1';
               susp_p_ser_spec_at ser t_real c a1' s_real ∗
-              ((⌜s_pred = s_real ∧ t_real = t⌝ ∗ ∃ γl mlg' mlg_p' a2',
+              ((⌜s_pred = s_real ∧ t_real = t⌝ ∗ ∃ γl mlg_p' a2',
                 lg_p_auth mlg_p' ∗
                 ((⌜c > 0⌝ ∧ mapg_auth (mapg_insert_def m id a2')) ∨
                   (⌜c = 0⌝ ∧ mapg_auth m)) ∗
@@ -486,7 +486,7 @@ Section authenticatable_definitions.
                     lg_mapg_frag susp γ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
                 sub_susp_count_frags t a2' c id c ∗
                 ser_v_proph t id a2' s_def ∗ pencount_frag (c + pn) ∗
-                visited_map_update_pending vm d ps pn γl ctr gm pvm mlg' rs) ∨
+                visited_map_update_pending vm γl pn ctr) ∨
               (⌜s_pred ≠ s_real⌝ ∗ (lrel_tern_bin A) a1' a3)) }}})).
 
   Definition unsuspend_spec (unsuspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
@@ -723,9 +723,9 @@ Section authentikit_definitions.
 
   Definition is_v_susp_table (l : loc) : iProp Σ :=
     (∃ (d : val) (m : gmap val val) (m' : mapg_type) (vm : state_mapg_type)
-        (dm : done_mapg_type) (ps : pending_setg_type) (ctr pn : nat) gm pvm m_v rs,
+        (ctr pn : nat),
       l ↦ᵥ d ∗ ⌜is_map d m⌝ ∗ v_susp_big_sep m m' ∗ mapg_auth m' ∗
-      ⌜size (mapg_alive m') = size m⌝ ∗ visited_mapg_auth vm dm ps pn ctr gm pvm m_v rs ∗
+      ⌜size (mapg_alive m') = size m⌝ ∗ visited_mapg_auth vm pn ctr ∗
       ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ tern_state) ∨ un_state.
 
   Definition inv_v_susp_table (l: loc) := tabseq_inv tableN (is_v_susp_table l).
@@ -740,15 +740,15 @@ Section authentikit_definitions.
       {{{ ls', RET #s;
             seq_tok E ∗ proph_proof pr_s ls' ∗
             ⌜ls = s :: ls'⌝ ∗
-            (∀ vm d ps pn ctr gm pvm m_v rs (γl : pending_setg_type),
+            (∀ vm pn ctr (γl : pending_setg_type),
               tern_state -∗ penset_frag γl -∗
               pencount_frag pn -∗
-              visited_mapg_auth vm d ps pn ctr gm pvm m_v rs -∗
+              visited_mapg_auth vm pn ctr -∗
               ⌜size γl = c⌝ -∗
               ([∗ set] γ ∈ γl, ∃ lb,
                 lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) ==∗
               tern_state ∗ pencount_frag (pn - size γl) ∗
-              visited_mapg_pending_removed vm d ps pn γl ctr gm pvm m_v rs) }}}.
+              visited_mapg_pending_removed vm γl pn ctr) }}}.
 
   Definition p_buffer_elem (finish_s_pn : (val * string * nat)) : iProp Σ :=
     ∃ (finish ser a : val) (s : string) (pn : nat) (t : evi_type),
