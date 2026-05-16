@@ -257,7 +257,7 @@ Section authenticatable_definitions.
     (∃ (s1 : string), ⌜s = filled_string (hash s1)⌝ ∗ auth_susp_fill_v v s) ∨ 
       auth_susp_emp_v_proph pid v.
 
-  Definition auth_susp_v_ser_proph_transit_inv (E : coPset) (pid : nat) (v : val) (s : string) : iProp Σ :=
+  Definition auth_susp_v_ser_proph_transit_inv (pid : nat) (v : val) (s : string) : iProp Σ :=
     (∃ (s1 : string), 
       ⌜s = filled_string (hash s1)⌝ ∗ intransit 1 ∗ auth_susp_fill_v v s) ∨
     (∃ γ (susp : loc),
@@ -607,7 +607,7 @@ Section authenticatable_definitions.
           (auth_susp_v_ser_proph_inv pid v s')).
 
   Definition auth_transit_v (E : coPset) (id : nat) (v : val) (s : string) : iProp Σ :=
-    (⌜v = InjLV #(hash s)⌝ ∗ id_token id ∗ intransit 1) ∨
+    (⌜v = InjLV #(hash s)⌝ ∗ id_token id ∗ intransit 1 ∗ seq_tok E) ∨
       (∃ (s' : string) (susp psusp : loc) pid γ,
         ⌜v = InjRV #susp⌝ ∗ ⌜id > pid⌝ ∗
         id_ref_frag id pid ∗ pval_frag id susp ∗
@@ -617,10 +617,11 @@ Section authenticatable_definitions.
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
         seq_inv (ver_susp_n susp) 
           (auth_susp_v_ser_proph_inv pid v s') ∗
-        auth_susp_v_ser_proph_transit_inv E pid v s' ∗
-        ⌜↑(ver_susp_n susp) ⊈ E⌝ ∗
-        (▷ auth_susp_v_ser_proph_inv pid v s' ∗ seq_tok E
-          ={⊤}=∗ seq_tok (E ∪ ↑(ver_susp_n susp)))).
+        auth_susp_v_ser_proph_transit_inv pid v s' ∗
+        seq_tok (E ∖ ↑(ver_susp_n susp)) ∗
+        (▷ auth_susp_v_ser_proph_inv pid v s' ∗ 
+          seq_tok (E ∖ ↑(ver_susp_n susp))
+          ={⊤}=∗ seq_tok E)).
 
   Definition susplb_gname γ (v1 v2 : val) : iProp Σ :=
     ∃ (susp lb lr : loc) un_a v1' h,
@@ -685,17 +686,14 @@ Section authentikit_definitions.
       □(∀ pid susp γ, ⌜pid < id⌝ -∗ pval_frag pid susp -∗
         lg_mapg_frag susp γ -∗ visit_reached_done γ -∗ 
         ⌜↑(ver_susp_n susp) ⊆ E⌝) -∗
-      tabseq_tok ⊤ -∗ seq_tok E -∗ £ 1 -∗ 
+      tabseq_tok ⊤ -∗ £ 1 -∗ 
       ser_v_proph t id x s -∗ v_ser_spec ser t -∗
 			sub_susp_count t x 0 id Nc x -∗ auth_transit_v E id a s -∗
       tern_state -∗
 			spec_verifier tᵥ (fill K (finish #()))
-			={⊤}=∗ ∃ (E' : coPset),
-        (⌜E' = E⌝ ∨ 
-          (∃ (susp : loc), ⌜a = InjRV #susp⌝ ∗
-            ⌜E' = E ∪ ↑(ver_susp_n susp)⌝)) ∗
+			={⊤}=∗ 
         spec_verifier tᵥ (fill K (SOMEV #())) ∗
-        tabseq_tok ⊤ ∗ seq_tok E' ∗
+        tabseq_tok ⊤ ∗ seq_tok E ∗
         tern_state ∗ intransit 1).
          (* ∗
         (∀ γ, visit_reached_done γ id -∗ visit_finished γ id)). *)
