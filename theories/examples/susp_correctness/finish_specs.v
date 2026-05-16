@@ -24,7 +24,7 @@ Section finish_specs.
 
     iMod (na_inv_acc with "Htab Htabtok") as "(Htabo & Htabtok & Hclose_tab)"; try solve_ndisj.
     iMod (lc_fupd_elim_later with "Hlc Htabo") as "Htabo".
-    iDestruct "Htabo" as "[(%&%&%&%&%&%& %idctr &%&%&%&%&% & Hl & %Hm &
+    iDestruct "Htabo" as "[(%&%&%&%& %idctr &% & Hl & %Hm &
         Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hst')|Hst']";
       last first.
     { by iPoseProof (tern_state_un_state_excl with "Hst Hst'") as "?". }
