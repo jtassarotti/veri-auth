@@ -222,7 +222,7 @@ Section finish_specs.
           iAssert (intransit 1) with "[Hintr Hintr']" as "Hintr".
           { iCombine "Hintr Hintr'" as "Hintr". iExact "Hintr". }
 
-          iDestruct ("Hnmspc" with "[//] Hpvfrag") as "%Hpnmspc".
+          (* iDestruct ("Hnmspc" with "[//] Hpvfrag") as "%Hpnmspc". *)
 
           iAssert (
             |={⊤}=> ∃ E',
@@ -256,7 +256,8 @@ Section finish_specs.
               { intros ?. simplify_eq. }
               by iApply "Hvis".
 
-            - assert (susp ≠ susp0).
+            - simplify_eq.
+              (* assert (susp ≠ susp0).
               { intros ?. simplify_eq. }
 
               assert ((E ∖ ↑ver_susp_n (InjRV #susp0) ∪ ↑ver_susp_n (InjRV #susp0)) = E) as ?.
@@ -266,7 +267,7 @@ Section finish_specs.
               { intros Hcont. apply (nclose_infinite (ver_susp_n (InjRV #susp0))).
                 assert (↑ver_susp_n (InjRV #susp0) ≡@{coPset} ∅) as ->.
                 { apply set_equiv. intros yy. split; [intros Hyy; specialize (Hcont yy Hyy); set_solver|set_solver]. }
-                apply empty_finite. }
+                apply empty_finite. } *)
 
               iMod (na_inv_acc with "Hxinv Htok") as "(Hxinvo & Htok & Hclose_inv)"; try solve_ndisj.
               iDestruct "Hxinvo" as ">[Hinv_1|Hinv_2]".

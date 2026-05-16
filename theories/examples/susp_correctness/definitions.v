@@ -598,7 +598,7 @@ Section authenticatable_definitions.
     (⌜v = InjLV #(hash s)⌝ ∗ id_token id) ∨
       (∃ (s' : string) (susp psusp : loc) pid γ,
         ⌜v = InjRV #susp⌝ ∗ ⌜id > pid⌝ ∗
-        id_ref_frag id pid ∗
+        id_ref_frag id pid ∗ pval_frag id susp ∗
         pval_frag pid psusp ∗ ⌜psusp ≠ susp⌝ ∗
         lg_mapg_frag susp γ ∗ visit_reached_done γ ∗
         (visit_finished γ -∗ id_token id) ∗
@@ -610,7 +610,7 @@ Section authenticatable_definitions.
     (⌜v = InjLV #(hash s)⌝ ∗ id_token id ∗ intransit 1) ∨
       (∃ (s' : string) (susp psusp : loc) pid γ,
         ⌜v = InjRV #susp⌝ ∗ ⌜id > pid⌝ ∗
-        id_ref_frag id pid ∗
+        id_ref_frag id pid ∗ pval_frag id susp ∗
         pval_frag pid psusp ∗ ⌜psusp ≠ susp⌝ ∗
         lg_mapg_frag susp γ ∗ visit_reached_done γ ∗
         (visit_finished γ -∗ id_token id) ∗
