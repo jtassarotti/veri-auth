@@ -6,15 +6,14 @@ From auth.examples.susp_correctness Require Export definitions helpers.
 From auth.examples.susp_correctness Require Import base_correctness.
 
 Section authenticatable.
-  Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, !mapG Σ, !capG Σ, !intransitG Σ, !stateG Σ}.
+  Context `{!authG Σ, !seqG Σ, !correctnessG Σ}.
 
   Lemma refines_Auth_auth Θ (Δ : ctxO Σ Θ) (R : kindO Σ (⋆ ⇒ ⋆)) :
     ⊢ ⟦ ∀: ⋆, var1 (var3 var0) ⟧
       (auth_ctx Δ R) p_Auth_auth v_Auth_auth i_Auth_auth.
   Proof.
-    iSplit; [|iSplit]; interp_unfold!; last first.
+    iSplit; interp_unfold!; last first.
     { (* unary  *) admit. }
-    { (* binary *) admit. }
     (* ternary *)
     iIntros (A v1 v2 v3) "!# _"; rewrite -/interp.
     iIntros (????) "Hv Hi Htok".
@@ -22,9 +21,8 @@ Section authenticatable.
     v_pures; i_pures; wp_pures.
     iModIntro. iFrame.
     (* Final 3-way split: prove only the ternary [lrel_tern_evidence]. *)
-    iSplit; [|iSplit]; interp_unfold!; last first.
+    iSplit; interp_unfold!; last first.
     { (* final unary  *) admit. }
-    { (* final binary *) admit. }
     (* Ternary evidence for the auth. *)
     rewrite interp_var1_ext2.
     iExists tauth, _, _, _, _, _, _, _.

@@ -6,7 +6,7 @@ From auth.examples.susp_correctness Require Export definitions helpers.
 
 
 Section authenticatable.
-  Context `{!authG Σ, !seqG Σ, !visited_mapG Σ, !lg_mapG Σ, !mapG Σ, !capG Σ, !intransitG Σ, !stateG Σ} (N : namespace).
+  Context `{!authG Σ, !seqG Σ, !correctnessG Σ}.
   
 
 
@@ -14,39 +14,35 @@ Section authenticatable.
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 + var0) ⟧
       (ext Δ (lrel_evidence)) p_Auth_sum v_Auth_sum i_Auth_sum.
   Proof.
-    iSplit; [|iSplit]; interp_unfold!; last first.
+    iSplit; interp_unfold!; last first.
     { (* unary  *) admit. }
-    { (* binary *) admit. }
     (* ternary *)
     iIntros (A v1 v2 v3) "!# _"; rewrite -/interp.
     iIntros (????) "Hv Hi Htok".
     rewrite /p_Auth_sum /v_Auth_sum /i_Auth_sum.
     v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
-    iSplit; [|iSplit]; interp_unfold!; last first.
+    iSplit; interp_unfold!; last first.
     { (* inner-after-A unary *) admit. }
-    { (* inner-after-A binary *) admit. }
     iIntros (B w1 w2 w3) "!# _"; rewrite -/interp.
     iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
-    iSplit; [|iSplit]; interp_unfold!; last first.
+    iSplit; interp_unfold!; last first.
     { (* inner-after-B unary *) admit. }
-    { (* inner-after-B binary *) admit. }
     iIntros (vA1 vA2 vA3) "!# #HA".
     interp_unfold! in "HA".
-    iDestruct "HA" as "(HA_tern & #HA_bin & #HA_un)".
+    iDestruct "HA" as "(HA_tern & #HA_un)".
     rewrite interp_var2_ext3 interp_var1_ext2.
     iDestruct "HA_tern" as (tA p_ssA p_usA p_spA p_uspA v_sA v_dA v_cA -> ->)
       "(#HusserA & #HsserA & HsuspvdeserA & #HunsuspA & HvserA & HvauthserA & HvcountA)".
     fold v_ser_spec.
     iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
-    iSplit; [|iSplit]; interp_unfold!; last first.
+    iSplit; interp_unfold!; last first.
     { (* inner-after-HA unary *) admit. }
-    { (* inner-after-HA binary *) admit. }
     iIntros (vB1 vB2 vB3) "!# #HB".
     interp_unfold! in "HB".
-    iDestruct "HB" as "(HB_tern & #HB_bin & #HB_un)".
+    iDestruct "HB" as "(HB_tern & #HB_un)".
     rewrite interp_var2_ext3 interp_var0_ext1.
     iDestruct "HB_tern" as (tB p_ssB p_usB p_spB p_uspB v_sB v_dB v_cB -> ->)
       "(#HusserB & #HsserB & HsuspvdeserB & #HunsuspB & HvserB & HvauthserB & HvcountB)".
@@ -54,9 +50,8 @@ Section authenticatable.
     rewrite /sum_ser'' /sum_ser /sum_count.
     v_pures; i_pures; wp_pures.
     iModIntro. iFrame.
-    iSplit; [|iSplit]; interp_unfold!; last first.
+    iSplit; interp_unfold!; last first.
     { (* final unary  *) admit. }
-    { (* final binary *) admit. }
     (* Ternary evidence for the sum. *)
     rewrite interp_var2_ext3.
     iExists (tsum tA tB), _, _, _, _, _, _, _.
@@ -81,7 +76,7 @@ Section authenticatable.
         iIntros "(Htok & Hintr & HreachA)". wp_pures.
         unfold inl_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
         iIntros (γl) "Hg Hpen %Hsz Hbig".
-        iAssert ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj tA w #lb⌝)%I
+        iAssert ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj tA w #lb⌝)%I
           with "[Hbig]" as "HbigA".
         { iApply (big_sepS_mono with "Hbig"). iIntros (γ ?) "(%lb & Hlg & %Hp)".
           iExists lb. iFrame "Hlg". iPureIntro. simpl in Hp.
@@ -101,7 +96,7 @@ Section authenticatable.
         iIntros "(Htok & Hintr & HreachB)". wp_pures.
         unfold inr_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
         iIntros (γl) "Hg Hpen %Hsz Hbig".
-        iAssert ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj tB w #lb⌝)%I
+        iAssert ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj tB w #lb⌝)%I
           with "[Hbig]" as "HbigB".
         { iApply (big_sepS_mono with "Hbig"). iIntros (γ ?) "(%lb & Hlg & %Hp)".
           iExists lb. iFrame "Hlg". iPureIntro. simpl in Hp.
@@ -117,49 +112,8 @@ Section authenticatable.
         admit.
     - (* 3. suspend_v_deser_spec (combined) *) admit.
     - (* 4. unsuspend_spec *)
-      iIntros (E a1 a2 a3 HE Ψ) "!# (#HA & Htok & Hintr) HΨ".
-      wp_pures.
-      iDestruct "HA" as "[#HA1 [#HA2 #HA3]]".
-      interp_unfold! in "HA1".
-      iEval (rewrite interp_bin_sum_unfold) in "HA2".
-      iEval (rewrite interp_un_sum_unfold) in "HA3".
-      iDestruct "HA1" as (v1 v2 v3) "[(-> & -> & -> & #H1) | (-> & -> & -> & #H1)]".
-      + (* InjL: A's branch *)
-        iDestruct "HA2" as (? ?) "[(%Heq1 & %Heq2 & #HA2a) | (%Heq1 & _)]"; last discriminate.
-        injection Heq1 as ->. injection Heq2 as ->.
-        iDestruct "HA3" as (?) "[[%Heq3 #HA3a] | [%Heq3 _]]"; last discriminate.
-        injection Heq3 as ->.
-        wp_pures.
-        wp_bind (p_uspA _).
-        wp_apply ("HunsuspA" with "[//] [$Htok $Hintr]").
-        { rewrite interp_var1_ext2.
-          iSplit; [|iSplit]; iNext.
-          - destruct A; iExact "H1".
-          - destruct A; iExact "HA2a".
-          - destruct A; iExact "HA3a". }
-        iIntros (un_va sa) "(Htok & Hintr & %Hunsuspa & #Hssera)".
-        wp_pures. iApply ("HΨ" $! (InjLV un_va) (inl_ser_str sa)).
-        iFrame. iModIntro. iSplit.
-        { iPureIntro. left. eexists _, un_va. done. }
-        iExists un_va, sa. iLeft. iSplit; [iExact "Hssera"|]. done.
-      + (* InjR: B's branch *)
-        iDestruct "HA2" as (? ?) "[(%Heq1 & _) | (%Heq1 & %Heq2 & #HA2b)]"; first discriminate.
-        injection Heq1 as ->. injection Heq2 as ->.
-        iDestruct "HA3" as (?) "[[%Heq3 _] | [%Heq3 #HA3b]]"; first discriminate.
-        injection Heq3 as ->.
-        wp_pures.
-        wp_bind (p_uspB _).
-        wp_apply ("HunsuspB" with "[//] [$Htok $Hintr]").
-        { rewrite interp_var0_ext1.
-          iSplit; [|iSplit]; iNext.
-          - destruct B; iExact "H1".
-          - destruct B; iExact "HA2b".
-          - destruct B; iExact "HA3b". }
-        iIntros (un_vb sb) "(Htok & Hintr & %Hunsuspb & #Hsserb)".
-        wp_pures. iApply ("HΨ" $! (InjRV un_vb) (inr_ser_str sb)).
-        iFrame. iModIntro. iSplit.
-        { iPureIntro. right. eexists _, un_vb. done. }
-        iExists un_vb, sb. iRight. iSplit; [iExact "Hsserb"|]. done.
+      (* Used binary projection HA2 — admitted post lrel_tern binary removal. *)
+      admit.
     - (* 5. v_ser_spec *)
       iIntros (K tᵥ3 a s id Nc v_outer) "!# Hcnt #Hser Hspec".
       iDestruct "Hser" as (w s') "[[#Hser1 [-> ->]] | [#Hser1 [-> ->]]]".
@@ -217,41 +171,11 @@ Section authenticatable.
   Admitted.
 
   Lemma refines_Auth_string :
-    ⊢ (lrel_evidence) (LRelTern lrel_string lrel_bin_string lrel_un_string)
+    ⊢ (lrel_evidence) (LRelTern lrel_string lrel_un_string)
         p_Auth_string v_Auth_string i_Auth_string.
   Proof.
-    iSplit; [|iSplit]; last first.
+    iSplit; last first.
     { (* unary  *) admit. }
-    { (* binary *)
-      rewrite /lrel_bi_evidence /=.
-      iExists tstring, _, _, _, _, _, _, _.
-      iSplit; [done|].
-      iSplit.
-      { iIntros (vstr sstr Ψ) "!# Hser HΨ".
-        iDestruct "Hser" as %(s' & -> & ->).
-        rewrite /p_Auth_string /string_ser' /string_ser /string_ser_str.
-        wp_pures. by iApply "HΨ". }
-      iSplit.
-      { (* susp_p_ser_spec — spec changed (new c, tern_state/un_state). *)
-        admit. }
-      iSplit.
-      { iIntros (t v un_v a3 Ψ) "!# (%Hunsusp & HA) HΨ". wp_pures.
-        iDestruct "HA" as ">HA". iSimpl in "HA".
-        iDestruct "HA" as %(s0 & -> & ->).
-        destruct t as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp.
-        + destruct Hunsusp as (? & ? & ? & ? & Heq & _); discriminate.
-        + destruct Hunsusp as [(? & ? & Heq & _ & _) | (? & ? & Heq & _ & _)]; discriminate.
-        + subst un_v. rewrite /id. wp_pures. iApply "HΨ". iModIntro.
-          iSplit; [iExists s0; done|].
-          iSplit; [iExists s0; done|by iPureIntro].
-        + subst un_v. rewrite /id. wp_pures. iApply "HΨ". iModIntro.
-          iSplit; [iExists s0; done|].
-          iSplit; [iExists s0; done|by iPureIntro].
-        + destruct Hunsusp as (? & ? & ? & ? & ? & [Heq _]); discriminate. }
-      iIntros (E a1 a3 HE Ψ) "!# [HA Htok] HΨ". wp_pures.
-      iDestruct "HA" as ">HA". iSimpl in "HA".
-      iDestruct "HA" as %(s0 & -> & ->).
-      rewrite /id. wp_pures. iApply ("HΨ" $! _). iFrame. iModIntro. done. }
     (* ternary *)
     rewrite /lrel_tern_evidence /=.
     iExists tstring, _, _, _, _, _, _, _.
@@ -273,68 +197,8 @@ Section authenticatable.
       iIntros (γl) "Hg Hpen %Hsz Hbig".
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
-    - (* 3. suspend_v_deser_spec (combined) *)
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m vm d ps pn ctr gm mlg mlg_p) "Hv".
-      v_pures.
-      iModIntro. iExists string_deser. iFrame "Hv".
-      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hmapg & Hv) HΨ".
-      iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
-      iDestruct "HAt" as %(s0 & -> & -> & ->).
-      destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp; try done.
-      + destruct Hunsusp as (? & ? & ? & ? & Heq & _); discriminate.
-      + destruct Hunsusp as [(? & ? & Heq & _ & _) | (? & ? & Heq & _ & _)]; discriminate.
-      + (* tstring *) subst un_a1.
-        rewrite /id. wp_pures.
-        iDestruct "Hser" as %(s' & Heq & ->).
-        injection Heq as Hs'. subst s'.
-        (* s_def = string_ser_str s0 = s_real (since c=0, no realization shift). *)
-        destruct (decide (s_pred = string_ser_str s0)) as [Heq|Hne].
-        * (* Match branch *)
-          subst s_pred.
-          iAssert (string_is_ser' (string_ser_str s0)) as %Hsis.
-          { iPureIntro. by exists s0. }
-          iMod (string_deser_spec' ⊤ _ () (λ v, ⌜v = SOMEV #s0⌝)%I
-                 with "[//] [] [$Hv //]") as (?) "[Hv ->]".
-          { iIntros "!#" (v) "%Hv".
-            destruct Hv as (s' & -> & Hs0_ss). simpl in Hs0_ss.
-            injection Hs0_ss as Hs0. by subst s'. }
-          iMod (own_unit pending_setUR pending_set_name) as "Hpe".
-          iApply ("HΨ" $! #s0 (string_ser_str s0) 0%nat).
-          iModIntro.
-          iSplitL "".
-          { iExists tstring.
-            iIntros (E q HE Ψ').
-            iModIntro. iIntros "[Htok Hintr] HΨ'".
-            rewrite /string_ser. wp_pures.
-            iApply "HΨ'". iModIntro. iFrame "Htok".
-            iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
-            iDestruct "Hintr" as "[$ _]".
-            iIntros (γl) "Hg Hpen %Hsz Hbig".
-            apply size_empty_inv in Hsz. fold_leibniz. subst γl.
-            iFrame "Hg Hpen". by rewrite big_sepS_empty. }
-          iLeft. iSplit; [done|]. iExists ∅, mlg, #s0.
-          iFrame "Hauth".
-          (* TODO: needs mapg_insert m #pid #s0 — requires m !! #pid = None *)
-          admit.
-        * (* Mismatch branch *)
-          iApply ("HΨ" $! #s0 (string_ser_str s0) 0%nat).
-          iModIntro.
-          iSplitL "".
-          { iExists tstring.
-            iIntros (E q HE Ψ').
-            iModIntro. iIntros "[Htok Hintr] HΨ'".
-            rewrite /string_ser. wp_pures.
-            iApply "HΨ'". iModIntro. iFrame "Htok".
-            iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
-            iDestruct "Hintr" as "[$ _]".
-            iIntros (γl) "Hg Hpen %Hsz Hbig".
-            apply size_empty_inv in Hsz. fold_leibniz. subst γl.
-            iFrame "Hg Hpen". by rewrite big_sepS_empty. }
-          iRight. iSplit; [iPureIntro; auto|].
-          iExists s0. done.
-      + (* tint: contradicts string serialization *)
-        iDestruct "Hser" as %(? & Heq & _); done.
-      + destruct Hunsusp as (? & ? & ? & ? & ? & Heq & _); discriminate.
+    - (* 3. suspend_v_deser_spec (combined) *) admit.
+
     - (* 4. unsuspend_spec *)
       iIntros (E a1 a2 a3 HE Ψ) "!# (HA & Htok & Hintr) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
@@ -361,12 +225,11 @@ Section authenticatable.
   Admitted.
 
   Lemma refines_Auth_int :
-    ⊢ (lrel_evidence) (LRelTern lrel_int lrel_bin_int lrel_un_int)
+    ⊢ (lrel_evidence) (LRelTern lrel_int lrel_un_int)
         p_Auth_int v_Auth_int i_Auth_int.
   Proof.
-    iSplit; [|iSplit]; last first.
+    iSplit; last first.
     { (* unary  *) admit. }
-    { (* binary *) admit. }
     (* ternary *)
     rewrite /lrel_tern_evidence /=.
     iExists tint, _, _, _, _, _, _, _.
@@ -388,69 +251,8 @@ Section authenticatable.
       iIntros (γl) "Hg Hpen %Hsz Hbig".
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
-    - (* 3. suspend_v_deser_spec (combined) *)
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m vm d ps pn ctr gm mlg mlg_p) "Hv".
-      v_pures.
-      iModIntro. iExists int_deser. iFrame "Hv".
-      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hmapg & Hv) HΨ".
-      iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
-      iDestruct "HAt" as %(z0 & -> & -> & ->).
-      destruct t' as [t1 t2 | t1 t2 | | | ]; simpl in Hunsusp; try done.
-      + destruct Hunsusp as (? & ? & ? & ? & Heq & _); discriminate.
-      + destruct Hunsusp as [(? & ? & Heq & _ & _) | (? & ? & Heq & _ & _)]; discriminate.
-      + (* tstring: contradicts int serialization *)
-        iDestruct "Hser" as %(? & Heq & _); done.
-      + (* tint *) subst un_a1.
-        rewrite /id. wp_pures.
-        iDestruct "Hser" as %(z' & Heq & ->).
-        injection Heq as Hz'. subst z'.
-        destruct (decide (s_pred = int_ser_str z0)) as [Heq|Hne].
-        * (* Match branch *)
-          subst s_pred.
-          iAssert (int_is_ser' (int_ser_str z0)) as %Hsis.
-          { iPureIntro. by exists z0. }
-          iMod (int_deser_spec' ⊤ _ () (λ v, ⌜v = SOMEV #z0⌝)%I
-                 with "[//] [] [$Hv //]") as (?) "[Hv ->]".
-          { iIntros "!#" (v) "%Hv".
-            destruct Hv as (z' & -> & Hz0_zs). simpl in Hz0_zs.
-            unfold int_ser_str in Hz0_zs.
-            apply String.app_inj in Hz0_zs.
-            apply (inj StringOfZ) in Hz0_zs. by subst z'. }
-          iMod (own_unit pending_setUR pending_set_name) as "Hpe".
-          iApply ("HΨ" $! #z0 (int_ser_str z0) 0%nat).
-          iModIntro.
-          iSplitL "".
-          { iExists tint.
-            iIntros (E q HE Ψ').
-            iModIntro. iIntros "[Htok Hintr] HΨ'".
-            rewrite /int_ser. wp_pures.
-            iApply "HΨ'". iModIntro. iFrame "Htok".
-            iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
-            iDestruct "Hintr" as "[$ _]".
-            iIntros (γl) "Hg Hpen %Hsz Hbig".
-            apply size_empty_inv in Hsz. fold_leibniz. subst γl.
-            iFrame "Hg Hpen". by rewrite big_sepS_empty. }
-          iLeft. iSplit; [done|]. iExists ∅, mlg, #z0.
-          iFrame "Hauth".
-          (* TODO: needs mapg_insert m #pid #z0 *)
-          admit.
-        * (* Mismatch branch *)
-          iApply ("HΨ" $! #z0 (int_ser_str z0) 0%nat).
-          iModIntro.
-          iSplitL "".
-          { iExists tint.
-            iIntros (E q HE Ψ').
-            iModIntro. iIntros "[Htok Hintr] HΨ'".
-            rewrite /int_ser. wp_pures.
-            iApply "HΨ'". iModIntro. iFrame "Htok".
-            iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
-            iDestruct "Hintr" as "[$ _]".
-            iIntros (γl) "Hg Hpen %Hsz Hbig".
-            apply size_empty_inv in Hsz. fold_leibniz. subst γl.
-            iFrame "Hg Hpen". by rewrite big_sepS_empty. }
-          iRight. iSplit; [iPureIntro; auto|].
-          iExists z0. done.
-      + destruct Hunsusp as (? & ? & ? & ? & ? & Heq & _); discriminate.
+    - (* 3. suspend_v_deser_spec (combined) *) admit.
+
     - (* 4. unsuspend_spec *)
       iIntros (E a1 a2 a3 HE Ψ) "!# (HA & Htok & Hintr) HΨ".
       iDestruct "HA" as "[>HAt _]". iSimpl in "HAt".
@@ -480,29 +282,26 @@ Section authenticatable.
     ⊢ ⟦ ∀: ⋆ ⇒ ⋆, var1 (var0 (μ: ⋆; var1 var0)) → var1 (μ: ⋆; var1 var0) ⟧
       (ext Δ (lrel_evidence)) p_Auth_mu v_Auth_mu i_Auth_mu.
   Proof.
-    iSplit; [|iSplit]; interp_unfold!; last first.
+    iSplit; interp_unfold!; last first.
     { (* unary  *) admit. }
-    { (* binary *) admit. }
     (* ternary *)
     iIntros (A v1 v2 v3) "!# _"; rewrite -/interp.
     iIntros (????) "Hv Hi Htok".
     rewrite /p_Auth_mu /v_Auth_mu /i_Auth_mu.
     v_pures; i_pures; wp_pures.
     iModIntro. iFrame.
-    iSplit; [|iSplit]; interp_unfold!; last first.
+    iSplit; interp_unfold!; last first.
     { (* inner-after-A unary *) admit. }
-    { (* inner-after-A binary *) admit. }
     iIntros (vA1 vA2 vA3) "!# #HA".
     interp_unfold! in "HA".
-    iDestruct "HA" as "(HA_tern & #HA_bin & #HA_un)".
+    iDestruct "HA" as "(HA_tern & #HA_un)".
     rewrite interp_var1_ext2 interp_var0_ext1.
     iDestruct "HA_tern" as (tA p_ssA p_usA p_spA p_uspA v_sA v_dA v_cA -> ->)
       "(HusserA & HsserA & HsuspvdeserA & HunsuspA & HvserA & HvauthserA & HvcountA)".
     iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
-    iSplit; [|iSplit]; interp_unfold!; last first.
+    iSplit; interp_unfold!; last first.
     { (* final unary  *) admit. }
-    { (* final binary *) admit. }
     rewrite interp_var1_ext2.
     iExists tA, _, _, _, _, _, _, _.
     iSplit; [done|]. iSplit; [done|].
@@ -518,45 +317,8 @@ Section authenticatable.
       wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser $Htok $Hintr]").
       iIntros "(Htok & Hintr & HreachA)".
       iApply "HΨ". iFrame.
-    - (* 3. suspend_v_deser_spec (combined): forwards to A's spec via rec_fold *)
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ pid m vm d ps pn ctr gm mlg mlg_p) "Hv".
-      v_pures.
-      iModIntro. iExists _. iFrame "Hv".
-      iIntros "!#" (K' tᵥ' Ψ) "!# (%Hunsusp & #HA & #Hser & Hvm & Hauth & Hmapg & Hv) HΨ".
-      iEval (rewrite interp_rec_star_unfold) in "HA".
-      interp_unfold! in "HA".
-      rewrite interp_var1_ext2 interp_var0_ext1.
-      v_pures.
-      v_bind tᵥ' (v_dA #pid).
-      iMod ("HsuspvdeserA" $! _ _ _ _ _ _ _ _ _ pid _ _ _ _ _ _ _ _ with "Hv")
-        as (v_deser_par_A) "[Hv #Hsuspvdeser_inner_A] /=".
-      rewrite /rec_fold. wp_pures.
-      wp_apply ("Hsuspvdeser_inner_A" with "[$Hv $Hvm $Hauth $Hmapg]").
-      { iSplit; [iPureIntro; eauto|]. iFrame "Hser HA". }
-      iIntros (a1' s_real c_v) "[#Hsspec_at HpostA]".
-      iApply ("HΨ" $! a1' s_real c_v).
-      iSplitL "".
-      { (* Lift Hsspec_at from p_ssA to (λ "a", rec_fold p_ssA "a"). *)
-        iDestruct "Hsspec_at" as (t_real) "Hsspec_at_inner".
-        iExists t_real.
-        iIntros (E q HE Ψ').
-        iModIntro. iIntros "[Htok Hintr] HΨ'".
-        wp_pures. rewrite /rec_fold. wp_pures.
-        iApply ("Hsspec_at_inner" with "[//] [$Htok $Hintr]"). iApply "HΨ'". }
-      iDestruct "HpostA" as "[[%Hpredeq HpostA] | [%Hpredne HAbinpost]]".
-      + iLeft. iSplit; [done|].
-        iDestruct "HpostA" as (γl mlg' a2')
-          "(Hauth' & Hmapg' & Hszγ & Hpenγ & HArel & Hser_a1' & Hverv & Hbig & Hcnt & Hproph & Hvmupd)".
-        iExists γl, mlg', a2'. iFrame.
-        iEval (rewrite interp_rec_star_unfold).
-        iNext. interp_unfold!.
-        rewrite interp_var1_ext2 interp_var0_ext1.
-        iExact "HArel".
-      + iRight. iSplit; [done|].
-        iEval (rewrite interp_rec_star_bin_unfold).
-        iNext. interp_unfold!.
-        rewrite interp_var1_ext2 interp_var0_ext1.
-        iExact "HAbinpost".
+    - (* 3. suspend_v_deser_spec (combined) *) admit.
+
     - (* 4. unsuspend_spec *)
       iIntros (E a1 a2 a3 HE Ψ) "!# (#HA & Htok & Hintr) HΨ".
       rewrite /rec_fold. wp_pures.
