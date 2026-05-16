@@ -60,7 +60,7 @@ Section finish_specs.
            } *)
 
     iDestruct "Hvauth" as "[(-> & Hidtok & Hintr & Htok)|
-        (%&%&%&%&%& -> &% & Hpid & _ & #Hpvfrag & #Hpvuneq & #Hlbfrag & #Hvisdone & Hgetidtok & -> & Hvinv & Htrvinv & Htok & Hclose_inv)]".
+        (%&%&%&%&%& -> & % & #Hvfrag & #Hpvfrag & #Hpvuneq & #Hlbfrag & #Hvisdone & Hgetidtok & -> & Hvinv & Htrvinv & Htok & Hclose_inv)]".
     - v_pures. v_bind (ser _).
       iMod ("Hserspec" with "Hc Hser Hv") as "(Hc & Hser & Hv) /=".
       v_pures. v_bind (Hash _).
@@ -251,7 +251,7 @@ Section finish_specs.
               with "[Htok Hintr Hxauth Hvisinv Hvmauth Hmauth Hbigsep]"
             as ">(%&->& #Hnmspc' & Hxauth & Hvisvm & Hmauth & Hbigsep)".
           { iDestruct "Hxauth" as "[[-> Hidtok]|
-              (%&%&%&%&%& ->& %& Hgpid & #Hpvfrag' & #Hgpfrag & #Hgpuneq & #Hxlbfrag & #Hxvisdone & Hgetidtok & -> & #Hxinv)]".
+              (%&%&%&%&%& ->& %& Hpvfrag' & #Hgpfrag & #Hgpuneq & #Hxlbfrag & #Hxvisdone & Hgetidtok & -> & #Hxinv)]".
             - iPoseProof (id_token_unused with "Hvmauth Hidtok") as "(%Hidunused & Hvmauth & Hidtok)".
               iFrame. iSplitR; eauto. iSplitR.
               { do 2 iModIntro. iIntros (gpid gsusp gγ Hgpid_lt) "H1 H2 H3".
