@@ -1620,6 +1620,82 @@ Section lg_map.
       + rewrite lookup_insert_ne in Hγ'; [|done]. by apply Hl_pcoh.
   Qed.
 
+  (** [pval_snapshot susp k M] is a persistent "freshness snapshot": at
+      some past moment the id-counter was [k], [M] enumerated every id in
+      [set_seq 0 k] together with the susp registered there, and [susp]
+      was not among those susps. Combined with [pval_frag id' susp'] for
+      [id' < k] this gives [susp ≠ susp']. *)
+  Definition pval_snapshot (susp : loc) (k : nat) (M : gmap nat loc) : iProp Σ :=
+    ⌜dom M = set_seq 0 k⌝ ∗
+    ⌜susp ∉ (map_img M : gset loc)⌝ ∗
+    [∗ map] id ↦ susp_id ∈ M, pval_frag id susp_id.
+
+  Global Instance pval_snapshot_persistent susp k M : Persistent (pval_snapshot susp k M).
+  Proof. apply _. Qed.
+
+  Global Instance pval_snapshot_timeless susp k M : Timeless (pval_snapshot susp k M).
+  Proof. apply _. Qed.
+
+  (** Mint a [pval_snapshot] from the auth and a user-supplied collection of
+      [pval_frag] + [lg_mapg_frag] covering every id in [set_seq 0 k]. The
+      [lg_mapg_frag] entries witness that each susp in [M] is bound in
+      [m_v], i.e. lives in [dom m_v]. Combined with [vmeta_token susp]
+      (which forces [susp ∉ dom m_v]), this gives [susp ∉ map_img M].
+      No state changes; we only extract a pure fact. *)
+  Lemma pval_snapshot_alloc m pn k susp (M : gmap nat loc) :
+    dom M = set_seq 0 k →
+    vmeta_token susp -∗
+    visited_mapg_auth m pn k -∗
+    ([∗ map] id ↦ susp_id ∈ M, pval_frag id susp_id ∗ ∃ γ, lg_mapg_frag susp_id γ) -∗
+      vmeta_token susp ∗ visited_mapg_auth m pn k ∗ pval_snapshot susp k M.
+  Proof.
+    iIntros (Hdom) "Hvtok Hauth #Hmap".
+    iDestruct "Hauth" as "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & %Hgm_dom & %Hpvm_dom & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
+    (* Show susp ∉ dom m_v via vmeta_token + spec_meta accumulator. *)
+    iDestruct (own_valid_2 with "Hsmeta Hvtok") as %Hsm_v.
+    rewrite auth_frag_op_valid gset_disj_valid_op in Hsm_v.
+    assert (susp ∉ dom m_v) as Hsusp_notin by set_solver.
+    (* Show every susp_id in map_img M is in dom m_v. *)
+    iAssert (∀ l, ⌜l ∈ (map_img M : gset loc)⌝ -∗ ⌜l ∈ dom m_v⌝)%I as %Hsub.
+    { iIntros (l Hl%elem_of_map_img).
+      destruct Hl as [id Hid].
+      iDestruct (big_sepM_lookup _ _ id l Hid with "Hmap")
+        as "[_ (%γ & Hlbf)]".
+      rewrite /lg_mapg_frag.
+      iDestruct (own_valid_2 with "Hmv Hlbf") as %Hlb_v.
+      apply auth_both_valid_discrete in Hlb_v as [Hincl _].
+      apply singleton_included_l in Hincl as (y & Hy & _).
+      iPureIntro. apply elem_of_dom. destruct (m_v !! l) as [a|] eqn:Hl_eq.
+      - by eexists.
+      - rewrite Hl_eq in Hy. by inversion Hy. }
+    iFrame "Hvtok". iSplitR "".
+    { iExists d, ps, gm, pvm, m_v, rs.
+      iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta Hrs". iPureIntro. eauto 10. }
+    rewrite /pval_snapshot.
+    iSplit; [done|]. iSplit.
+    { iPureIntro. intros Hin. apply Hsub in Hin. set_solver. }
+    iApply (big_sepM_mono with "Hmap").
+    iIntros (?? _) "[$ _]".
+  Qed.
+
+  (** [pval_snapshot susp k M] + [pval_frag id' susp'] with [id' < k]
+      yields [susp ≠ susp']. The snapshot's big-sep gives a
+      [pval_frag id' susp_id'] for the snapshot value; agreement at id'
+      forces [susp' = susp_id']; [susp_id' ∈ map_img M] combined with
+      [susp ∉ map_img M] gives the inequality. No auth needed. *)
+  Lemma pval_snapshot_neq susp k M id' susp' :
+    id' < k →
+    pval_snapshot susp k M -∗ pval_frag id' susp' -∗ ⌜susp ≠ susp'⌝.
+  Proof.
+    iIntros (Hlt) "(%Hdom & %Hnotin & #Hsnap) #Hpv".
+    assert (id' ∈ dom M) as Hin.
+    { rewrite Hdom. apply elem_of_set_seq. lia. }
+    apply elem_of_dom in Hin as [susp_id Hmid].
+    iDestruct (big_sepM_lookup _ _ id' susp_id Hmid with "Hsnap") as "Hpv'".
+    iDestruct (pval_frag_agree with "Hpv Hpv'") as %->.
+    iPureIntro. intros ->. apply Hnotin. by eapply elem_of_map_img_2.
+  Qed.
+
 End lg_map.
 
 

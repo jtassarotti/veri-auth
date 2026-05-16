@@ -380,6 +380,7 @@ Section authenticatable_definitions.
                 mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat N)))%Qp v_outer ∗
                 cap_frag pid N ∗
                 pval_frag pid susp_pid ∗ ⌜susp ≠ susp_pid⌝ ∗
+                (∃ k M, ⌜pid < k⌝ ∗ pval_snapshot susp k M) ∗
                 (visit_pending γ ∨
                   (∃ id, ⌜id > pid⌝ ∗ visit_done γ id ∗ id_ref_frag id pid) ∨
                   (visit_finished γ ∗ intransit (1/2))))))).
