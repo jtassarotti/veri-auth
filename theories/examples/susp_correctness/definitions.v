@@ -487,7 +487,7 @@ Section authenticatable_definitions.
                 sub_susp_count_frags t a2' c id c ∗
                 ser_v_proph t id a2' s_def ∗ pencount_frag (c + pn) ∗
                 visited_map_update_pending vm d ps pn γl ctr gm pvm mlg' rs) ∨
-              (⌜s_pred ≠ s_real⌝ ∗ (lrel_tern_bin A) a1' a3)) }}})).
+              (⌜s_pred ≠ s_real⌝ ∗ (lrel_tern_un A) a1')) }}})).
 
   Definition unsuspend_spec (unsuspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
     ∀ E (a1 a2 a3 : val),
@@ -499,20 +499,20 @@ Section authenticatable_definitions.
             (* if o is Some v then ∃ s, unsusp_ser_p t v s (* ∗ s_is_ser_p_proph t a1 s'*)
             else ⌜invalid_value t a1⌝ ∨ (∃ s, unsusp_ser_p t a1 s) }}}. *)
 
-  Definition suspend_spec_bin (suspend : val) (A : lrel_bin Σ) (t : evi_type) : iProp Σ :=
-    ∀ t' (v un_v a3 : val),
-      {{{ ⌜unsusp t' v un_v⌝ ∗ ▷ A v a3 }}}
+  Definition suspend_spec_bin (suspend : val) (A : lrel_un Σ) (t : evi_type) : iProp Σ :=
+    ∀ t' (v un_v : val),
+      {{{ ⌜unsusp t' v un_v⌝ ∗ ▷ A v }}}
         suspend un_v
-      {{{ v' s c, RET v'; A v' a3 ∗ susp_ser_p_real t c v' s }}}.
+      {{{ v' s c, RET v'; A v' ∗ susp_ser_p_real t c v' s }}}.
 
-  Definition unsuspend_spec_bin (unsuspend : val) (A : lrel_bin Σ) (t : evi_type) : iProp Σ :=
-    ∀ E (a1 a3 : val),
+  Definition unsuspend_spec_bin (unsuspend : val) (A : lrel_un Σ) (t : evi_type) : iProp Σ :=
+    ∀ E (a1 : val),
       ⌜↑prover_susp_set ⊆ E⌝ -∗
-      {{{ ▷ A a1 a3 ∗ seq_tok E }}}
+      {{{ ▷ A a1 ∗ seq_tok E }}}
         unsuspend a1
       {{{ un_v, RET un_v; seq_tok E ∗ ⌜unsusp t a1 un_v⌝ }}}.
 
-  Definition v_deser_spec_un (v_deser : val) (A : lrel_un Σ) (t : evi_type) : iProp Σ :=
+  (* Definition v_deser_spec_un (v_deser : val) (A : lrel_un Σ) (t : evi_type) : iProp Σ :=
     □(∀ K tᵥ (id : nat) (s' : string),
       spec_verifier tᵥ (fill K (v_deser #id))
       ={⊤}=∗ ∃ (v_deser_par: val),
@@ -524,7 +524,7 @@ Section authenticatable_definitions.
               spec_verifier tᵥ (fill K (SOMEV a2')) ∗
               ser_v_proph t id a2' s'' ∗ sub_susp_count_frags t a2' c id c ∗
               A a2') ∨
-            spec_verifier tᵥ (fill K NONEV))).
+            spec_verifier tᵥ (fill K NONEV))). *)
 
   Definition v_count_spec (v_count : val) (t : evi_type) : iProp Σ :=
     □(∀ K tᵥ a c id Nc v_outer,
@@ -551,12 +551,12 @@ Section authenticatable_definitions.
       ={⊤}=∗ ∃ s,
         ser_v t a2 s ∗ spec_verifier tᵥ (fill K (SOMEV #s))).
       
-  Definition v_auth_ser_spec_un (v_ser : val) (A : lrel_un Σ) (t : evi_type) : iProp Σ :=
+  (* Definition v_auth_ser_spec_un (v_ser : val) (A : lrel_un Σ) (t : evi_type) : iProp Σ :=
     □(∀ K tᵥ a2 s,
       A a2 -∗
       spec_verifier tᵥ (fill K (v_ser a2))
       ={⊤}=∗ 
-        ser_v t a2 s ∗ spec_verifier tᵥ (fill K (SOMEV #s))).
+        ser_v t a2 s ∗ spec_verifier tᵥ (fill K (SOMEV #s))). *)
 
   Definition lrel_tern_evidence (A : lrel_tern Σ) : lrel Σ := LRel (λ v1 v2 _,
     ∃ (t : evi_type) (p_ser_susp p_ser_unsusp p_susp p_unsusp v_ser v_deser v_count : val),
@@ -566,21 +566,21 @@ Section authenticatable_definitions.
       v_ser_spec v_ser t ∗ v_auth_ser_spec v_ser A t ∗
       v_count_spec v_count t)%I.
 
-  Definition lrel_bi_evidence (A : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ v1 _,
+  Definition lrel_un_evidence (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v1,
     ∃ (t : evi_type) (p_ser_susp p_ser_unsusp p_susp p_unsusp v_ser v_deser v_count : val),
       ⌜v1 = (p_ser_susp, p_ser_unsusp, p_susp, p_unsusp)%V⌝ ∗
       unsusp_p_ser_spec p_ser_unsusp t ∗ susp_p_ser_spec p_ser_susp t ∗
       suspend_spec_bin p_susp A t ∗ unsuspend_spec_bin p_unsusp A t)%I.
 
-  Definition lrel_un_evidence (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v2,
+  (* Definition lrel_un_evidence (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v2,
     ∃ (t : evi_type) (v_ser v_deser v_count : val),
       ⌜v2 = (v_ser, v_deser, v_count)%V⌝ ∗
       v_ser_spec v_ser t ∗ v_auth_ser_spec_un v_ser A t ∗
-      v_deser_spec_un v_deser A t ∗ v_count_spec v_count t)%I.
+      v_deser_spec_un v_deser A t ∗ v_count_spec v_count t)%I. *)
 
   Definition lrel_evidence' (A : lrel_tern Σ) : lrel_ternC Σ :=
     LRelTern (lrel_tern_evidence A)
-             (lrel_bi_evidence (lrel_tern_bin A))
+             (* (lrel_bi_evidence (lrel_tern_bin A)) *)
              (lrel_un_evidence (lrel_tern_un A)).
 
   Program Definition lrel_evidence : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_evidence' A.
@@ -645,19 +645,21 @@ Section authenticatable_definitions.
       susp_ser_p t a1 s ∗ A a1 a2 v3 ∗
       auth_pv un_a1 v1 v2' s)%I.
 
-  Definition lrel_auth_bin (A : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ v1 v3,
+  (* Definition lrel_auth_bin (A : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ v1 v3,
     ∃ (t : evi_type) (a1 un_a1 : val) (s : string),
       ⌜unsusp t a1 un_a1⌝ ∗
       susp_ser_p t a1 s ∗ A a1 v3 ∗
-      auth_p un_a1 v1 s)%I.
+      auth_p un_a1 v1 s)%I. *)
 
-  Definition lrel_auth_un (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v2,
-    ∃ (t : evi_type) (v2' a2 : val) (s : string),
-      ⌜v2 = SOMEV v2'⌝ ∗ A a2)%I.
+  Definition lrel_auth_un (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v1,
+    ∃ (t : evi_type) (a1 un_a1 : val) (s : string),
+      ⌜unsusp t a1 un_a1⌝ ∗
+      susp_ser_p t a1 s ∗ A a1 ∗
+      auth_p un_a1 v1 s)%I.
 
   Definition lrel_auth' (A : lrel_tern Σ) : lrel_tern Σ :=
     LRelTern (lrel_auth_tern A)
-             (lrel_auth_bin (lrel_tern_bin A))
+             (* (lrel_auth_bin (lrel_tern_bin A)) *)
              (lrel_auth_un (lrel_tern_un A)).
 
   Program Definition lrel_auth : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_auth' A.
@@ -800,24 +802,24 @@ Section authentikit_definitions.
               
             ((⌜List.length ps < List.length ps1'⌝) ∨
               ⌜lastn (List.length ps1') ps ≠ ps1'⌝ ∗
-              (lrel_tern_bin A) a1 a3 ∗ un_state))
+              (lrel_tern_un A) a1 ∗ un_state))
       }}})%I.
 
-  Definition lrel_auth_comp_bin (A : lrel_bin Σ) : lrel_bin Σ := LRelBin (λ v1 v3,
-    ∀ t3 K3 p (ps ps1 ps_fix : list string) (lpn : list nat) (w1 : val),
-      {{{ seq_tok ⊤ ∗ spec_ideal t3 (fill K3 (v3 #())) ∗
+  Definition lrel_auth_comp_un (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v1,
+    ∀ p (ps ps1 ps_fix : list string) (lpn : list nat) (w1 : val),
+      {{{ seq_tok ⊤ ∗
           p_proof_state w1 ps1 ps_fix lpn ∗ proph_proof p ps ∗
           ⌜lastn (List.length ps1) ps ≠ ps1⌝
       }}}
         v1 w1
-      {{{ ps1' (w1' a1 a3 : val), RET (w1', a1)%V;
+      {{{ ps1' (w1' a1 : val), RET (w1', a1)%V;
           ⌜lastn (List.length ps1') ps ≠ ps1'⌝ ∗
           proph_proof p ps ∗ 
           seq_tok ⊤ ∗ p_proof_state w1' ps1' ps_fix lpn ∗
-          spec_ideal t3 (fill K3 a3) ∗ A a1 a3
+          A a1
       }}})%I.
 
-  Definition lrel_auth_comp_un (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v2,
+  (* Definition lrel_auth_comp_un (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v2,
     (□ ∀ t2 K2 (ps2 : list string) (w2 : val),
       seq_tok ⊤ ∗ spec_verifier t2 (fill K2 (v2 w2)) ∗
       v_proof_state w2 ps2
@@ -826,11 +828,11 @@ Section authentikit_definitions.
         ((∃ ps2' (w2' a2 : val), 
           v_proof_state w2' ps2' ∗
           spec_verifier t2 (fill K2 (SOMEV (w2', a2)%V)) ∗ A a2) ∨
-          spec_verifier t2 (fill K2 NONEV))))%I.
+          spec_verifier t2 (fill K2 NONEV))))%I. *)
 
   Definition lrel_auth_comp' (A : lrel_tern Σ) : lrel_tern Σ :=
     LRelTern (lrel_auth_comp_tern A)
-             (lrel_auth_comp_bin (lrel_tern_bin A))
+             (* (lrel_auth_comp_bin (lrel_tern_bin A)) *)
              (lrel_auth_comp_un (lrel_tern_un A)).
 
   Program Definition lrel_auth_comp : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_auth_comp' A.
