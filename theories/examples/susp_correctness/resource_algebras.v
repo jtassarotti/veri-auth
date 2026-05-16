@@ -1176,13 +1176,13 @@ Section lg_map.
       (the linkage holds independent of γ's done-status); we keep it in
       the signature for caller convenience. *)
   Lemma id_token_pval_lgmap_done_inconsistent
-      m d ps pn ctr gm pvm m_v rs id l γ :
-    visited_mapg_auth m d ps pn ctr gm pvm m_v rs -∗
+      m pn ctr id l γ :
+    visited_mapg_auth m pn ctr -∗
     id_token id -∗ pval_frag id l -∗
     lg_mapg_frag l γ -∗ visit_reached_done γ -∗
     False.
   Proof.
-    iIntros "(Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs &
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs &
               %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)
             Hidtok Hpvf #Hlbf _".
     rewrite /id_token /pval_frag /lg_mapg_frag.
