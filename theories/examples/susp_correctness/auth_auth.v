@@ -197,7 +197,61 @@ Section authenticatable.
           iFrame "Hpen". rewrite big_sepS_singleton. iFrame "Hvrd".
           iExists lb. iFrame "Hlbfrag''". iPureIntro.
           eexists p, lb, lr, a, h. done.
-    - (* 3. suspend_v_deser_spec (combined) *) admit.
+    - (* 3. suspend_v_deser_spec (combined) *)
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ3 id m vm pn ctr mlg_p) "Hv".
+      rewrite /authenticatable_base_susp.auth_deser_v. v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros "!#" (K' tᵥ3' Ψ).
+      iIntros "!# (%Hunsusp & #HA & #Hser & Hvm & Hlgp & Hmpg & Hpenc & Hv) HΨ".
+      (* Project HA = (lrel_auth A) a1 a2 a3 into its tern / un parts. *)
+      iDestruct "HA" as "[HAtern #HAun]".
+      iEval (rewrite interp_var3_ext4 interp_var0_ext1) in "HAtern".
+      iEval (rewrite /lrel_auth /=) in "HAtern".
+      (* Now [HAtern : ▷ lrel_auth_tern A_inner a1 a2 a3]. *)
+      (* Run the prover-side allocation FIRST. Each wp_alloc and wp_new_proph
+         takes a step which strips a [▷]; after the allocations we can
+         destruct HAtern (which is currently under [▷]). The prover
+         allocation doesn't depend on the case-split, so we can defer it. *)
+      rewrite /authenticatable_base_susp.auth_suspend_p.
+      (* unsusp t' a1 un_a1 only has the tauth-shape branch consistent with
+         HAtern (which witnesses a1 is a Box via auth_pv). For Pass 1 we
+         keep t' as a parameter and dispatch the non-tauth cases as separate
+         pure-impossibility leaves; the tauth case is the main scaffold. *)
+      destruct t' as [| | | |] eqn:Ht'.
+      1-4: (* tprod / tsum / tstring / tint: a1 ≠ BoxV, but HAtern witnesses
+              a1 = BoxV via auth_pv. Pass 2 will derive False uniformly. *)
+           simpl in Hunsusp; admit.
+      (* tauth : the substantive case. *)
+      simpl in Hunsusp.
+      destruct Hunsusp as (lb_p & lr_p & a_p & h_p & p_p & -> & ->).
+      wp_pures.
+      wp_apply wp_new_proph; first done.
+      iIntros (us_new p_new) "Hp_new".
+      wp_alloc lr_new as "Hlr_new". wp_alloc lb_new as "Hlb_new".
+      wp_pures.
+      (* The wp_pures / wp_alloc / wp_apply above each stripped a later, so
+         [▷ HAtern] should be usable. Unfold lrel_auth_tern / lrel_car to
+         expose the existential and conjunction structure. *)
+      iEval (cbv [lrel_auth_tern lrel_car]) in "HAtern".
+      iDestruct "HAtern" as (t_in v2_in a1_in a2_in un_a1_in s_in)
+        "([%Ha2_eq %Hunsusp_in] & #Hser_in & #HA_in & #Hpv)".
+      (* Case-split the verifier-side [auth_pv un_a1 a1 v2_in s_in]
+         disjunct. *)
+      iDestruct "Hpv" as (lb_pv lr_pv ps_pv Ha1_eq) "[Hpv_fill | Hpv_susp]".
+      + (* Filled-side: v2_in = InjLV #(hash s_in). *)
+        iDestruct "Hpv_fill" as "[%Hv2_in_eq #Hinv_fill]".
+        (* Pass 2: step verifier through [s_deserializer s_pred] and
+           case-split on whether s_pred parses to Some (hash s_in)
+           (filled-match) or otherwise (mismatch). *)
+        admit.
+      + (* Suspender-side: v2_in = InjRV #susp_pv. *)
+        iDestruct "Hpv_susp" as (γ_pv s'_pv susp_pv psusp_pv pid_pv Hv2_in_eq)
+          "(#Hlbf_pv & #Hinv_unfill_pv & #Hpvf_pv & #Hsnap_pv &
+            #Hlbv_pv & %Hs'_pv_eq & #Hinv_susp_v_pv)".
+        (* Pass 2: step verifier through [s_deserializer s_pred] and
+           case-split on whether s_pred parses to None
+           (suspender-match) or otherwise (mismatch). *)
+        admit.
     - (* 4. unsuspend_spec *) admit.
     - (* 5. v_ser_spec *) admit.
     - (* 6. v_auth_ser_spec *) admit.
