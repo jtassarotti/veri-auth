@@ -28,7 +28,13 @@ Section authenticatable.
     iExists tauth, _, _, _, _, _, _, _.
     iSplit; [done|]. iSplit; [done|].
     iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]].
-    - (* 1. unsusp_p_ser_spec *) admit.
+    - (* 1. unsusp_p_ser_spec *)
+      iIntros (v s Ψ) "!# Hser HΨ".
+      iDestruct "Hser" as %(a & h & [-> ->]).
+      rewrite /authenticatable_base_susp.auth_unsusp_ser_p.
+      wp_pures. rewrite /string_ser. wp_pures.
+      rewrite /simple_string /string_ser_str.
+      by iApply "HΨ".
     - (* 2. susp_p_ser_spec *) admit.
     - (* 3. suspend_v_deser_spec (combined) *) admit.
     - (* 4. unsuspend_spec *) admit.
