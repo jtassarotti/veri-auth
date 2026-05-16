@@ -222,7 +222,7 @@ Section authentikit_helpers.
     susp ↦ᵥ{#3/4} InjLV (#pid, #p) -∗
     sub_susp_count t (InjRV (InjRV #susp)) c pid Nc v_outer
     ==∗
-      visited_map_update_done m γ id pn ctr ∗
+      visited_map_update_done m γ pn ctr ∗
       visit_reached_done γ ∗
       intransit 1 ∗
       sub_susp_count t (InjRV (InjRV #susp)) c pid Nc v_outer ∗
@@ -261,7 +261,7 @@ Section authentikit_helpers.
                as "(Hauth' & Hvisdone & #Hidref)".
              iDestruct "Hvisdone" as "[Hsf #Hrd]".
              iModIntro.
-             iSplitL "Hauth'"; [iExact "Hauth'"|].
+             iSplitL "Hauth'"; [iExists id; iExact "Hauth'"|].
              iSplit; [iExact "Hrd"|].
              iFrame "Hintr".
              iSplitR "Hsusp"; [|iExact "Hsusp"].
@@ -273,15 +273,36 @@ Section authentikit_helpers.
              iSplit; [done|].
              iRight. iLeft. iExists id. iSplit; [iPureIntro; done|].
              iFrame "Hsf Hrd Hidref".
-          -- (* Hdone: γ already done at some id_other.
-                Without d !! γ = None precondition, no contradiction available
-                from the auth alone. *)
-             admit.
+          -- (* Hdone: γ already done at some id_other. The postcondition
+                existentially hides the visiting id, so instantiate with
+                id_other; <[γ := done_val id_other]>m = m (insert_id), so
+                the auth is unchanged. visit_done is *not* persistent
+                (done_val n = Cinl (Excl (Some n))), so we thread Hdone'
+                linearly and split only the persistent visit_reached_done
+                conjunct. *)
+             iDestruct "Hdone" as (id_other Hidpid_other) "(Hdone' & #Hidref)".
+             iDestruct (visit_done_lookup with "Hauth Hdone'")
+               as "(%Hmγ_eq & Hauth & Hdone')".
+             iDestruct "Hdone'" as "[Hdf #Hrd]".
+             iModIntro.
+             iSplitL "Hauth".
+             { iExists id_other. rewrite (insert_id _ _ _ Hmγ_eq). iExact "Hauth". }
+             iSplit; [iExact "Hrd"|].
+             iFrame "Hintr".
+             iSplitR "Hsusp"; [|iExact "Hsusp"].
+             simpl.
+             iExists (InjRV #susp). iSplit; [done|].
+             iRight. iExists susp. iSplit; [done|].
+             iRight. iExists p, γ, susp_pid.
+             iFrame "Hlg' Hsusp_s Hfrag Hcap' Hpvf_pid Hsnap". iSplit; [done|].
+             iSplit; [done|].
+             iRight. iLeft. iExists id_other. iSplit; [iPureIntro; done|].
+             iFrame "Hdf Hrd Hidref".
           -- (* Hfin: γ is finished, with intransit (1/2). Combined with input
                 intransit 1, total > 1 → invalid. *)
              iDestruct "Hfin" as "[_ Hintr_half]".
              by iDestruct (intransit_excl_full with "Hintr Hintr_half") as %[].
-  Admitted.
+  Qed.
 
   Lemma visited_update_done (id : nat) :
     ∀ t t' v (c pid Nc : nat) (susp : loc) (p : proph_id) γ m pn ctr,
@@ -297,7 +318,7 @@ Section authentikit_helpers.
       ==∗
         intransit 1 ∗
         visit_reached_done γ ∗
-        visited_map_update_done m γ id pn ctr ∗
+        visited_map_update_done m γ pn ctr ∗
         sub_susp_count_frags t v c pid Nc ∗
         susp ↦ᵥ{#3/4} InjLV (#pid, #p).
   Proof.
@@ -314,7 +335,7 @@ Section authentikit_helpers.
                sub_susp_count tind vind cind pid Nc v_outer ==∗
                visit_reached_done γ ∗
                intransit 1 ∗
-               visited_map_update_done m γ id pn ctr ∗
+               visited_map_update_done m γ pn ctr ∗
                sub_susp_count tind vind cind pid Nc v_outer ∗
                susp ↦ᵥ{#3/4} InjLV (#pid, #p))%I
       with "[]" as "Hlem".
