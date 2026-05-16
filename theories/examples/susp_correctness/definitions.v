@@ -634,9 +634,10 @@ Section authenticatable_definitions.
       ((⌜vᵥ = InjLV #(hash s)⌝ ∗
         seq_inv (prover_susp_n vₚ) (susp_p_fill_inv ps lb lr)) ∨
       (∃ γ (s' : string) (susp psusp : loc) pid,
-        ⌜vᵥ = InjRV #susp⌝ ∗ susplb_gname γ vₚ vᵥ ∗
+        ⌜vᵥ = InjRV #susp⌝ ∗ lg_mapg_p_frag lb γ ∗
         seq_inv (prover_susp_n vₚ) (susp_p_unfill_inv ps lb lr) ∗
         pval_frag pid psusp ∗ pval_snapshot susp pid ∗
+        lg_mapg_frag susp γ ∗
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
         seq_inv (ver_susp_n susp)
           (auth_susp_v_ser_proph_inv pid vᵥ s'))).

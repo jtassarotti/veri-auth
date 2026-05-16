@@ -667,13 +667,16 @@ Section finish_specs.
 
       iPoseProof ("Hgoodtr1" with "Hgood") as (?) "(Hgood & Hpset & % & HbigS)".
 
-      assert (sum_list lpn + pn = pn + sum_list lpn) as <- by lia.
-      iMod ("Hgoodtr2" $! vm (sum_list lpn + size γl) ctr with "Hgood Hpset Hpc Hvm [//] HbigS")
+      iMod ("Hgoodtr2" $! vm (pn + sum_list lpn) ctr with "Hgood Hpset Hpc Hvm [//] HbigS")
         as "(Hgood & Hpc & Hvm_rem)".
-      
+
       iEval (rewrite visited_mapg_pending_remove_rewrite) in "Hvm_rem".
-      Set Printing All.
-      iPoseProof (pencount_pn_eq (sum_list lpn + size γl - size γl) (sum_list lpn) (Nat.add_sub _ _) with "Hpc") as "Hpc".
-  Admitted.
+      assert (pn + sum_list lpn - size γl = sum_list lpn) as Hsumeq by lia.
+      iAssert (pencount_frag (sum_list lpn)) with "[Hpc]" as "Hpc".
+      { iApply (pencount_pn_eq _ _ Hsumeq with "Hpc"). }
+      iAssert (visited_mapg_auth vm (sum_list lpn) ctr) with "[Hvm_rem]" as "Hvm_rem".
+      { iApply (vmauth_pn_eq vm _ _ ctr Hsumeq with "Hvm_rem"). }
+      iMod ("Hgoodtr3" $! vm with "Hgood Hvm_rem Hpc") as "($ & $ & $)".
+  Qed.
 
 End finish_specs.
