@@ -368,8 +368,8 @@ Section visited_map_res.
                       (pn + size γs) ctr.
 
   Definition visited_map_update_done
-      (m : state_mapg_type) (γ : gname) (n : nat) (pn : nat) (ctr : nat) : iProp Σ :=
-    visited_mapg_auth (<[ γ := done_val n ]>m) pn ctr.
+      (m : state_mapg_type) (γ : gname) (pn : nat) (ctr : nat) : iProp Σ :=
+    ∃ n, visited_mapg_auth (<[ γ := done_val n ]>m) pn ctr.
 
   Definition visited_map_update_finished
       (m : state_mapg_type) (γ : gname) (pn : nat) (ctr : nat) : iProp Σ :=
@@ -384,9 +384,9 @@ Section visited_map_res.
     visited_mapg_auth (set_fold (λ γ m, <[ γ := pending_val ]>m) m γs) (pn + size γs) ctr.
   Proof. rewrite /visited_map_update_pending. done. Qed.
 
-  Lemma visited_map_update_done_rewrite m γ n pn ctr :
-    visited_map_update_done m γ n pn ctr ⊣⊢
-    visited_mapg_auth (<[ γ := done_val n ]>m) pn ctr.
+  Lemma visited_map_update_done_rewrite m γ pn ctr :
+    visited_map_update_done m γ pn ctr ⊣⊢
+    ∃ n, visited_mapg_auth (<[ γ := done_val n ]>m) pn ctr.
   Proof. rewrite /visited_map_update_done. done. Qed.
 
   Lemma visited_map_update_finished_rewrite m γ pn ctr :
