@@ -292,13 +292,13 @@ Section authentikit_helpers.
              { iExists id_other. rewrite (insert_id _ _ _ Hmγ_eq). iExact "Hauth". }
              iSplit; [iExact "Hrd"|].
              iFrame "Hintr".
-             iSplitR "Hsusp"; [|iExact "Hsusp"].
+             iSplitR "Hsusp"; last first.
+             { iFrame "Hsusp Hsnap". }
              simpl.
              iExists (InjRV #susp). iSplit; [done|].
              iRight. iExists susp. iSplit; [done|].
              iRight. iExists p, γ, susp_pid.
              iFrame "Hlg' Hsusp_s Hfrag Hcap' Hpvf_pid Hsnap". iSplit; [done|].
-             iSplit; [done|].
              iRight. iLeft. iExists id_other. iSplit; [iPureIntro; done|].
              iFrame "Hdf Hrd Hidref".
           -- (* Hfin: γ is finished, with intransit (1/2). Combined with input
