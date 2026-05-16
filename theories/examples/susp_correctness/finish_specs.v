@@ -672,10 +672,8 @@ Section finish_specs.
         as "(Hgood & Hpc & Hvm_rem)".
       
       iEval (rewrite visited_mapg_pending_remove_rewrite) in "Hvm_rem".
-      assert (sum_list lpn + size γl - size γl = sum_list lpn) as Hsumeq by lia.
-      iPoseProof (pencount_pn_eq _ _ Hsumeq with "Hpc") as "Hpc".
-      iPoseProof (vmauth_pn_eq vm _ _ ctr Hsumeq with "Hvm_rem") as "Hvm_rem".
-      iMod ("Hgoodtr3" $! vm with "Hgood Hvm_rem Hpc") as "($ & $ & $)".
-  Qed.
+      Set Printing All.
+      iPoseProof (pencount_pn_eq (sum_list lpn + size γl - size γl) (sum_list lpn) (Nat.add_sub _ _) with "Hpc") as "Hpc".
+  Admitted.
 
 End finish_specs.

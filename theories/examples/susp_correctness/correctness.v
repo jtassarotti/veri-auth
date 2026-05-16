@@ -452,7 +452,7 @@ Section proof.
     iDestruct "Hvw" as (??) "([-> %Hvprf] & Hid)".
     iDestruct "Hpvauth" as (??? ->) "Hvinv".
     v_pures; i_pures; wp_pures.
-    iDestruct "Hvinv" as "[[-> Hinv_fill]|(%&%&%&%& -> & Hslb & Hinv_unfill & -> & Hinv_authv)]".
+    iDestruct "Hvinv" as "[[-> Hinv_fill]|(%&%&%&%&%& -> & Hslb & Hinv_unfill & #Hpvfrag & #Hpvuneq & -> & Hinv_authv)]".
     - iMod (na_inv_acc with "Hinv_fill Htok") as "(>Hinvo & Htok & Hclose_inv)"; try solve_ndisj.
       iDestruct "Hinvo" as "[Hlb [(% & Hlr & (Hbrproph & %))|
           [(% & Hlr & Hbrproph)|[(Hlr & Hbrproph)|(%&%&%& Hlr & Hbrproph & Hintr')]]]]";
@@ -788,7 +788,7 @@ Section proof.
             iIntros "Hst". by iFrame. }
 
           iDestruct (id_ctr_frag_agree with "Hvmauth Hid") as "->".
-          iMod (id_ctr_frag_alloc _ _ _ susp with "Hvmauth Hid") as "(Hvmauth & Hid & Hidtok & Hpvfrag)".
+          iMod (id_ctr_frag_alloc _ _ _ susp with "Hvmauth Hid") as "(Hvmauth & Hid & Hidtok & Hpvfrag')".
 
           iSimpl in "Hv". v_pures. v_bind (v_count _).
           iDestruct "Hc" as "(Hcap & % & Hc & Hagg)".
@@ -813,7 +813,7 @@ Section proof.
             iMod ("Hvfinish" $! ⊤ with "[] Htabtok Hlc Hvser Hvserspec Hc [Htok Hidtok Hintr Hpvfrag]
                   Hst Hv") as "(Hv & Htabtok & Htok & Hst & Hintr) /=". 
             { iModIntro. iIntros (???) "_ _ _ _". set_solver. }
-            { iRight. iFrame. } 
+            { iRight. iFrame "Hpvfrag ". } 
             
             v_pures. v_bind (list_tail _).
             iMod (gwp_list_tail ⊤ _ (s_real :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
