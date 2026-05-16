@@ -275,7 +275,7 @@ Section authentikit_helpers.
              iRight. iExists p, γ, susp_pid.
              iFrame "Hlg' Hsusp_s Hfrag Hcap' Hpvf_pid Hsnap". iSplit; [done|].
              iRight. iLeft. iExists id. iSplit; [iPureIntro; done|].
-             iFrame "Hsf Hrd Hidref".
+             iFrame "Hsf Hrd".
           -- (* Hdone: γ already done at some id_other. The postcondition
                 existentially hides the visiting id, so instantiate with
                 id_other; <[γ := done_val id_other]>m = m (insert_id), so
@@ -283,7 +283,7 @@ Section authentikit_helpers.
                 (done_val n = Cinl (Excl (Some n))), so we thread Hdone'
                 linearly and split only the persistent visit_reached_done
                 conjunct. *)
-             iDestruct "Hdone" as (id_other Hidpid_other) "(Hdone' & #Hidref)".
+             iDestruct "Hdone" as (id_other Hidpid_other) "Hdone'".
              iDestruct (visit_done_lookup with "Hauth Hdone'")
                as "(%Hmγ_eq & Hauth & Hdone')".
              iDestruct "Hdone'" as "[Hdf #Hrd]".
@@ -300,7 +300,7 @@ Section authentikit_helpers.
              iRight. iExists p, γ, susp_pid.
              iFrame "Hlg' Hsusp_s Hfrag Hcap' Hpvf_pid Hsnap". iSplit; [done|].
              iRight. iLeft. iExists id_other. iSplit; [iPureIntro; done|].
-             iFrame "Hdf Hrd Hidref".
+             iFrame "Hdf Hrd".
           -- (* Hfin: γ is finished, with intransit (1/2). Combined with input
                 intransit 1, total > 1 → invalid. *)
              iDestruct "Hfin" as "[_ Hintr_half]".
@@ -470,7 +470,7 @@ Section authentikit_helpers.
           { (* Hpen: pending γ + visit_finished γ → False *)
             by iDestruct (visited_invalid_2 with "[$Hpen $Hreached]") as %[]. }
           { (* Hdone: visit_done γ id + visit_finished γ → False *)
-            iDestruct "Hdone" as (id Hidpid) "(Hdone & _Hidref)".
+            iDestruct "Hdone" as (id Hidpid) "Hdone".
             by iDestruct (visited_invalid_3 with "[$Hdone $Hreached]") as %[]. }
           (* Hfin: γ is finished. Extract intransit (1/2) and proceed with store. *)
           iDestruct "Hfin" as "[_ Hintr_half]".
@@ -677,7 +677,7 @@ Section authentikit_helpers.
              by iDestruct (visited_reached_done_invalid with "Hauth Hreached Hpen") as %[].
           -- (* Hdone: transition γ to finished via the auth update. Split
                 intransit 1 into two halves. *)
-             iDestruct "Hdone" as (id Hidpid) "(Hdone & #Hidref)".
+             iDestruct "Hdone" as (id Hidpid) "Hdone".
              iMod (visited_transition_finished with "Hauth Hdone")
                as "(Hauth' & #Hfin)".
              iEval (rewrite -{1}(Qp.div_2 1) intransit_split) in "Hintr".
@@ -1077,7 +1077,7 @@ Section authentikit_helpers.
     iAssert (∀ (v_outer : val) (tind : evi_type) (vind : val) (cind : nat),
                ⌜cind > 0⌝ -∗ sub_susp_count tind vind cind id Nc v_outer -∗
                ∃ γ, visit_pending γ ∨
-                    (∃ id', ⌜id' > id⌝ ∗ visit_done γ id' ∗ id_ref_frag id' id) ∨
+                    (∃ id', ⌜id' > id⌝ ∗ visit_done γ id') ∨
                     (visit_finished γ ∗ intransit (1/2)))%I
       with "[]" as "Hext".
     { iIntros (v_outer tind).
@@ -1123,7 +1123,7 @@ Section authentikit_helpers.
       iPureIntro. left.
       assert (size ps ≠ 0) by (apply size_non_empty_iff; set_solver).
       lia.
-    - iDestruct "Hdone" as (id' Hgt) "(Hvd & _Hidref)".
+    - iDestruct "Hdone" as (id' Hgt) "Hvd".
       iDestruct (visit_done_lookup with "Hauth Hvd") as "(%Hvmγ & _ & _)".
       iDestruct (big_sepM_lookup with "Hvm") as "Hlam"; [exact Hvmγ|].
       iDestruct ("Hlam" $! id' with "[//]") as (v') "%Hmid'".

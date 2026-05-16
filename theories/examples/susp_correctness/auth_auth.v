@@ -40,7 +40,27 @@ Section authenticatable.
     - (* 4. unsuspend_spec *) admit.
     - (* 5. v_ser_spec *) admit.
     - (* 6. v_auth_ser_spec *) admit.
-    - (* 7. v_count_spec *) admit.
+    - (* 7. v_count_spec *)
+      iIntros (K tᵥ7 a c id Nc v_outer) "!# Hcnt Hspec".
+      iDestruct "Hcnt" as (vcnt ->) "Hbr".
+      rewrite /auth_count. v_pures.
+      iDestruct "Hbr" as "[(%h & [-> ->]) | (%susp & -> & Hbr)]".
+      + (* InjL h, c = 0 *)
+        v_pures. iModIntro. iFrame.
+        iExists (InjLV #h). iSplit; [done|]. iLeft. iExists h. done.
+      + (* InjR #susp *)
+        v_pures.
+        iDestruct "Hbr" as "[(%h & Hpts & ->) | (%p & %γ & %susp_pid & Hbr)]".
+        * (* susp ↦ᵥ InjRV #h, c = 0 *)
+          v_load. v_pures. iModIntro. iFrame.
+          iExists (InjRV #susp). iSplit; [done|]. iRight. iExists susp.
+          iSplit; [done|]. iLeft. iExists h. by iFrame.
+        * (* susp ↦ᵥ InjLV ..., c = 1 *)
+          iDestruct "Hbr" as
+            "(Hlg & Hpts & -> & Hmpg & Hcap & Hpval & Hsnap & Hrest)".
+          v_load. v_pures. iModIntro. iFrame.
+          iExists (InjRV #susp). iSplit; [done|]. iRight. iExists susp.
+          iSplit; [done|]. iRight. iExists p, γ, susp_pid. by iFrame.
   Admitted.
 
 End authenticatable.

@@ -379,10 +379,9 @@ Section authenticatable_definitions.
                 susp ↦ᵥ{#1/4} InjLV (#pid, #p) ∗ ⌜c = 1⌝ ∗
                 mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat N)))%Qp v_outer ∗
                 cap_frag pid N ∗
-                pval_frag pid susp_pid ∗
-                pval_snapshot susp pid ∗
+                pval_frag pid susp_pid ∗ pval_snapshot susp pid ∗
                 (visit_pending γ ∨
-                  (∃ id, ⌜id > pid⌝ ∗ visit_done γ id ∗ id_ref_frag id pid) ∨
+                  (∃ id, ⌜id > pid⌝ ∗ visit_done γ id) ∨
                   (visit_finished γ ∗ intransit (1/2))))))).
 
   Fixpoint sub_susp_count
@@ -458,7 +457,7 @@ Section authenticatable_definitions.
 
   Definition suspend_v_deser_spec
       (ser suspend v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
-    □(∀ t' (pa a1 un_a1 a2 a3 : val) (s_def s_pred : string)
+    □(∀ t' (a1 un_a1 a2 a3 : val) (s_def s_pred : string)
          K tᵥ (id : nat) m vm pn ctr mlg_p,
       spec_verifier tᵥ (fill K (v_deser #id))
       ={⊤}=∗ ∃ (v_deser_par : val),
@@ -599,8 +598,8 @@ Section authenticatable_definitions.
     (⌜v = InjLV #(hash s)⌝ ∗ id_token id) ∨
       (∃ (s' : string) (susp psusp : loc) pid γ,
         ⌜v = InjRV #susp⌝ ∗ ⌜id > pid⌝ ∗
-        id_ref_frag id pid ∗ pval_frag id susp ∗
-        pval_frag pid psusp ∗ ⌜psusp ≠ susp⌝ ∗
+        pval_frag id susp ∗
+        pval_frag pid psusp ∗ pval_snapshot susp pid ∗
         lg_mapg_frag susp γ ∗ visit_reached_done γ ∗
         (visit_finished γ -∗ id_token id) ∗
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
@@ -611,8 +610,8 @@ Section authenticatable_definitions.
     (⌜v = InjLV #(hash s)⌝ ∗ id_token id ∗ intransit 1 ∗ seq_tok E) ∨
       (∃ (s' : string) (susp psusp : loc) pid γ,
         ⌜v = InjRV #susp⌝ ∗ ⌜id > pid⌝ ∗
-        id_ref_frag id pid ∗ pval_frag id susp ∗
-        pval_frag pid psusp ∗ ⌜psusp ≠ susp⌝ ∗
+        pval_frag id susp ∗
+        pval_frag pid psusp ∗ pval_snapshot susp pid ∗
         lg_mapg_frag susp γ ∗ visit_reached_done γ ∗
         (visit_finished γ -∗ id_token id) ∗
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
