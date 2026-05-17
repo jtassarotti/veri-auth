@@ -516,7 +516,40 @@ Section authenticatable.
         iDestruct "Hser_br" as "[Hfill | Hsusp]".
         { iDestruct "Hfill" as %(h' & _ & Heq). done. }
         admit.
-    - (* 6. v_auth_ser_spec *) admit.
+    - (* 6. v_auth_ser_spec *)
+      iIntros (K tᵥ6 a1 a2 a3) "!# #HA Hspec".
+      iEval (rewrite interp_var3_ext4 interp_var0_ext1) in "HA".
+      iEval (rewrite /lrel_auth /=) in "HA".
+      iEval (cbv [lrel_auth_tern lrel_car]) in "HA".
+      iDestruct "HA" as (t_in v2' a1' a2' un_a1 s_in)
+        "(>[%Hv2_eq %Hunsusp_in] & #Hser_in & #HA_in & #Hpv)".
+      subst a2.
+      rewrite /authenticatable_base_susp.auth_ser_v.
+      v_pures.
+      iDestruct "Hpv" as (lb lr ps) "[>%Ha1_eq [Hpv_fill | Hpv_susp]]".
+      + (* Fill branch: v2' = InjLV #(hash s_in). *)
+        iDestruct "Hpv_fill" as "[>%Hv2'_eq _]".
+        subst v2'. v_pures.
+        rewrite /auth_scheme /option_serialization_scheme /=.
+        unfold s_serializer'. simpl.
+        rewrite /option_ser'''. v_pures.
+        rewrite /string_serialization /=.
+        unfold s_serializer'. simpl.
+        rewrite /string_ser' /string_ser. v_pures.
+        iModIntro.
+        rewrite /filled_string /simple_string /some_ser_str /string_ser_str.
+        iExists (some_ser_str (string_ser_str (hash s_in))).
+        rewrite /some_ser_str /string_ser_str.
+        iFrame "Hspec".
+        iExists (InjLV #(hash s_in)). iSplit; [done|].
+        iExists (hash s_in). done.
+      + (* Suspender branch: v2' = InjRV #susp.
+           Verifier reads !susp via v_load, which requires opening
+           [seq_inv (ver_susp_n susp) (auth_susp_v_ser_proph_inv pid v2' s')].
+           That seq_inv is an [na_inv] needing an na_own token, which the
+           [v_auth_ser_spec] signature doesn't carry. Same blocker as
+           case 5's suspender sub-case. *)
+        admit.
     - (* 7. v_count_spec *)
       iIntros (K tᵥ7 a c id Nc v_outer) "!# Hcnt Hspec".
       iDestruct "Hcnt" as (vcnt ->) "Hbr".
