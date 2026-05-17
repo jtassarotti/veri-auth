@@ -479,7 +479,43 @@ Section authenticatable.
           { iPureIntro. simpl. by eexists lb, lr, _, (hash s_in), ps. }
           { iPureIntro. simpl. unfold authenticatable_base_susp.auth_unsusp_ser_p.
             by eexists _, (hash s_in). }
-    - (* 5. v_ser_spec *) admit.
+    - (* 5. v_ser_spec *)
+      iIntros (K tᵥ5 a s id Nc v_outer) "!# Hcnt #Hser Hspec".
+      iDestruct "Hcnt" as (vcnt ->) "Hbr".
+      iDestruct "Hser" as (vser Hser_eq) "Hser_br".
+      injection Hser_eq as <-.
+      rewrite /authenticatable_base_susp.auth_ser_v. v_pures.
+      iDestruct "Hbr" as "[(%h & [-> %Hc]) | (%susp & -> & Hbr)]".
+      + (* InjL h, c = 0 — auth_fill_ser_v matches *)
+        iDestruct "Hser_br" as "[Hfill | Hsusp]"; last first.
+        { iDestruct "Hsusp" as (susp' Heqsusp) "_". done. }
+        iDestruct "Hfill" as %(h' & -> & Heq). injection Heq as <-.
+        v_pures.
+        rewrite /auth_scheme /option_serialization_scheme /=.
+        unfold s_serializer'. simpl.
+        rewrite /option_ser'''. v_pures.
+        rewrite /string_serialization /=.
+        unfold s_serializer'. simpl.
+        rewrite /string_ser' /string_ser. v_pures.
+        iModIntro.
+        rewrite /filled_string /simple_string /some_ser_str /string_ser_str.
+        iSplitR.
+        { iExists (InjLV #h). iSplit; [done|]. iLeft. iExists h. done. }
+        iFrame "Hspec".
+        iExists (InjLV #h). iSplit; [done|]. iLeft. iExists h. done.
+      + (* InjR #susp *)
+        iDestruct "Hbr" as "[(%h & Hpts & %Hc) | (%p & %γ & %susp_pid & Hbr)]"; last first.
+        { (* c = 1 contradicts outer c = 0 *)
+          iDestruct "Hbr" as "(_ & _ & %Hc & _)". done. }
+        (* c = 0 path: susp ↦ᵥ{#1/4} InjRV #h *)
+        v_pures.
+        v_load. v_pures.
+        (* Hser_br: auth_fill_ser_v requires v1 = InjLV — contradiction.
+           So it must be auth_susp_v_ser_proph, which has a seq_inv we
+           cannot open without an na_own token. Admit this sub-case. *)
+        iDestruct "Hser_br" as "[Hfill | Hsusp]".
+        { iDestruct "Hfill" as %(h' & _ & Heq). done. }
+        admit.
     - (* 6. v_auth_ser_spec *) admit.
     - (* 7. v_count_spec *)
       iIntros (K tᵥ7 a c id Nc v_outer) "!# Hcnt Hspec".
