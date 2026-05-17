@@ -218,9 +218,44 @@ Section authenticatable.
          keep t' as a parameter and dispatch the non-tauth cases as separate
          pure-impossibility leaves; the tauth case is the main scaffold. *)
       destruct t' as [| | | |] eqn:Ht'.
-      1-4: (* tprod / tsum / tstring / tint: a1 ≠ BoxV, but HAtern witnesses
-              a1 = BoxV via auth_pv. Pass 2 will derive False uniformly. *)
-           simpl in Hunsusp; admit.
+      { (* tprod: [Hser] gives a1 is a pair; auth_pv gives a1 = BoxV ... *)
+        simpl in Hunsusp.
+        destruct Hunsusp as (vp1 & vp2 & un_vp1 & un_vp2 & Ha1eq & _ & _ & _).
+        wp_pure _.
+        iEval (cbv [lrel_auth_tern lrel_car]) in "HAtern".
+        iDestruct "HAtern" as (t_in v2_in a1_in a2_in un_a1_in s_in)
+          "([%Ha2_eq %Hunsusp_in] & _ & _ & #Hpv)".
+        iDestruct "Hpv" as (lb_pv lr_pv ps_pv Ha1_eq) "_".
+        rewrite Ha1_eq in Ha1eq. discriminate. }
+      { (* tsum: a1 is InjLV/InjRV via Hunsusp; auth_pv gives a1 = BoxV. *)
+        simpl in Hunsusp.
+        destruct Hunsusp as [(vp1 & un_vp1 & Ha1eq & _ & _) |
+                              (vp2 & un_vp2 & Ha1eq & _ & _)];
+          wp_pure _;
+          iEval (cbv [lrel_auth_tern lrel_car]) in "HAtern";
+          iDestruct "HAtern" as (t_in v2_in a1_in a2_in un_a1_in s_in)
+            "([%Ha2_eq %Hunsusp_in] & _ & _ & #Hpv)";
+          iDestruct "Hpv" as (lb_pv lr_pv ps_pv Ha1_eq) "_";
+          rewrite Ha1_eq in Ha1eq; discriminate. }
+      { (* tstring: [Hser : string_is_ser a1 s_def] gives a1 = #s';
+           [auth_pv] in HAtern gives a1 = BoxV ... — contradiction. *)
+        iEval (simpl) in "Hser".
+        iDestruct "Hser" as %(s' & Ha1eq & _).
+        wp_pure _.
+        iEval (cbv [lrel_auth_tern lrel_car]) in "HAtern".
+        iDestruct "HAtern" as (t_in v2_in a1_in a2_in un_a1_in s_in)
+          "([%Ha2_eq %Hunsusp_in] & _ & _ & #Hpv)".
+        iDestruct "Hpv" as (lb_pv lr_pv ps_pv Ha1_eq) "_".
+        rewrite Ha1_eq in Ha1eq. discriminate. }
+      { (* tint: similar to tstring. *)
+        iEval (simpl) in "Hser".
+        iDestruct "Hser" as %(z' & Ha1eq & _).
+        wp_pure _.
+        iEval (cbv [lrel_auth_tern lrel_car]) in "HAtern".
+        iDestruct "HAtern" as (t_in v2_in a1_in a2_in un_a1_in s_in)
+          "([%Ha2_eq %Hunsusp_in] & _ & _ & #Hpv)".
+        iDestruct "Hpv" as (lb_pv lr_pv ps_pv Ha1_eq) "_".
+        rewrite Ha1_eq in Ha1eq. discriminate. }
       (* tauth : the substantive case. *)
       simpl in Hunsusp.
       destruct Hunsusp as (lb_p & lr_p & a_p & h_p & p_p & -> & ->).
@@ -238,19 +273,116 @@ Section authenticatable.
       (* Case-split the verifier-side [auth_pv un_a1 a1 v2_in s_in]
          disjunct. *)
       iDestruct "Hpv" as (lb_pv lr_pv ps_pv Ha1_eq) "[Hpv_fill | Hpv_susp]".
-      + (* Filled-side: v2_in = InjLV #(hash s_in). *)
-        iDestruct "Hpv_fill" as "[%Hv2_in_eq #Hinv_fill]".
-        (* Pass 2: step verifier through [s_deserializer s_pred] and
-           case-split on whether s_pred parses to Some (hash s_in)
-           (filled-match) or otherwise (mismatch). *)
+      + (* Filled-side: v2_in = InjLV #(hash s_in). The prover (a1) is
+           [BoxV (#lb_pv, #lr_pv, a_p, #h_p, #ps_pv)]; the verifier-side
+           recorded [v2_in = InjLV #(hash s_in)] under [Hinv_fill].
+
+           Pass 2 — leaf strategy for filled-side:
+           1) Step verifier through [auth_deser_v_partial s_pred]:
+              after [v_pures] the verifier holds [match:
+              auth_scheme.s_deserializer #s_pred with NONE => NONE |
+              SOME v => match v with NONE => SOME (SOME (InjR (ref
+              (#id, NewProph)))) | SOME h => SOME (SOME (InjL h)) end
+              end]. The verifier wp is a [GenWp] (gwp_spec_verifier
+              from spec_rules.v); apply [s_deser_sound auth_scheme] via
+              [iMod] (or convert the goal to a gwp via [iApply gwp_*]
+              and use [gwp_apply]) to obtain an [option val] outcome
+              [o].
+           2) Case [o = None]: verifier match takes NONE; final
+              spec_verifier holds NONEV. MISMATCH (s_pred didn't parse
+              but s_real does). Deliver right disjunct: [⌜s_pred ≠
+              s_real⌝ ∗ lrel_tern_un A a1'] (note Ψ is the post
+              continuation; we apply it to construct the witness).
+           3) Case [o = Some v]:
+              a) [v = NONEV]: verifier takes InjR branch, v_alloc a
+                 fresh susp ref, step_verifier_newproph for a fresh
+                 proph, final value [SOMEV (SOMEV (InjRV #susp_new))].
+                 This represents the SUSPENDER form, but we're in the
+                 filled-side. MISMATCH. (Note: [s_pred = some_ser_str
+                 ""], not the filled string.)
+              b) [v = SOMEV w]: verifier returns [SOMEV (SOMEV (InjLV
+                 w))]. Need to know [w = #h] for some hash. From
+                 s_deser_sound's post, [s_is_ser auth_scheme (SOMEV v)
+                 s_pred] holds, and from the option/string structure,
+                 [w = #h'] for some [h']. Sub-case:
+                 i) [h' = hash s_in]: FILLED-MATCH. Build left
+                    disjunct: c = 0, γl = ∅, mapg_auth m unchanged,
+                    A a1' a2' a3 with a2' = SOMEV (InjLV #(hash s_in))
+                    (recursive — needs fresh fill_inv on the new
+                    BoxV).
+                 ii) [h' ≠ hash s_in]: MISMATCH. Deliver
+                    [lrel_tern_un A a1'].
+
+           In ALL match/mismatch leaves, the post requires
+           [susp_p_ser_spec_at ser t_real c a1' s_real]: a Hoare
+           triple specifying that running [auth_susp_ser_p a1']
+           returns [#s_real] (where s_real = filled_string h_p for
+           filled or suspended_string for suspender form). This spec
+           is provable by re-running the case-2 prover spec at the
+           new BoxV — but it requires a fresh seq_inv on the new
+           BoxV. We DO have a NewProph + lb_new ↦ #false +
+           lr_new ↦ #false from the prover-side allocation, but the
+           disjuncts of [susp_p_fill_inv] / [susp_p_unfill_inv]
+           constrain the prophecy values, intransit tokens, or
+           require [lg_mapg_p_frag] frags. Without these, the fresh
+           seq_inv allocation is blocked.
+
+           Leaving as admit — requires committing to a specific
+           invariant disjunct + setting up matching resources. *)
         admit.
       + (* Suspender-side: v2_in = InjRV #susp_pv. *)
         iDestruct "Hpv_susp" as (γ_pv s'_pv susp_pv psusp_pv pid_pv Hv2_in_eq)
           "(#Hlbf_pv & #Hinv_unfill_pv & #Hpvf_pv & #Hsnap_pv &
             #Hlbv_pv & %Hs'_pv_eq & #Hinv_susp_v_pv)".
-        (* Pass 2: step verifier through [s_deserializer s_pred] and
-           case-split on whether s_pred parses to None
-           (suspender-match) or otherwise (mismatch). *)
+        (* Pass 2 — leaf strategy for suspender-side (symmetric):
+           1) Step verifier through [auth_deser_v_partial s_pred].
+           2) Case [o = None] (parse fail): MISMATCH. s_real here is
+              [some_ser_str (string_ser_str h_p)] from the prover's
+              [auth_susp_ser_p_emp] disjunct's [s = suspended_string =
+              none_ser_str] — wait actually for the suspender case the
+              prover serializes to [suspended_string = none_ser_str].
+              So [s_real = none_ser_str = "N"], a parsable string.
+              Then [o = None] means s_pred is unparsable, so
+              [s_pred ≠ s_real].
+           3) Case [o = Some v]:
+              a) [v = SOMEV w]: verifier returns [SOMEV (SOMEV (InjL
+                 w))], representing filled form. MISMATCH against the
+                 prover's suspender form.
+              b) [v = NONEV]: verifier takes InjR branch, allocates
+                 fresh susp ref [susp_new] via [v_alloc] and fresh
+                 proph via [step_verifier_newproph]. SUSPENDER-MATCH.
+                 Build the match payload:
+                  c = 1
+                  Fresh γ_new via [lg_mapg_p_insert] (needs
+                    [meta_token lb_new ⊤] — produced by [wp_alloc]).
+                  γl = {γ_new}, [penset_frag] via
+                    [visited_insert]
+                  Fresh id_new (e.g., ctr+1) via update on
+                    [visited_mapg_auth].
+                  mapg_auth ← mapg_insert m id_new (SOMEV (InjRV
+                    #susp_new))
+                  pencount_frag (pn+1) (from [visited_insert])
+                  pval_frag id_new susp_new (fresh)
+                  pval_snapshot susp_new pid_existing (re-use the
+                    existing pid? or build a new one — likely the new
+                    susp_new gets a fresh chain entry)
+                  lg_mapg_frag susp_new γ_new (paired with the
+                    [lg_mapg_p_frag lb_new γ_new])
+                  Allocate two seq_invs:
+                    [seq_inv (prover_susp_n a1') (susp_p_unfill_inv
+                       ps_new lb_new lr_new)] via [na_inv_alloc]
+                       (body: lb_new ↦ #false ∗ lr_new ↦ #false ∗
+                       unfill_proph_bs ps_new bs — needs bs to start
+                       with true; if the freshly-allocated proph's
+                       values don't satisfy this, we'd use the
+                       OTHER unfill disjunct which has lb↦#true ∗ ...
+                       — but we have lb↦#false. Genuinely tricky.)
+                    [seq_inv (ver_susp_n susp_new) (auth_susp_v_ser_proph_inv
+                       pid_new a2' s'_new)]
+                  Plus all the [A a1' a2' a3], [sub_susp_count_frags],
+                  [ser_v_proph], etc.
+
+           Leaving as admit — symmetric to filled-side, same blocker. *)
         admit.
     - (* 4. unsuspend_spec *) admit.
     - (* 5. v_ser_spec *) admit.
