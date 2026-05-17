@@ -384,7 +384,101 @@ Section authenticatable.
 
            Leaving as admit — symmetric to filled-side, same blocker. *)
         admit.
-    - (* 4. unsuspend_spec *) admit.
+    - (* 4. unsuspend_spec *)
+      iIntros (E a1 a2 a3 HE Ψ) "!# (HA & Htok & Hintr) HΨ".
+      rewrite /authenticatable_base_susp.auth_unsuspend_p.
+      wp_pure _. (* strips ▷ on HA *)
+      iDestruct "HA" as "[HAtern _]".
+      iEval (rewrite interp_var3_ext4 interp_var0_ext1) in "HAtern".
+      iEval (rewrite /lrel_auth /=) in "HAtern".
+      iEval (cbv [lrel_auth_tern lrel_car]) in "HAtern".
+      iDestruct "HAtern" as (t_in v2' a1_in a2_in un_a1_in s_in)
+        "([%Ha2_eq %Hunsusp_in] & _ & _ & #Hpv)".
+      iDestruct "Hpv" as (lb lr ps Ha1_eq) "[Hpv_fill | Hpv_susp]".
+      + (* Fill branch — keep inv open across resolve+pure+store, close as Disj 2. *)
+        iDestruct "Hpv_fill" as "[%Hv2'_eq #Hinv]".
+        rewrite Ha1_eq. wp_pures.
+        wp_bind (ResolveProph _ _)%E.
+        iMod (na_inv_acc with "Hinv Htok") as "(Hinvo & Htok & Hclose)";
+          [solve_ndisj|solve_ndisj|].
+        iDestruct "Hinvo" as "(>Hlb & Hrest)".
+        iDestruct "Hrest" as "[Hd1 | [Hd2 | [Hd3 | Hd4]]]".
+        * (* Disj 1: lr↦#false, fill_proph_bs ps bs (bs = false::bs') — consistent. *)
+          iDestruct "Hd1" as (bs) "(>Hlr & >(Hpfl & %Hbs))".
+          destruct Hbs as [bs' ->].
+          iDestruct "Hpfl" as (us) "[Hp %Heqbs]".
+          wp_apply (wp_resolve_proph with "Hp"). iIntros (pvs') "[%Heq Hp]".
+          subst us.
+          wp_pures. wp_store.
+          iMod ("Hclose" with "[$Htok Hlb Hlr Hp]") as "Htok".
+          { iNext. iFrame "Hlb". iRight. iLeft.
+            iExists (longest_valid_prefix_bool (map snd pvs')).
+            iFrame "Hlr". iExists pvs'. by iFrame. }
+          wp_pures. iApply "HΨ". iModIntro. iFrame "Htok Hintr". iSplit.
+          { iPureIntro. simpl. by eexists lb, lr, _, (hash s_in), ps. }
+          { iPureIntro. simpl. unfold authenticatable_base_susp.auth_unsusp_ser_p.
+            by eexists _, (hash s_in). }
+        * (* Disj 2: lr↦#true, proph_bs ps bs *)
+          iDestruct "Hd2" as (bs) "(>Hlr & >Hpb)".
+          iDestruct "Hpb" as (us) "[Hp %Heqbs]".
+          wp_apply (wp_resolve_proph with "Hp"). iIntros (pvs') "[%Heq Hp]".
+          subst us.
+          wp_pures. wp_store.
+          iMod ("Hclose" with "[$Htok Hlb Hlr Hp]") as "Htok".
+          { iNext. iFrame "Hlb". iRight. iLeft.
+            iExists (longest_valid_prefix_bool (map snd pvs')).
+            iFrame "Hlr". iExists pvs'. by iFrame. }
+          wp_pures. iApply "HΨ". iModIntro. iFrame "Htok Hintr". iSplit.
+          { iPureIntro. simpl. by eexists lb, lr, _, (hash s_in), ps. }
+          { iPureIntro. simpl. unfold authenticatable_base_susp.auth_unsusp_ser_p.
+            by eexists _, (hash s_in). }
+        * (* Disj 3: lr↦#false, empty_proph_bs ps — resolves contradict empty. *)
+          iDestruct "Hd3" as "(>Hlr & >Hpb)".
+          iDestruct "Hpb" as (us) "[Hp %Heqbs]".
+          wp_apply (wp_resolve_proph with "Hp"). iIntros (pvs') "[%Heq Hp]".
+          subst us. simpl in Heqbs. discriminate.
+        * (* Disj 4: lr↦#b, proph_bs ps bs, intransit q' *)
+          iDestruct "Hd4" as (bs q' b) "(>Hlr & >Hpb & >Hintr')".
+          iDestruct "Hpb" as (us) "[Hp %Heqbs]".
+          wp_apply (wp_resolve_proph with "Hp"). iIntros (pvs') "[%Heq Hp]".
+          subst us.
+          wp_pures. wp_store.
+          iMod ("Hclose" with "[$Htok Hlb Hlr Hp Hintr']") as "Htok".
+          { iNext. iFrame "Hlb". iRight. iRight. iRight.
+            iExists (longest_valid_prefix_bool (map snd pvs')), q', true.
+            iFrame "Hlr Hintr'". iExists pvs'. by iFrame. }
+          wp_pures. iApply "HΨ". iModIntro. iFrame "Htok Hintr". iSplit.
+          { iPureIntro. simpl. by eexists lb, lr, _, (hash s_in), ps. }
+          { iPureIntro. simpl. unfold authenticatable_base_susp.auth_unsusp_ser_p.
+            by eexists _, (hash s_in). }
+      + (* Suspender branch *)
+        iDestruct "Hpv_susp" as (γ_pv s'_pv susp_pv psusp_pv pid_pv Hv2'_eq)
+          "(#Hlbf_pv & #Hinv_unfill & _)".
+        rewrite Ha1_eq. wp_pures.
+        wp_bind (ResolveProph _ _)%E.
+        iMod (na_inv_acc with "Hinv_unfill Htok") as "(Hinvo & Htok & Hclose)";
+          [solve_ndisj|solve_ndisj|].
+        iDestruct "Hinvo" as "[>Hd1 | >Hd2]".
+        * (* Disj 1: lb↦false, lr↦false, unfill_proph_bs ps bs (bs = true::bs') —
+             resolve to SOMEV #false would need head false but bs head is true. *)
+          iDestruct "Hd1" as (bs) "(Hlb & Hlr & Hpfl & %Heqbs)".
+          destruct Heqbs as [bs' ->].
+          iDestruct "Hpfl" as (us) "[Hp %Heqbs2]".
+          wp_apply (wp_resolve_proph with "Hp"). iIntros (pvs') "[%Heq Hp]".
+          subst us. simpl in Heqbs2. discriminate.
+        * (* Disj 2: lb↦true, lr↦r, proph_bs ps bs *)
+          iDestruct "Hd2" as (r bs n γ) "(Hlb & Hlr & Hpb & #Hlbfrag & #Htrans)".
+          iDestruct "Hpb" as (us) "[Hp %Heqbs]".
+          wp_apply (wp_resolve_proph with "Hp"). iIntros (pvs') "[%Heq Hp]".
+          subst us.
+          wp_pures. wp_store.
+          iMod ("Hclose" with "[$Htok Hlb Hlr Hp]") as "Htok".
+          { iNext. iRight. iExists true, (longest_valid_prefix_bool (map snd pvs')), n, γ.
+            iFrame "Hlb Hlr Hlbfrag Htrans". iExists pvs'. by iFrame. }
+          wp_pures. iApply "HΨ". iModIntro. iFrame "Htok Hintr". iSplit.
+          { iPureIntro. simpl. by eexists lb, lr, _, (hash s_in), ps. }
+          { iPureIntro. simpl. unfold authenticatable_base_susp.auth_unsusp_ser_p.
+            by eexists _, (hash s_in). }
     - (* 5. v_ser_spec *) admit.
     - (* 6. v_auth_ser_spec *) admit.
     - (* 7. v_count_spec *)
