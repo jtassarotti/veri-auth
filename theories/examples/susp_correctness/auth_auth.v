@@ -204,7 +204,6 @@ Section authenticatable.
       iIntros "!# (%Hunsusp & #HA & #Hser & Hvm & Hlgp & Hmpg & Hpenc & Hv) HΨ".
       (* Project HA = (lrel_auth A) a1 a2 a3 into its tern / un parts. *)
       iDestruct "HA" as "[HAtern #HAun]".
-      iEval (rewrite interp_var3_ext4 interp_var0_ext1) in "HAtern".
       iEval (rewrite /lrel_auth /=) in "HAtern".
       (* Now [HAtern : ▷ lrel_auth_tern A_inner a1 a2 a3]. *)
       (* Run the prover-side allocation FIRST. Each wp_alloc and wp_new_proph
@@ -388,7 +387,6 @@ Section authenticatable.
       rewrite /authenticatable_base_susp.auth_unsuspend_p.
       wp_pure _. (* strips ▷ on HA *)
       iDestruct "HA" as "[HAtern _]".
-      iEval (rewrite interp_var3_ext4 interp_var0_ext1) in "HAtern".
       iEval (rewrite /lrel_auth /=) in "HAtern".
       iEval (cbv [lrel_auth_tern lrel_car]) in "HAtern".
       iDestruct "HAtern" as (t_in v2' a1_in a2_in un_a1_in s_in)
@@ -517,7 +515,6 @@ Section authenticatable.
         admit.
     - (* 6. v_auth_ser_spec *)
       iIntros (K tᵥ6 a1 a2 a3) "!# #HA Hspec".
-      iEval (rewrite interp_var3_ext4 interp_var0_ext1) in "HA".
       iEval (rewrite /lrel_auth /=) in "HA".
       iEval (cbv [lrel_auth_tern lrel_car]) in "HA".
       iDestruct "HA" as (t_in v2' a1' a2' un_a1 s_in)
