@@ -427,7 +427,6 @@ Section proof.
     { (* unary  *) admit. }
     iIntros (???) "!#"; rewrite -!/interp.
     interp_unfold!.
-    rewrite interp_var0_ext1 interp_var1_ext2.
     iDestruct 1 as "(#Hevi & #Hevi_un)".
     iDestruct "Hevi" as (tA ???? ??? -> ->) "#(Hpunserspec & Hpserspec & Hpsuspspec & Hpunsuspspec & Hvserspec & _ & Hvcountspec)".
     iIntros (????) "Hv Hi Htok".
@@ -441,11 +440,9 @@ Section proof.
     iModIntro. iFrame. clear.
     iSplit; interp_unfold!; last first.
     { (* unary  *) admit. }
-    rewrite interp_var0_ext1 interp_var2_ext3.
-    iIntros (???????????? Ψ) 
+    iIntros (???????????? Ψ)
         "!# (Htabtok & Htok & Hv & Hi & Hpenc & Hpw & Hvw & Hpr & % & Hintr & Hst & Hstok) HΨ".
     interp_unfold! in "Hauth".
-    rewrite interp_var3_ext4 interp_var0_ext1.
     iDestruct "Hauth" as "(Hauth & _)".
     iDestruct "Hauth" as (tA' ? a1 a2 un_a1 s [-> ?]) "(Hpserp & #HA & Hpvauth)".
     iDestruct "Hpw" as (????) "(% & % & -> & -> & Hbuf & % & %)".
