@@ -677,6 +677,7 @@ Section finish_specs.
       iAssert (visited_mapg_auth vm (sum_list lpn) ctr) with "[Hvm_rem]" as "Hvm_rem".
       { iApply (vmauth_pn_eq vm _ _ ctr Hsumeq with "Hvm_rem"). }
       iMod ("Hgoodtr3" $! vm with "Hgood Hvm_rem Hpc") as "($ & $ & $)".
+      done.
   Qed.
 
 End finish_specs.
