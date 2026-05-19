@@ -422,29 +422,6 @@ Section authentikit_helpers.
     iModIntro. iFrame "Hreached Hintr Hauth' Hsusp Hcap Hinner Hagg Hsnap". done.
   Qed.
 
-  (* Captures the structural constraint that [s] is the serialization
-     obtained by filling the susp at position (t, v) with value [h].
-     This is the precondition that makes [ser_v_proph t pid v s] preserved
-     across the empty→filled transition in [count_update].
-     Mirrors [v_sub_obj]'s recursion structure (including the [v = v']
-     constraint in tsum that makes susp-through-tsum unreachable). *)
-  Fixpoint same_ser_for_fill (t : evi_type) (v : val) (s : string)
-      (susp : loc) (h : string) : Prop :=
-    match t with
-    | tprod t1 t2 =>
-        ∃ v1 v2 s1 s2, v = (v1, v2)%V ∧ s = prod_ser_str s1 s2 ∧
-          (same_ser_for_fill t1 v1 s1 susp h ∨ same_ser_for_fill t2 v2 s2 susp h)
-    | tsum t1 t2 =>
-        ∃ v',
-          (v = InjLV v' ∧ v = v' ∧
-            ∃ s', s = inl_ser_str s' ∧ same_ser_for_fill t1 v' s' susp h) ∨
-          (v = InjRV v' ∧ v = v' ∧
-            ∃ s', s = inr_ser_str s' ∧ same_ser_for_fill t2 v' s' susp h)
-    | tauth =>
-        v = SOMEV (InjRV #susp) ∧ ∃ s_pre, s = filled_string (hash s_pre) ∧ h = hash s_pre
-    | _ => False
-    end.
-
   (* [same_ser_for_fill] implies [v_sub_obj], since the predicate is
      structurally a refinement of [v_sub_obj]. *)
   Lemma same_ser_for_fill_implies_v_sub_obj t v s susp h :

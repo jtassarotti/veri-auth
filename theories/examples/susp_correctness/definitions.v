@@ -166,6 +166,29 @@ Section authenticatable_definitions.
 
   Definition filled_string (s : string) : string := some_ser_str (simple_string s).
 
+  (* Captures the structural constraint that [s] is the serialization
+     obtained by filling the susp at position (t, v) with value [h].
+     This is the precondition that makes [ser_v_proph t pid v s] preserved
+     across the empty→filled transition in [count_update].
+     Mirrors [v_sub_obj]'s recursion structure (including the [v = v']
+     constraint in tsum that makes susp-through-tsum unreachable). *)
+  Fixpoint same_ser_for_fill (t : evi_type) (v : val) (s : string)
+      (susp : loc) (h : string) : Prop :=
+    match t with
+    | tprod t1 t2 =>
+        ∃ v1 v2 s1 s2, v = (v1, v2)%V ∧ s = prod_ser_str s1 s2 ∧
+          (same_ser_for_fill t1 v1 s1 susp h ∨ same_ser_for_fill t2 v2 s2 susp h)
+    | tsum t1 t2 =>
+        ∃ v',
+          (v = InjLV v' ∧ v = v' ∧
+            ∃ s', s = inl_ser_str s' ∧ same_ser_for_fill t1 v' s' susp h) ∨
+          (v = InjRV v' ∧ v = v' ∧
+            ∃ s', s = inr_ser_str s' ∧ same_ser_for_fill t2 v' s' susp h)
+    | tauth =>
+        v = SOMEV (InjRV #susp) ∧ ∃ s_pre, s = filled_string (hash s_pre) ∧ h = hash s_pre
+    | _ => False
+    end.
+
   Definition empty_proph_bs (p : proph_id) : iProp Σ :=
     proph_bs p [].
 
@@ -249,10 +272,10 @@ Section authenticatable_definitions.
 
   Definition auth_susp_emp_v (pid : nat) (v : val) (s : string) : iProp Σ :=
     ∃ (h : string) (susp : loc) (p : proph_id) pv pt ps N,
-      ⌜s = filled_string h ∧ v = InjRV #susp⌝ ∗ 
+      ⌜s = filled_string h ∧ v = InjRV #susp⌝ ∗
       cap_frag pid N ∗ unfilled susp ∗
       mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat N)))%Qp pv ∗
-      ⌜v_sub_obj pt pv #susp⌝ ∗ ⌜same_ser_for_fill pt ps h⌝ ∗
+      ⌜v_sub_obj pt pv #susp⌝ ∗ ⌜same_ser_for_fill pt pv ps susp h⌝ ∗
       susp ↦ᵥ{#(1/2)} InjLV (#pid, #p) ∗ proph_v_susp p h.
 
   Definition auth_susp_fill_ser_v (v : val) (s : string) : iProp Σ :=
@@ -267,20 +290,20 @@ Section authenticatable_definitions.
     (∃ (s1 : string), ⌜s = filled_string (hash s1)⌝ ∗ auth_susp_fill_v v s) ∨ 
       auth_susp_emp_v pid v s.
 
-  #[global] Instance auth_susp_v_inv_timeless pid v s : 
+  #[global] Instance auth_susp_v_inv_timeless pid v s :
       Timeless (auth_susp_v_inv pid v s).
-  Proof. Admitted.
+  Proof. rewrite /auth_susp_v_inv /auth_susp_fill_v /auth_susp_emp_v. apply _. Qed.
 
   Definition auth_susp_ser_v (pid : nat) (v : val) (s : string) : iProp Σ :=
     (∃ (s1 : string), ⌜s = filled_string (hash s1)⌝ ∗ auth_susp_fill_ser_v v s) ∨ 
       auth_susp_emp_ser_v pid v.
 
   Definition auth_susp_v_transit_inv (pid : nat) (v : val) (s : string) : iProp Σ :=
-    (∃ (s1 : string), 
+    (∃ (s1 : string),
       ⌜s = filled_string (hash s1)⌝ ∗ intransit 1 ∗ auth_susp_fill_v v s) ∨
     (∃ γ (susp : loc),
-      ⌜v = InjRV #susp⌝ ∗ lg_mapg_frag susp γ ∗ visit_finished γ ∗ 
-        intransit (1/2) ∗ auth_susp_emp_v pid v).
+      ⌜v = InjRV #susp⌝ ∗ lg_mapg_frag susp γ ∗ visit_finished γ ∗
+        intransit (1/2) ∗ auth_susp_emp_v pid v s).
 
   (* Definition auth_susp_v_ser_proph (pid : nat) (v : val) (s : string) : iProp Σ :=
     ∃ (susp : loc), ⌜v = InjRV #susp⌝ ∗
@@ -606,8 +629,15 @@ Section authenticatable_definitions.
 
   Program Definition lrel_evidence : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_evidence' A.
   Next Obligation.
-    intros ????.
-  Admitted.
+    intros n A B HAB.
+    rewrite /lrel_evidence' /=.
+    split; [intros ???|intros ?];
+      rewrite /lrel_car/= /lrel_un_car/=
+        /lrel_tern_evidence /lrel_un_evidence
+        /suspend_v_deser_spec /unsuspend_spec
+        /v_auth_ser_spec /suspend_spec_bin /unsuspend_spec_bin;
+      solve_proper.
+  Qed.
 
   Definition auth_p (un_a v : val) (s : string) : iProp Σ :=
     ∃ (lb lr : loc) (ps : proph_id),
