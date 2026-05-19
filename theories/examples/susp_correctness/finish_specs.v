@@ -393,7 +393,7 @@ Section finish_specs.
                 { iRight. iFrame "∗ #".
                   iModIntro. repeat (iSplit; eauto).
                   iRight. iFrame "∗ #".
-                  iPureIntro. eexists. split_and?; eauto. }
+                  repeat (iSplit; eauto). }
                 { iModIntro. iLeft. iExists _, _.
                   iSplit; first done.
                   iFrame "Hvmauth".
@@ -436,7 +436,7 @@ Section finish_specs.
           iMod (stok_update _ (Some pid) with "Hstok_comp") as "Hstok_comp".
           iPoseProof (stok_split with "Hstok_comp") as "[Hstok Hstok']". *)
 
-          iMod ("Hclose_tab" with "[$Htabtok Hl Hmauth Hbigsep Hvisvm Hst']") as "Htabtok".
+          iMod ("Hclose_tab" with "[$Htabtok Hl Hmauth Hbigsep Hvisvm Hst' Hserp]") as "Htabtok".
           { iNext. iLeft. iFrame "% ∗".
             iDestruct "Hvisvm" as "[(%&%&-> & $ & $)|[$ $]]";
 
@@ -532,7 +532,7 @@ Section finish_specs.
             repeat f_equal. lia. }
 
           rewrite (insert_delete _ _ _ Hin). v_store. v_pures.
-          iMod ("Hclose_tab" with "[$Htabtok Hl Hmauth Hbigsep Hvmauth Hvisinv Hst']") as "Htabtok".
+          iMod ("Hclose_tab" with "[$Htabtok Hl Hmauth Hbigsep Hvmauth Hvisinv Hst' Hserp]") as "Htabtok".
           { iNext. iLeft. iFrame "% ∗".
             iSplit; [|iSplit].
             - iPureIntro.
