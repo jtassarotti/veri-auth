@@ -2288,7 +2288,7 @@ Section serpred_res.
   Proof.
     rewrite /serpred_auth /serpred_frag. iIntros (Hfresh) "H".
     iMod (own_update with "H") as "[H1 H2]"; last by iFrame.
-    rewrite fmap_insert.
+    rewrite fmap_insert comm.
     apply auth_update_alloc, alloc_singleton_local_update; [|done].
     by rewrite lookup_fmap Hfresh.
   Qed.
