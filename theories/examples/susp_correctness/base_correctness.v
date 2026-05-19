@@ -370,7 +370,40 @@ Section authenticatable.
       (ext Δ (lrel_evidence)) p_Auth_mu v_Auth_mu i_Auth_mu.
   Proof.
     iSplit; interp_unfold!; last first.
-    { (* unary  *) admit. }
+    { (* unary *)
+      iIntros (A v) "!# _ Htok". rewrite /p_Auth_mu. wp_pures.
+      iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (vA) "!# #HA". interp_unfold! in "HA".
+      iEval (rewrite /lrel_un_evidence /=) in "HA".
+      iDestruct "HA" as (tA p_ssA p_usA p_spA p_uspA pe1 pe2 pe3 ->) "#HrestA_un".
+      iIntros "Htok". wp_pures. iModIntro. iFrame "Htok".
+      interp_unfold!. rewrite /lrel_un_evidence /=.
+      iDestruct "HrestA_un" as "(HusserA & HsserA & HspbA & HuspbA)".
+      iExists tA, _, _, _, _, _, _, _.
+      iSplit; [done|]. iSplit; [|iSplit; [|iSplit]].
+      - rewrite /unsusp_p_ser_spec.
+        iIntros (v0 s Ψ) "!# Hser HΨ". rewrite /rec_fold. wp_pures.
+        wp_apply ("HusserA" with "Hser"). iIntros "_". by iApply "HΨ".
+      - rewrite /susp_p_ser_spec.
+        iIntros (E a1 s c q HE Ψ) "!# (Hser & Htok & Hintr) HΨ".
+        rewrite /rec_fold. wp_pures.
+        wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser $Htok $Hintr]").
+        iIntros "(Htok & Hintr & HreachA)". iApply "HΨ". iFrame.
+      - rewrite /suspend_spec_bin.
+        iIntros (t' v0 un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+        rewrite /rec_fold. wp_pures.
+        iEval (rewrite interp_rec_star_un_unfold) in "HA". interp_unfold! in "HA".
+        wp_apply ("HspbA" $! _ _ un_v with "[HA]").
+        { iSplit; first by iPureIntro. iApply "HA". }
+        iIntros (v' s c) "[HA Hreal]". iApply ("HΨ" $! v' s c).
+        iSplit; [|by iFrame].
+        rewrite interp_rec_star_un_unfold. interp_unfold!. iApply "HA".
+      - rewrite /unsuspend_spec_bin.
+        iIntros (E a1 HE Ψ) "!# (HA & Htok) HΨ".
+        rewrite /rec_fold. wp_pures.
+        iEval (rewrite interp_rec_star_un_unfold) in "HA". interp_unfold! in "HA".
+        wp_apply ("HuspbA" with "[//] [$HA $Htok]").
+        iIntros (un_v) "[Htok %Hunsusp]". iApply ("HΨ" $! un_v). by iFrame. }
     (* ternary *)
     iIntros (A v1 v2 v3) "!# _"; rewrite -/interp.
     iIntros (????) "Hv Hi Htok".
@@ -378,7 +411,38 @@ Section authenticatable.
     v_pures; i_pures; wp_pures.
     iModIntro. iFrame.
     iSplit; interp_unfold!; last first.
-    { (* inner-after-A unary *) admit. }
+    { (* inner-after-A unary *)
+      iIntros (vA) "!# #HA". interp_unfold! in "HA".
+      iEval (rewrite /lrel_un_evidence /=) in "HA".
+      iDestruct "HA" as (tA p_ssA p_usA p_spA p_uspA pe1 pe2 pe3 ->) "#HrestA_un".
+      iIntros "Htok". wp_pures. iModIntro. iFrame "Htok".
+      interp_unfold!. rewrite /lrel_un_evidence /=.
+      iDestruct "HrestA_un" as "(HusserA & HsserA & HspbA & HuspbA)".
+      iExists tA, _, _, _, _, _, _, _.
+      iSplit; [done|]. iSplit; [|iSplit; [|iSplit]].
+      - rewrite /unsusp_p_ser_spec.
+        iIntros (v0 s Ψ) "!# Hser HΨ". rewrite /rec_fold. wp_pures.
+        wp_apply ("HusserA" with "Hser"). iIntros "_". by iApply "HΨ".
+      - rewrite /susp_p_ser_spec.
+        iIntros (E a1 s c q HE Ψ) "!# (Hser & Htok & Hintr) HΨ".
+        rewrite /rec_fold. wp_pures.
+        wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser $Htok $Hintr]").
+        iIntros "(Htok & Hintr & HreachA)". iApply "HΨ". iFrame.
+      - rewrite /suspend_spec_bin.
+        iIntros (t' v0 un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+        rewrite /rec_fold. wp_pures.
+        iEval (rewrite interp_rec_star_un_unfold) in "HA". interp_unfold! in "HA".
+        wp_apply ("HspbA" $! _ _ un_v with "[HA]").
+        { iSplit; first by iPureIntro. iApply "HA". }
+        iIntros (v' s c) "[HA Hreal]". iApply ("HΨ" $! v' s c).
+        iSplit; [|by iFrame].
+        rewrite interp_rec_star_un_unfold. interp_unfold!. iApply "HA".
+      - rewrite /unsuspend_spec_bin.
+        iIntros (E a1 HE Ψ) "!# (HA & Htok) HΨ".
+        rewrite /rec_fold. wp_pures.
+        iEval (rewrite interp_rec_star_un_unfold) in "HA". interp_unfold! in "HA".
+        wp_apply ("HuspbA" with "[//] [$HA $Htok]").
+        iIntros (un_v) "[Htok %Hunsusp]". iApply ("HΨ" $! un_v). by iFrame. }
     iIntros (vA1 vA2 vA3) "!# #HA".
     interp_unfold! in "HA".
     iDestruct "HA" as "(HA_tern & #HA_un)".
@@ -386,7 +450,37 @@ Section authenticatable.
     iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
     iSplit; interp_unfold!; last first.
-    { (* final unary  *) admit. }
+    { (* final unary *)
+      iEval (rewrite /lrel_un_evidence /=) in "HA_un".
+      iDestruct "HA_un" as (tA' p_ssA' p_usA' p_spA' p_uspA' pe1 pe2 pe3 Heqp) "#HrestA_un".
+      injection Heqp as <- <- <- <-.
+      interp_unfold!. rewrite /lrel_un_evidence /=.
+      iDestruct "HrestA_un" as "(HusserA' & HsserA' & HspbA' & HuspbA')".
+      iExists tA', _, _, _, _, _, _, _.
+      iSplit; [done|]. iSplit; [|iSplit; [|iSplit]].
+      - rewrite /unsusp_p_ser_spec.
+        iIntros (v0 s Ψ) "!# Hser HΨ". rewrite /rec_fold. wp_pures.
+        wp_apply ("HusserA'" with "Hser"). iIntros "_". by iApply "HΨ".
+      - rewrite /susp_p_ser_spec.
+        iIntros (E a1 s c q HE Ψ) "!# (Hser & Htok & Hintr) HΨ".
+        rewrite /rec_fold. wp_pures.
+        wp_apply ("HsserA'" $! _ _ _ c q with "[//] [$Hser $Htok $Hintr]").
+        iIntros "(Htok & Hintr & HreachA)". iApply "HΨ". iFrame.
+      - rewrite /suspend_spec_bin.
+        iIntros (t' v0 un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+        rewrite /rec_fold. wp_pures.
+        iEval (rewrite interp_rec_star_un_unfold) in "HA". interp_unfold! in "HA".
+        wp_apply ("HspbA'" $! _ _ un_v with "[HA]").
+        { iSplit; first by iPureIntro. iApply "HA". }
+        iIntros (v' s c) "[HA Hreal]". iApply ("HΨ" $! v' s c).
+        iSplit; [|by iFrame].
+        rewrite interp_rec_star_un_unfold. interp_unfold!. iApply "HA".
+      - rewrite /unsuspend_spec_bin.
+        iIntros (E a1 HE Ψ) "!# (HA & Htok) HΨ".
+        rewrite /rec_fold. wp_pures.
+        iEval (rewrite interp_rec_star_un_unfold) in "HA". interp_unfold! in "HA".
+        wp_apply ("HuspbA'" with "[//] [$HA $Htok]").
+        iIntros (un_v) "[Htok %Hunsusp]". iApply ("HΨ" $! un_v). by iFrame. }
     iExists tA, _, _, _, _, _, _, _.
     iSplit; [done|]. iSplit; [done|].
     iDestruct "HrestA" as "(HusserA & HsserA & HsuspvdeserA & HunsuspA & HvserA & HvauthserA & HvcountA)".
