@@ -32,8 +32,8 @@ Section finish_specs.
 
     iMod (na_inv_acc with "Htab Htabtok") as "(Htabo & Htabtok & Hclose_tab)"; try solve_ndisj.
     iMod (lc_fupd_elim_later with "Hlc Htabo") as "Htabo".
-    iDestruct "Htabo" as "[(%&%&%&%& %idctr &% & Hl & %Hm &
-        Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hst')|Hst']";
+    iDestruct "Htabo" as "[(%&%&%&%& %idctr &%&%msp & Hl & %Hm &
+        Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hst' & Hserp)|Hst']";
       last first.
     { by iPoseProof (tern_state_un_state_excl with "Hst Hst'") as "?". }
 
@@ -78,7 +78,7 @@ Section finish_specs.
       iMod (stok_update _ None with "Hstok_comp") as "Hstok_comp".
       iPoseProof (stok_split with "Hstok_comp") as "[Hstok Hstok']". *)
 
-      iMod ("Hclose_tab" with "[$Htabtok Hbigsep Hmauth Hl Hvmauth Hvisinv Hst']") as "Htabtok".
+      iMod ("Hclose_tab" with "[$Htabtok Hbigsep Hmauth Hl Hvmauth Hvisinv Hst' Hserp]") as "Htabtok".
       { iNext. iLeft. iFrame "% ∗". }
         (* iLeft. iFrame.
         iApply (big_sepM_mono with "Hvisinv").
@@ -116,8 +116,8 @@ Section finish_specs.
         iMod (stok_update _ None with "Hstok_comp") as "Hstok_comp".
         iPoseProof (stok_split with "Hstok_comp") as "[Hstok Hstok']". *)
 
-        iMod ("Hclose_tab" with "[$Htabtok Hbigsep Hmauth Hl Hvmauth Hvisinv Hst']") as "Htabtok".
-        { iFrame "%". iNext. iLeft. iFrame. } 
+        iMod ("Hclose_tab" with "[$Htabtok Hbigsep Hmauth Hl Hvmauth Hvisinv Hst' Hserp]") as "Htabtok".
+        { iFrame "%". iNext. iLeft. iFrame. }
         (* iLeft. iFrame.
           iApply (big_sepM_mono with "Hvisinv").
           iIntros (k x0 Hkx) "Hvis".
@@ -135,10 +135,13 @@ Section finish_specs.
         iDestruct (visit_reached_done_inj with "Hvisdone Hvisit") as %->.
         iFrame "Hvisfin". *)
         
-      + iDestruct "Hinv_2" as "(%&%&%& Hlbfrag' & #Hvisfin & Hintr & (%&%&%&%&%&%&%& Hcap & Hunfill & Hmfrag & %Hmsub & Hsusp & Hproph))".
+      + iDestruct "Hinv_2" as "(%&%&%& Hlbfrag' & #Hvisfin & Hintr & (%&%&%&%&%&%&%&%& Hcap & Hunfill & Hmfrag & %Hmsub & %Hssf & #Hserpred_emp & Hsusp & Hproph))".
 
         simplify_eq H1. intros <-.
+        destruct H2 as [H2a H2].
         simplify_eq H2. intros <-.
+        rewrite /filled_string /simple_string in H2a.
+        apply (inj some_ser_str), (inj string_ser_str) in H2a as <-.
         iPoseProof (lg_mapg_agree with "Hlbfrag' Hlbfrag") as "(-> & _ & _)".
 
         simplify_eq. v_load. v_pures. v_bind (Hash _).
@@ -156,8 +159,8 @@ Section finish_specs.
 
         iDestruct (big_sepM_delete _ (mapg_alive m') pid _ Hin with "Hbigsep") as "[Hms Hbigsep]".
 
-        iDestruct "Hms" as (ctr ????????[Hcgt [Hin' ?]]) 
-            "(Hlc & Hxser & Hxserspec & Hxauth & Hxc & Hxfin)".
+        iDestruct "Hms" as (ctr ????????[Hcgt [Hin' ?]])
+            "(Hlc & Hxser & #Hserpred_big & Hxserspec & Hxauth & Hxc & Hxfin)".
 
         (* iDestruct (pval_frag_agree with "Hxfrag Hpvfrag") as "<-". *)
 
@@ -171,11 +174,13 @@ Section finish_specs.
           iDestruct (stok_agree with "Hstok Hstok'") as "%";
           simplify_eq. *)
 
+        iDestruct (serpred_agree with "Hserpred_emp Hserpred_big") as %->.
+
         assert (x1 = pv) as ->.
         { rewrite Hyy' in H3. rewrite H3 in H2. simpl in H2.
           fold_leibniz. by apply (inj to_agree) in H2. }
-        
-        iMod (count_update with "[//] Hlbfrag Hmfrag Hvisfin Hxc Hsusp Hunfill Hv") as "(Hintr' & Hxc & Hsusp & Hv & Hfill) /=".
+
+        iMod (count_update with "[//] [//] Hlbfrag Hmfrag Hvisfin Hxser Hxc Hsusp Hunfill Hv") as "(Hintr' & Hxc & Hxser & Hsusp & Hv & Hfill) /=".
         (* iEval (rewrite visited_map_update_finished_rewrite) in "Hvmauth". *)
 
         (* iPoseProof (stok_combine with "Hstok Hstok'") as "[_ Hstok_comp]".
@@ -338,23 +343,24 @@ Section finish_specs.
                 { intros ?. simplify_eq. }
                 by iApply "Hvis".
 
-              + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%& Hxcap & Hxunfill & Hxmfrag & %Hxmsub & Hxsusp & Hxproph)".
+              + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%Hxpure& Hxcap & Hxunfill & Hxmfrag & %Hxmsub & %Hxssf & #Hxserpred_emp & Hxsusp & Hxproph)".
+                destruct Hxpure as [Hxpurea Hxpureb].
+                simplify_eq Hxpureb. intros <-.
 
                 iPoseProof (mapg_auth_alive with "Hmauth Hxmfrag") as (yx) "%Hxin".
-                destruct Hxin as [(?&Hxin&?)%Some_equiv_eq ?].
+                destruct Hxin as [(?&Hxin&Heqx_pv0)%Some_equiv_eq Heqx_yx2].
                 edestruct (mapg_alive_lookup_Cinl _ _ _ yx Hxin) as (yx' & Halive & Hyyx'); first done.
                 clear Hxin. rename Halive into Hxin.
 
                 iDestruct (big_sepM_lookup_acc _ (mapg_alive (<[pid:=csum.Cinr (to_agree ())]> m')) pid0 _ Hxin with "Hbigsep") as "[Hms Hbigsep]".
-                iDestruct "Hms" as (ctr ????????[Hxcgt [Hxin' ?]]) 
-                    "(Hlc & Hxxser & Hxxserspec & Hxxauth & Hxxc & Hxxfin)".
-                
-                simplify_eq.
+                iDestruct "Hms" as (ctr ????????[Hxcgt [Hxin' Heqx_x2]])
+                    "(Hlc & Hxxser & #Hxxserpred_big & Hxxserspec & Hxxauth & Hxxc & Hxxfin)".
+
                 iMod (visit_update_finished with "Hvmauth Hxvisdone Hintr Hxlbfrag
                   Hxsusp Hxxc") as "(#Hxvisfin & Hintr & Hvmauth & Hxxc & Hxsusp)".
                 { assert (x2 = pv0) as ->.
-                  { rewrite Hyyx' in H11. rewrite H11 in H10. simpl in H10.
-                    fold_leibniz. by apply (inj to_agree) in H10. }
+                  { rewrite Hyyx' in Heqx_x2. rewrite Heqx_x2 in Heqx_yx2. simpl in Heqx_yx2.
+                    fold_leibniz. by apply (inj to_agree) in Heqx_yx2. }
                   exact Hxmsub. }
 
                 iEval (rewrite visited_map_update_finished_rewrite) in "Hvmauth".
@@ -381,10 +387,13 @@ Section finish_specs.
                   assert ((↑ver_susp_n gsusp : coPset) ## ↑ver_susp_n susp) as Hdisj.
                   { apply ndot_ne_disjoint. by intros ->. }
                   set_solver. }
+                iDestruct (serpred_agree with "Hxserpred_emp Hxxserpred_big") as %->.
+
                 iSplitR "Hvisinv Hvmauth".
                 { iRight. iFrame "∗ #".
                   iModIntro. repeat (iSplit; eauto).
-                  iRight. iFrame "∗ #". eauto. }
+                  iRight. iFrame "∗ #".
+                  iPureIntro. eexists. split_and?; eauto. }
                 { iModIntro. iLeft. iExists _, _.
                   iSplit; first done.
                   iFrame "Hvmauth".
