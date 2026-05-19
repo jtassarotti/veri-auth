@@ -113,8 +113,25 @@ Section authenticatable.
         admit.
     - (* 3. suspend_v_deser_spec (combined) *) admit.
     - (* 4. unsuspend_spec *)
-      (* Used binary projection HA2 — admitted post lrel_tern binary removal. *)
-      admit.
+      rewrite /unsuspend_spec.
+      iIntros (E a1 a2 a3 HE Ψ) "!# (HA & Htok & Hintr) HΨ".
+      iEval (rewrite interp_sum_combined) in "HA".
+      wp_pures.
+      iDestruct "HA" as (w1 w2 w3) "[(-> & -> & -> & HA) | (-> & -> & -> & HA)]".
+      + wp_pures. interp_unfold! in "HA".
+        wp_apply ("HunsuspA" with "[//] [$HA $Htok $Hintr]").
+        iIntros (un_v s) "(Htok & Hintr & %Hunsusp & Hser)".
+        wp_pures. iApply ("HΨ" $! _ (inl_ser_str s)).
+        iFrame "Htok Hintr". iModIntro. iSplit.
+        { iPureIntro. simpl. left. exists w1, un_v. done. }
+        simpl. iExists un_v, s. iLeft. iFrame. done.
+      + wp_pures. interp_unfold! in "HA".
+        wp_apply ("HunsuspB" with "[//] [$HA $Htok $Hintr]").
+        iIntros (un_v s) "(Htok & Hintr & %Hunsusp & Hser)".
+        wp_pures. iApply ("HΨ" $! _ (inr_ser_str s)).
+        iFrame "Htok Hintr". iModIntro. iSplit.
+        { iPureIntro. simpl. right. exists w1, un_v. done. }
+        simpl. iExists un_v, s. iRight. iFrame. done.
     - (* 5. v_ser_spec *)
       rewrite /v_ser_spec.
       iIntros (K tᵥ3 a s id Nc v_outer) "!# Hcnt Hser Hspec".
