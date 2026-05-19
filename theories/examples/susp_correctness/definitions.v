@@ -788,7 +788,8 @@ Section authentikit_definitions.
         (ctr pn : nat) (msp : serpred_type),
       l ↦ᵥ d ∗ ⌜is_map d m⌝ ∗ v_susp_big_sep m m' ∗ mapg_auth m' ∗
       ⌜size (mapg_alive m') = size m⌝ ∗ visited_mapg_auth vm pn ctr ∗
-      ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ tern_state ∗ serpred_auth msp)
+      ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ tern_state ∗ serpred_auth msp ∗
+      ⌜dom msp ⊆ set_seq 0 ctr⌝)
     ∨ un_state.
 
   Definition inv_v_susp_table (l: loc) := tabseq_inv tableN (is_v_susp_table l).
