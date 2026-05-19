@@ -276,6 +276,7 @@ Section authenticatable_definitions.
       cap_frag pid N ∗ unfilled susp ∗
       mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat N)))%Qp pv ∗
       ⌜v_sub_obj pt pv #susp⌝ ∗ ⌜same_ser_for_fill pt pv ps susp h⌝ ∗
+      serpred_frag pid ps ∗
       susp ↦ᵥ{#(1/2)} InjLV (#pid, #p) ∗ proph_v_susp p h.
 
   Definition auth_susp_fill_ser_v (v : val) (s : string) : iProp Σ :=
@@ -761,7 +762,8 @@ Section authentikit_definitions.
   Definition v_susp_big_sep_lam (m : gmap val val) (id : nat) agv : iProp Σ :=
     ∃ (ctr Nc: nat) (finish x a ser : val) (t : evi_type) (s : string) (q : Qp),
       (⌜ctr > 0 ∧ m !! #id = Some (#ctr, finish)%V ∧ agv ≡ to_frac_agree q x⌝ ∗
-      £ 1 ∗ ser_v_proph t id x s ∗ v_ser_spec ser t ∗ auth_v id a s ∗
+      £ 1 ∗ ser_v_proph t id x s ∗ serpred_frag id s ∗
+      v_ser_spec ser t ∗ auth_v id a s ∗
       sub_susp_count_frags t x ctr id Nc ∗ v_finish_spec' finish x a ser)%I.
 
   Definition v_susp_big_sep (m : gmap val val) (m' : mapg_type) : iProp Σ :=
@@ -783,10 +785,11 @@ Section authentikit_definitions.
 
   Definition is_v_susp_table (l : loc) : iProp Σ :=
     (∃ (d : val) (m : gmap val val) (m' : mapg_type) (vm : state_mapg_type)
-        (ctr pn : nat),
+        (ctr pn : nat) (msp : serpred_type),
       l ↦ᵥ d ∗ ⌜is_map d m⌝ ∗ v_susp_big_sep m m' ∗ mapg_auth m' ∗
       ⌜size (mapg_alive m') = size m⌝ ∗ visited_mapg_auth vm pn ctr ∗
-      ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ tern_state) ∨ un_state.
+      ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ tern_state ∗ serpred_auth msp)
+    ∨ un_state.
 
   Definition inv_v_susp_table (l: loc) := tabseq_inv tableN (is_v_susp_table l).
 
