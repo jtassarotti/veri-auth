@@ -717,7 +717,14 @@ Section authenticatable_definitions.
              (lrel_auth_un (lrel_tern_un A)).
 
   Program Definition lrel_auth : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_auth' A.
-  Next Obligation. Admitted.
+  Next Obligation.
+    intros n A B HAB.
+    rewrite /lrel_auth' /=.
+    split; [intros ???|intros ?];
+      rewrite /lrel_car/= /lrel_un_car/=
+        /lrel_auth_tern /lrel_auth_un;
+      solve_proper.
+  Qed.
 
 End authenticatable_definitions.
 
