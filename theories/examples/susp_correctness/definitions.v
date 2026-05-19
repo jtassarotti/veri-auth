@@ -247,11 +247,13 @@ Section authenticatable_definitions.
       ⌜s = suspended_string ∧ v = InjRV #susp⌝ ∗ 
       susp ↦ᵥ{#(1/2)} InjLV (#pid, #p) ∗ proph_v_susp p h. *)
 
-  Definition auth_susp_emp_v (pid : nat) (v : val) : iProp Σ :=
-    ∃ (h : string) (susp : loc) (p : proph_id) pv pt N,
-      ⌜v = InjRV #susp⌝ ∗ cap_frag pid N ∗ unfilled susp ∗
+  Definition auth_susp_emp_v (pid : nat) (v : val) (s : string) : iProp Σ :=
+    ∃ (h : string) (susp : loc) (p : proph_id) pv pt ps N,
+      ⌜s = filled_string h ∧ v = InjRV #susp⌝ ∗ 
+      cap_frag pid N ∗ unfilled susp ∗
       mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat N)))%Qp pv ∗
-      ⌜v_sub_obj pt pv #susp⌝ ∗ susp ↦ᵥ{#(1/2)} InjLV (#pid, #p) ∗ proph_v_susp p h.
+      ⌜v_sub_obj pt pv #susp⌝ ∗ ⌜same_ser_for_fill pt ps h⌝ ∗
+      susp ↦ᵥ{#(1/2)} InjLV (#pid, #p) ∗ proph_v_susp p h.
 
   Definition auth_susp_fill_ser_v (v : val) (s : string) : iProp Σ :=
     ∃ (h : string) (susp : loc),
@@ -263,7 +265,7 @@ Section authenticatable_definitions.
 
   Definition auth_susp_v_inv (pid : nat) (v : val) (s : string) : iProp Σ :=
     (∃ (s1 : string), ⌜s = filled_string (hash s1)⌝ ∗ auth_susp_fill_v v s) ∨ 
-      auth_susp_emp_v pid v.
+      auth_susp_emp_v pid v s.
 
   #[global] Instance auth_susp_v_inv_timeless pid v s : 
       Timeless (auth_susp_v_inv pid v s).
