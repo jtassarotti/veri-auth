@@ -117,45 +117,45 @@ Section authenticatable.
       admit.
     - (* 5. v_ser_spec *)
       rewrite /v_ser_spec.
-      iIntros (K tᵥ3 a s id Nc v_outer) "!# Hcnt #Hser Hspec".
-      iDestruct "Hser" as (w s') "[[#Hser1 [-> ->]] | [#Hser1 [-> ->]]]".
+      iIntros (K tᵥ3 a s id Nc v_outer) "!# Hcnt Hser Hspec".
+      iDestruct "Hser" as (w s') "[[Hser1 [-> ->]] | [Hser1 [-> ->]]]".
       + (* InjL *)
         iDestruct "Hcnt" as "[(%vA & %HeqL & HcntA) | (%vB & %HeqR & _)]"; last by inversion HeqR.
         injection HeqL as ->.
         rewrite /sum_ser''. v_pures.
         v_bind tᵥ3 (v_sA _).
-        iMod ("HvserA" with "HcntA Hser1 Hspec") as "(HcntA & _ & Hspec) /=".
+        iMod ("HvserA" with "HcntA Hser1 Hspec") as "(HcntA & Hser1 & Hspec) /=".
         v_pures.
         unfold inl_ser_str. iModIntro. iFrame "Hspec".
         iSplitL "HcntA"; [iLeft; iExists vA; by iFrame|].
-        iExists vA, s'. iLeft. iSplit; [iExact "Hser1"|]. done.
+        iExists vA, s'. iLeft. iFrame "Hser1". done.
       + (* InjR *)
         iDestruct "Hcnt" as "[(%vA & %HeqL & _) | (%vB & %HeqR & HcntB)]"; first by inversion HeqL.
         injection HeqR as ->.
         rewrite /sum_ser''. v_pures.
         v_bind tᵥ3 (v_sB _).
-        iMod ("HvserB" with "HcntB Hser1 Hspec") as "(HcntB & _ & Hspec) /=".
+        iMod ("HvserB" with "HcntB Hser1 Hspec") as "(HcntB & Hser1 & Hspec) /=".
         v_pures.
         unfold inr_ser_str. iModIntro. iFrame "Hspec".
         iSplitL "HcntB"; [iRight; iExists vB; by iFrame|].
-        iExists vB, s'. iRight. iSplit; [iExact "Hser1"|]. done.
+        iExists vB, s'. iRight. iFrame "Hser1". done.
     - (* 6. v_auth_ser_spec *)
       rewrite /v_auth_ser_spec.
-      iIntros (K tᵥ3 a1 a2 a3) "!# #HA Hv".
+      iIntros (K tᵥ3 a1 a2 a3) "!# Htok HA Hv".
       rewrite /sum_ser''. v_pures.
       interp_unfold! in "HA".
-      iDestruct "HA" as (v1' v2' v3') "[(>-> & >-> & >-> & #HrA) | (>-> & >-> & >-> & #HrB)]".
+      iDestruct "HA" as (v1' v2' v3') "[(>-> & >-> & >-> & HrA) | (>-> & >-> & >-> & HrB)]".
       + (* InjL *)
         v_pures. v_bind (v_sA _).
-        iMod ("HvauthserA" with "HrA Hv") as (sv) "[Hsserv Hv] /=".
+        iMod ("HvauthserA" with "Htok HrA Hv") as (sv) "(Htok & Hsserv & Hv) /=".
         v_pures. iModIntro. iExists (inl_ser_str sv).
-        unfold inl_ser_str. iFrame "Hv".
+        unfold inl_ser_str. iFrame "Hv Htok".
         iExists v2', sv. iLeft. iSplit; [iExact "Hsserv"|]. done.
       + (* InjR *)
         v_pures. v_bind (v_sB _).
-        iMod ("HvauthserB" with "HrB Hv") as (sv) "[Hsserv Hv] /=".
+        iMod ("HvauthserB" with "Htok HrB Hv") as (sv) "(Htok & Hsserv & Hv) /=".
         v_pures. iModIntro. iExists (inr_ser_str sv).
-        unfold inr_ser_str. iFrame "Hv".
+        unfold inr_ser_str. iFrame "Hv Htok".
         iExists v2', sv. iRight. iSplit; [iExact "Hsserv"|]. done.
     - (* 7. v_count_spec *)
       rewrite /v_count_spec.
@@ -220,11 +220,11 @@ Section authenticatable.
       iModIntro. iExists s'. done.
     - (* 6. v_auth_ser_spec *)
       rewrite /v_auth_ser_spec.
-      iIntros (K tᵥ a1 a2 a3) "!# #HA Hspec".
+      iIntros (K tᵥ a1 a2 a3) "!# Htok #HA Hspec".
       iEval (rewrite /lrel_tern_tern /lrel_string /=) in "HA".
       iDestruct "HA" as ">%H". destruct H as (s' & -> & -> & ->).
       rewrite /string_ser' /string_ser. v_pures. iModIntro.
-      iExists (string_ser_str s'). iFrame. iExists s'. done.
+      iExists (string_ser_str s'). iFrame "Htok Hspec". iExists s'. done.
     - (* 7. v_count_spec *)
       rewrite /v_count_spec.
       iIntros (K tᵥ a c id Nc v_outer) "!# Hcnt Hspec".
@@ -280,11 +280,11 @@ Section authenticatable.
       iModIntro. iExists z'. done.
     - (* 6. v_auth_ser_spec *)
       rewrite /v_auth_ser_spec.
-      iIntros (K tᵥ a1 a2 a3) "!# #HA Hspec".
+      iIntros (K tᵥ a1 a2 a3) "!# Htok #HA Hspec".
       iEval (rewrite /lrel_tern_tern /lrel_int /=) in "HA".
       iDestruct "HA" as ">%H". destruct H as (z' & -> & -> & ->).
       rewrite /int_ser' /int_ser. v_pures. iModIntro.
-      iExists (int_ser_str z'). iFrame. iExists z'. done.
+      iExists (int_ser_str z'). iFrame "Htok Hspec". iExists z'. done.
     - (* 7. v_count_spec *)
       rewrite /v_count_spec.
       iIntros (K tᵥ a c id Nc v_outer) "!# Hcnt Hspec".
