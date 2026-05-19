@@ -178,7 +178,43 @@ Section authenticatable.
         p_Auth_string v_Auth_string i_Auth_string.
   Proof.
     iSplit; last first.
-    { (* unary  *) admit. }
+    { (* unary *)
+      rewrite /lrel_evidence /lrel_evidence' /=. cbv [lrel_tern_un].
+      rewrite /lrel_un_evidence /=.
+      iExists tstring, _, _, _, _, _, _, _.
+      iSplit; [done|]. iSplit; [|iSplit; [|iSplit]].
+      - rewrite /unsusp_p_ser_spec.
+        iIntros (v s Ψ) "!# Hser HΨ".
+        iDestruct "Hser" as %(s' & -> & ->).
+        rewrite /string_ser /string_ser_str. wp_pures. by iApply "HΨ".
+      - rewrite /susp_p_ser_spec.
+        iIntros (E a1 s c q HE Ψ) "!# ((Hstr & %Hc) & Htok & Hintr) HΨ".
+        subst c. iDestruct "Hstr" as %(s' & -> & ->).
+        rewrite /string_ser. wp_pures. iApply "HΨ". iModIntro. iFrame "Htok".
+        iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+        iDestruct "Hintr" as "[$ _]".
+        iIntros (γl) "Hg Hpen %Hsz Hbig".
+        apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+        iFrame "Hg Hpen". by rewrite big_sepS_empty.
+      - rewrite /suspend_spec_bin.
+        iIntros (t' v un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+        rewrite /id. wp_pures.
+        iDestruct "HA" as %(s' & ->).
+        destruct t' eqn:Ht; simpl in Hunsusp; try done.
+        + destruct Hunsusp as (?&?&?&?&Heq&_). discriminate.
+        + destruct Hunsusp as [(?&?&Heq&_)|(?&?&Heq&_)]; discriminate.
+        + subst un_v.
+          iApply ("HΨ" $! #s' (string_ser_str s') 0). simpl.
+          iModIntro. iSplit; [iPureIntro; by eexists|].
+          iSplit; [|done]. iExists s'. done.
+        + subst un_v.
+          iApply ("HΨ" $! #s' (string_ser_str s') 0). simpl.
+          iModIntro. iSplit; [iPureIntro; by eexists|].
+          iSplit; [|done]. iExists s'. done.
+        + destruct Hunsusp as (?&?&?&?&?&Heq&_). discriminate.
+      - rewrite /unsuspend_spec_bin.
+        iIntros (E a1 HE Ψ) "!# (HA & Htok) HΨ".
+        rewrite /id. wp_pures. iApply ("HΨ" $! a1). iFrame "Htok". done. }
     (* ternary *)
     rewrite /lrel_tern_evidence /=.
     iExists tstring, _, _, _, _, _, _, _.
@@ -238,7 +274,43 @@ Section authenticatable.
         p_Auth_int v_Auth_int i_Auth_int.
   Proof.
     iSplit; last first.
-    { (* unary  *) admit. }
+    { (* unary *)
+      rewrite /lrel_evidence /lrel_evidence' /=. cbv [lrel_tern_un].
+      rewrite /lrel_un_evidence /=.
+      iExists tint, _, _, _, _, _, _, _.
+      iSplit; [done|]. iSplit; [|iSplit; [|iSplit]].
+      - rewrite /unsusp_p_ser_spec.
+        iIntros (v s Ψ) "!# Hser HΨ".
+        iDestruct "Hser" as %(z & -> & ->).
+        rewrite /int_ser /int_ser_str. wp_pures. by iApply "HΨ".
+      - rewrite /susp_p_ser_spec.
+        iIntros (E a1 s c q HE Ψ) "!# ((Hint & %Hc) & Htok & Hintr) HΨ".
+        subst c. iDestruct "Hint" as %(z & -> & ->).
+        rewrite /int_ser. wp_pures. iApply "HΨ". iModIntro. iFrame "Htok".
+        iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+        iDestruct "Hintr" as "[$ _]".
+        iIntros (γl) "Hg Hpen %Hsz Hbig".
+        apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+        iFrame "Hg Hpen". by rewrite big_sepS_empty.
+      - rewrite /suspend_spec_bin.
+        iIntros (t' v un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+        rewrite /id. wp_pures.
+        iDestruct "HA" as %(z & ->).
+        destruct t' eqn:Ht; simpl in Hunsusp; try done.
+        + destruct Hunsusp as (?&?&?&?&Heq&_). discriminate.
+        + destruct Hunsusp as [(?&?&Heq&_)|(?&?&Heq&_)]; discriminate.
+        + subst un_v.
+          iApply ("HΨ" $! #z (int_ser_str z) 0). simpl.
+          iModIntro. iSplit; [iPureIntro; by eexists|].
+          iSplit; [|done]. iExists z. done.
+        + subst un_v.
+          iApply ("HΨ" $! #z (int_ser_str z) 0). simpl.
+          iModIntro. iSplit; [iPureIntro; by eexists|].
+          iSplit; [|done]. iExists z. done.
+        + destruct Hunsusp as (?&?&?&?&?&Heq&_). discriminate.
+      - rewrite /unsuspend_spec_bin.
+        iIntros (E a1 HE Ψ) "!# (HA & Htok) HΨ".
+        rewrite /id. wp_pures. iApply ("HΨ" $! a1). iFrame "Htok". done. }
     (* ternary *)
     rewrite /lrel_tern_evidence /=.
     iExists tint, _, _, _, _, _, _, _.
