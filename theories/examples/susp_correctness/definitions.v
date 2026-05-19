@@ -894,7 +894,15 @@ Section authentikit_definitions.
              (lrel_auth_comp_un (lrel_tern_un A)).
 
   Program Definition lrel_auth_comp : kindO Σ (⋆ ⇒ ⋆)%kind := λne A, lrel_auth_comp' A.
-  Next Obligation. Admitted.
+  Next Obligation.
+    intros n A B HAB.
+    rewrite /lrel_auth_comp' /=.
+    split.
+    - intros ???. rewrite /lrel_car/= /lrel_auth_comp_tern.
+      solve_proper.
+    - intros ?. rewrite /lrel_un_car/= /lrel_auth_comp_un.
+      solve_proper.
+  Qed.
 
   Definition auth_ctx {Θ} (Δ : ctxO Σ Θ) := ext (ext Δ lrel_auth) lrel_auth_comp.
 
