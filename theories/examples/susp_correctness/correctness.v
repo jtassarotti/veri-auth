@@ -479,8 +479,8 @@ Section proof.
 
         iMod (na_inv_acc with "Htab Htabtok") as "(Htabo & Htabtok & Hclose_tab)"; try solve_ndisj.
         iMod (lc_fupd_elim_later with "Hlctab Htabo") as "Htabo".
-        iDestruct "Htabo" as "[(%&%&%&%& %idctr &% & Hl & %Hm & 
-            Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hst') | Hst']";
+        iDestruct "Htabo" as "[(%&%&%&%& %idctr &%&%msp_ & Hl & %Hm &
+            Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hst' & Hserp) | Hst']";
           last first.
         { by iPoseProof (tern_state_un_state_excl with "Hst Hst'") as "?". }
           (* iPoseProof (state_agree with "Hst Hst'") as "(% & Hst & Hst')"; simplify_eq. *)
@@ -574,7 +574,7 @@ Section proof.
           assert (size γl = 0) as -> by lia.
           iDestruct "Hmauth" as "[[% Hmauth]|[% Hmauth]]"; try lia.
 
-          iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hmauth Hvmauth Hvisinv Hst']") as "Htabtok".
+          iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hmauth Hvmauth Hvisinv Hst' Hserp]") as "Htabtok".
           { iNext. iLeft. iFrame "Hvmauth". iFrame "∗ %".
             iSplit. { iPureIntro; intros ??; apply Hidinv; lia. }
 
@@ -582,9 +582,9 @@ Section proof.
                       apply big_sepM_union. *) }
 
           iMod ("Hvfinish" $! ⊤ with "[] Htabtok Hlc Hvser Hvserspec Hc [Htok Hidtok Hintr Hpvfrag]
-                Hst Hv") as "(Hv & Htabtok & Htok & Hst & Hintr) /=". 
+                Hst Hv") as "(Hv & Htabtok & Htok & Hst & Hintr) /=".
           { iModIntro. iIntros (???) "_ _ _ _". set_solver. }
-          { iLeft. by iFrame. } 
+          { iLeft. by iFrame. }
           
           v_pures. v_bind (list_tail _).
           iMod (gwp_list_tail ⊤ _ (s_real :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
@@ -624,12 +624,12 @@ Section proof.
           
           v_store.
 
-          iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hmauth Hvmauth Hvisinv Hst' Hc Hlc Hvfinish Hvser Hidtok]") as "Htabtok".
+          iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hmauth Hvmauth Hvisinv Hst' Hc Hlc Hvfinish Hvser Hidtok Hserp]") as "Htabtok".
           { iNext. iLeft. iFrame "Hvmauth". iFrame "∗ %".
 
-            iPoseProof (big_sepM_mono 
+            iPoseProof (big_sepM_mono
                 (v_susp_big_sep_lam m)
-                (v_susp_big_sep_lam (<[#cntr:=(#(size γl), v_finish)%V]> m)) 
+                (v_susp_big_sep_lam (<[#cntr:=(#(size γl), v_finish)%V]> m))
               with "Hbigsep") as "Hbigsep".
             { iIntros (?? Hlook) "Hbigsep".
               rewrite /v_susp_big_sep_lam.
@@ -656,7 +656,7 @@ Section proof.
               rewrite lookup_insert_None.
               specialize (Hidinv ctr' ltac:(lia)).
               split; eauto. intros ?. simplify_eq. lia. }
-            
+
             admit. }
 
           v_pures. v_bind (list_tail _).
@@ -816,8 +816,8 @@ Section proof.
           { iMod (na_inv_acc with "Hinv_authv Htok") as "(>Hinvo & Htok & Hclose)";
               try solve_ndisj.
             iDestruct "Hinvo" as "[Hinv_1|Hinv_2]".
-            - iDestruct "Hinv_1" as "(%s1&% & (%&%&%&%& Hsusp & #Hfilled & #Hlbvfrag' & #Hvisfin))".
-              destruct! H6. simplify_eq.
+            - iDestruct "Hinv_1" as "(%&%&%&%Hxpure1 & Hsusp & #Hfilled & #Hlbvfrag' & #Hvisfin)".
+              destruct! Hxpure1. simplify_eq.
               iDestruct (lg_mapg_agree with "Hlbvfrag Hlbvfrag'") as "(<- & _ & _)".
               iPoseProof (id_token_unused with "Hvmauth Hidtok") as "(%Hidunused & $ & Hidtok)".
               iFrame "Hmauth Hbigsep". iModIntro.
@@ -833,16 +833,12 @@ Section proof.
                 { apply ndot_ne_disjoint. by intros ->. }
                 set_solver. }
               iSplitR "Hvisinv".
-              { iRight. rewrite H10.
+              { iRight.
                 iFrame "Hgpfrag Hidtok Hxinv Hxlbfrag Htok".
                 repeat (iSplit; eauto). iSplitR. { by iIntros. }
                 repeat (iSplit; eauto).
                 iSplitR "Hclose_inv".
-                { iLeft. iFrame "∗ #". iExists s1.
-                  repeat (iSplit; eauto). 
-                  unfold filled_string in *. 
-                  unfold simple_string in *. 
-                  simplify_eq. by rewrite H8. }
+                { iLeft. iFrame "∗ #". eauto. }
                 iFrame. }
 
                 (* iSplit. { iPureIntro. admit. }

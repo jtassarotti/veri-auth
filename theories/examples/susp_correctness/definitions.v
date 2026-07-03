@@ -185,7 +185,7 @@ Section authenticatable_definitions.
           (v = InjRV v' ∧ v = v' ∧
             ∃ s', s = inr_ser_str s' ∧ same_ser_for_fill t2 v' s' susp h)
     | tauth =>
-        v = SOMEV (InjRV #susp) ∧ ∃ s_pre, s = filled_string (hash s_pre) ∧ h = hash s_pre
+        v = SOMEV (InjRV #susp) ∧ s = filled_string h
     | _ => False
     end.
 
@@ -276,6 +276,7 @@ Section authenticatable_definitions.
       cap_frag pid N ∗ unfilled susp ∗
       mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat N)))%Qp pv ∗
       ⌜v_sub_obj pt pv #susp⌝ ∗ ⌜same_ser_for_fill pt pv ps susp h⌝ ∗
+      serpred_frag pid ps ∗
       susp ↦ᵥ{#(1/2)} InjLV (#pid, #p) ∗ proph_v_susp p h.
 
   Definition auth_susp_fill_ser_v (v : val) (s : string) : iProp Σ :=
@@ -287,20 +288,17 @@ Section authenticatable_definitions.
       ⌜v = InjRV #susp⌝ ∗ susp ↦ᵥ{#(1/4)} InjLV (#pid, #p).
 
   Definition auth_susp_v_inv (pid : nat) (v : val) (s : string) : iProp Σ :=
-    (∃ (s1 : string), ⌜s = filled_string (hash s1)⌝ ∗ auth_susp_fill_v v s) ∨ 
-      auth_susp_emp_v pid v s.
+    auth_susp_fill_v v s ∨ auth_susp_emp_v pid v s.
 
   #[global] Instance auth_susp_v_inv_timeless pid v s :
       Timeless (auth_susp_v_inv pid v s).
   Proof. rewrite /auth_susp_v_inv /auth_susp_fill_v /auth_susp_emp_v. apply _. Qed.
 
   Definition auth_susp_ser_v (pid : nat) (v : val) (s : string) : iProp Σ :=
-    (∃ (s1 : string), ⌜s = filled_string (hash s1)⌝ ∗ auth_susp_fill_ser_v v s) ∨ 
-      auth_susp_emp_ser_v pid v.
+    auth_susp_fill_ser_v v s ∨ auth_susp_emp_ser_v pid v.
 
   Definition auth_susp_v_transit_inv (pid : nat) (v : val) (s : string) : iProp Σ :=
-    (∃ (s1 : string),
-      ⌜s = filled_string (hash s1)⌝ ∗ intransit 1 ∗ auth_susp_fill_v v s) ∨
+    (intransit 1 ∗ auth_susp_fill_v v s) ∨
     (∃ γ (susp : loc),
       ⌜v = InjRV #susp⌝ ∗ lg_mapg_frag susp γ ∗ visit_finished γ ∗
         intransit (1/2) ∗ auth_susp_emp_v pid v s).
@@ -761,7 +759,8 @@ Section authentikit_definitions.
   Definition v_susp_big_sep_lam (m : gmap val val) (id : nat) agv : iProp Σ :=
     ∃ (ctr Nc: nat) (finish x a ser : val) (t : evi_type) (s : string) (q : Qp),
       (⌜ctr > 0 ∧ m !! #id = Some (#ctr, finish)%V ∧ agv ≡ to_frac_agree q x⌝ ∗
-      £ 1 ∗ ser_v_proph t id x s ∗ v_ser_spec ser t ∗ auth_v id a s ∗
+      £ 1 ∗ ser_v_proph t id x s ∗ serpred_frag id s ∗
+      v_ser_spec ser t ∗ auth_v id a s ∗
       sub_susp_count_frags t x ctr id Nc ∗ v_finish_spec' finish x a ser)%I.
 
   Definition v_susp_big_sep (m : gmap val val) (m' : mapg_type) : iProp Σ :=
@@ -783,10 +782,12 @@ Section authentikit_definitions.
 
   Definition is_v_susp_table (l : loc) : iProp Σ :=
     (∃ (d : val) (m : gmap val val) (m' : mapg_type) (vm : state_mapg_type)
-        (ctr pn : nat),
+        (ctr pn : nat) (msp : serpred_type),
       l ↦ᵥ d ∗ ⌜is_map d m⌝ ∗ v_susp_big_sep m m' ∗ mapg_auth m' ∗
       ⌜size (mapg_alive m') = size m⌝ ∗ visited_mapg_auth vm pn ctr ∗
-      ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ tern_state) ∨ un_state.
+      ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ tern_state ∗ serpred_auth msp ∗
+      ⌜dom msp ⊆ set_seq 0 ctr⌝)
+    ∨ un_state.
 
   Definition inv_v_susp_table (l: loc) := tabseq_inv tableN (is_v_susp_table l).
 

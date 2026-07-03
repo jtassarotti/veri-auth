@@ -658,14 +658,13 @@ Section authentikit_helpers.
             -- iDestruct "H" as (susp') "[%Heq' _]". discriminate.
           * subst vind.
             simpl in Hssf_ind.
-            destruct Hssf_ind as [_ (s_pre & -> & Heqh)].
+            destruct Hssf_ind as [_ ->].
             iDestruct "Hser'" as (v_ser) "[%Heqser_v Hser_cases]".
             injection Heqser_v as <-.
             iDestruct "Hser_cases" as "[Hfill_ser | Hsusp_ser]".
             { iDestruct "Hfill_ser" as %(h_fill & _ & Hbad). discriminate. }
             iDestruct "Hsusp_ser" as "[Hfill_susp_ser | Hemp_susp_ser]".
-            { iDestruct "Hfill_susp_ser" as (s1_fill) "[_ Hauth_fill]".
-              iDestruct "Hauth_fill" as (h_fill susp_fill [_ Heq_susp]) "Hpts_fill".
+            { iDestruct "Hfill_susp_ser" as (h_fill susp_fill [_ Heq_susp]) "Hpts_fill".
               injection Heq_susp as <-.
               iDestruct (pointstoS_agree with "Hsusp' Hpts_fill") as %[_ Hbad].
               discriminate. }
@@ -678,9 +677,8 @@ Section authentikit_helpers.
             iModIntro. iSplit; [iPureIntro; lia|]. iFrame "Hintr Hfilled".
             iSplitR "Hc' Hsusp'' Hspec'' Hnew".
             { iExists (InjRV #susp). iSplit; [done|].
-              iRight. iLeft. iExists s_pre. iSplit; [done|].
-              iExists h, susp. iFrame "Hpts_new". iPureIntro. split; [|done].
-              rewrite Heqh //. }
+              iRight. iLeft.
+              iExists h, susp. iFrame "Hpts_new". iPureIntro. done. }
             iFrame. }
     iMod ("Hlem" $! v t v c t' s Hsub Hssf with "Hser Hinner Hsusp Hunfill Hspec")
       as "(%Hc & Hintr & Hser' & Hinner & Hsusp & Hspec & Hnew & #Hfilled)".

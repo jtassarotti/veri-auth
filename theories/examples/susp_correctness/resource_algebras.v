@@ -81,6 +81,15 @@ Definition stateTokUR := dfrac_agreeR (leibnizO (option nat)).
 Definition suspfilledStateUR := csumR (exclR unitO) (agreeR unitO).
 Definition suspfilledmapUR := authUR (gmapUR loc (agreeR gnameO)).
 
+(* [serpredUR]: persistent agreement on the predicted-serialization string
+   for each suspension id. The auth holds a [gmap nat (agree string)];
+   fragments are persistent and two fragments at the same id force
+   string equality via [to_agree_op_inv_L]. Used to bridge the gap
+   between the predicted [ps] (in [auth_susp_emp_v]) and the actual [s]
+   (in [v_susp_big_sep_lam]) at suspension creation: both sides hold
+   a [serpred_frag pid s] fragment, so [serpred_agree] yields [ps = s]. *)
+Definition serpredUR := authR (gmapUR nat (agreeR (leibnizO string))).
+
 Class correctnessG Σ := CorrectnessG {
   visited_state_inG :> inG Σ visited_state_mapUR;
   visited_done_inG :> inG Σ visited_done_mapUR;
@@ -124,6 +133,9 @@ Class correctnessG Σ := CorrectnessG {
   suspfilledmapG_name : gname;
 
   suspfilledState_inG :> inG Σ suspfilledStateUR;
+
+  serpred_inG :> inG Σ serpredUR;
+  serpredG_name : gname;
 }.
 
 Section pvalmap_res.
@@ -2186,3 +2198,68 @@ Section suspfilledmap_res.
   Qed.
 
 End suspfilledmap_res.
+
+
+Section serpred_res.
+  Context `{!correctnessG Σ}.
+
+  Definition serpred_type := gmap nat string.
+
+  Definition serpred_auth (m : serpred_type) : iProp Σ :=
+    own serpredG_name
+      (● ((to_agree : string → agree (leibnizO string)) <$> m
+          : gmap nat (agreeR (leibnizO string)))).
+
+  Definition serpred_frag (pid : nat) (s : string) : iProp Σ :=
+    own serpredG_name (◯ {[ pid := to_agree (s : leibnizO string) ]}).
+
+  Global Instance serpred_frag_persistent pid s : Persistent (serpred_frag pid s).
+  Proof. apply _. Qed.
+
+  Global Instance serpred_frag_timeless pid s : Timeless (serpred_frag pid s).
+  Proof. apply _. Qed.
+
+  Lemma serpred_agree pid s1 s2 :
+    serpred_frag pid s1 -∗ serpred_frag pid s2 -∗ ⌜s1 = s2⌝.
+  Proof.
+    rewrite /serpred_frag. iIntros "H1 H2".
+    iDestruct (own_valid_2 with "H1 H2") as %Hv. iPureIntro.
+    rewrite -auth_frag_op auth_frag_valid singleton_op singleton_valid in Hv.
+    fold_leibniz. by apply to_agree_op_inv_L in Hv.
+  Qed.
+
+  Lemma serpred_lookup m pid s :
+    serpred_auth m -∗ serpred_frag pid s -∗ ⌜m !! pid = Some s⌝.
+  Proof.
+    rewrite /serpred_auth /serpred_frag. iIntros "Hauth Hfrag".
+    iDestruct (own_valid_2 with "Hauth Hfrag") as %Hv. iPureIntro.
+    apply auth_both_valid_discrete in Hv as [Hincl Hval].
+    apply singleton_included_l in Hincl as (y & Hy & Hle).
+    rewrite lookup_fmap in Hy.
+    destruct (m !! pid) as [s'|] eqn:Hr; last first.
+    { rewrite Hr /= in Hy. by inversion Hy. }
+    rewrite Hr /= in Hy.
+    apply Some_equiv_inj in Hy.
+    assert (✓ y) as Hvy.
+    { eapply (lookup_valid_Some _ pid); first exact Hval.
+      rewrite lookup_fmap Hr /=. by rewrite Hy. }
+    apply Some_included in Hle as [Heq | Hinc].
+    - rewrite -Hy in Heq. fold_leibniz. apply (inj to_agree) in Heq.
+      by rewrite Heq.
+    - rewrite -Hy in Hinc.
+      apply (to_agree_included_L (A:=leibnizO string)) in Hinc.
+      by rewrite Hinc.
+  Qed.
+
+  Lemma serpred_alloc m pid s :
+    m !! pid = None →
+    serpred_auth m ==∗ serpred_auth (<[pid:=s]> m) ∗ serpred_frag pid s.
+  Proof.
+    rewrite /serpred_auth /serpred_frag. iIntros (Hfresh) "H".
+    iMod (own_update with "H") as "[H1 H2]"; last by iFrame.
+    rewrite fmap_insert comm.
+    apply auth_update_alloc, alloc_singleton_local_update; [|done].
+    by rewrite lookup_fmap Hfresh.
+  Qed.
+
+End serpred_res.
