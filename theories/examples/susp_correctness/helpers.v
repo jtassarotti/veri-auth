@@ -895,13 +895,13 @@ Section authentikit_helpers.
 
   (** Cardinality bound: any γ-set ranging over labels of [a] has size at
       most [c]. The substantive cases are:
-      - [tauth c=0]: [auth_susp_ser_p_fill] carries [lg_mapg_unalloc lb_a],
-        which excludes any [lg_mapg_frag lb_a γ] in [γs].
-      - [tauth c=1]: at most one [γ] by [lg_mapg_agree] on the unique [lb_a].
+      - [tauth c=0]: [auth_susp_ser_p_fill] carries [lg_mapg_p_unalloc lb_a],
+        which excludes any [lg_mapg_p_frag lb_a γ] in [γs].
+      - [tauth c=1]: at most one [γ] by [lg_mapg_p_agree] on the unique [lb_a].
       - [tprod]: by partition into v1/v2 sub-trees, summing IH bounds. *)
   Lemma susp_ser_p_real_γl_card_le (t : evi_type) (a : val) (s : string) (c : nat) (γs : gset gname) :
     susp_ser_p_real t c a s -∗
-    ([∗ set] γ ∈ γs, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) -∗
+    ([∗ set] γ ∈ γs, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) -∗
     ⌜size γs ≤ c⌝.
   Proof.
     iIntros "Hser HbigL".
@@ -957,8 +957,8 @@ Section authentikit_helpers.
       (* Build the partition by induction on γs *)
       iAssert (∃ γs1 γs2 : gset gname,
                  ⌜γs1 ## γs2 ∧ γs = γs1 ∪ γs2⌝ ∗
-                 ([∗ set] γ ∈ γs1, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t1 v1 #lb⌝) ∗
-                 ([∗ set] γ ∈ γs2, ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t2 v2 #lb⌝))%I
+                 ([∗ set] γ ∈ γs1, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t1 v1 #lb⌝) ∗
+                 ([∗ set] γ ∈ γs2, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t2 v2 #lb⌝))%I
         with "[HbigL]"
         as "(%γs1 & %γs2 & [%Hdisj %Hsplit] & H1 & H2)".
       { iRevert "HbigL".
@@ -1071,7 +1071,7 @@ Section authentikit_helpers.
       rewrite size_empty. by iPureIntro.
     - (* tauth *)
       simpl. iDestruct "Hser" as "[[Hf %Hc] | [He %Hc]]"; subst c.
-      + (* c = 0 (filled): [lg_mapg_unalloc lb_a] excludes any frag *)
+      + (* c = 0 (filled): [lg_mapg_p_unalloc lb_a] excludes any frag *)
         rewrite /auth_susp_ser_p_fill.
         iDestruct "Hf" as (p lb_a lr a' h r [-> ->]) "[#Hunalloc _]".
         iAssert (⌜γs = ∅⌝)%I as %->.
@@ -1080,7 +1080,7 @@ Section authentikit_helpers.
           iDestruct (big_sepS_elem_of with "HbigL") as (lb) "[#Hfrag %Hsub]"; [exact Hin|].
           destruct Hsub as (?&?&?&?&?&Heq1&Heq2).
           injection Heq1 as -> -> -> -> ->. injection Heq2 as ->.
-          by iDestruct (lg_mapg_frag_unalloc_excl with "Hfrag Hunalloc") as %[]. }
+          by iDestruct (lg_mapg_p_frag_unalloc_excl with "Hfrag Hunalloc") as %[]. }
         rewrite size_empty. iPureIntro. lia.
       + (* c = 1 (suspended): at most 1 element via lg_mapg_agree *)
         rewrite /auth_susp_ser_p_emp.
@@ -1096,7 +1096,7 @@ Section authentikit_helpers.
           iDestruct (big_sepS_elem_of with "HbigL") as (lb') "[#Hfrag' %Hsub']"; [exact Hin'|].
           destruct Hsub' as (?&?&?&?&?&Heq1&Heq2).
           injection Heq1 as -> -> -> -> ->. injection Heq2 as ->.
-          iDestruct (lg_mapg_agree with "Hfrag Hfrag'") as "(% & _ & _)".
+          iDestruct (lg_mapg_p_agree with "Hfrag Hfrag'") as "(% & _ & _)".
           iPureIntro. set_solver. }
         assert (γs ⊆ ({[γ]} : gset gname)) by set_solver.
         iPureIntro. transitivity (size ({[γ]} : gset gname)).
@@ -1106,7 +1106,7 @@ Section authentikit_helpers.
 
   (** [γl] uniqueness for [susp_ser_p_real]:
       Two γ-sets of size [c] both ranging over labels of [a] (via
-      [lg_mapg_frag] and [p_sub_obj]) must coincide. This is the key fact
+      [lg_mapg_p_frag] and [p_sub_obj]) must coincide. This is the key fact
       that lets [p_finish] reconcile the [γl] supplied by the caller with
       the [γl0] returned by [susp_p_ser_spec]'s [tern_state] post.
 
@@ -1114,7 +1114,7 @@ Section authentikit_helpers.
       - [Hser : susp_ser_p_real t c a s] structurally exposes the c
         tauth-leaves of [a]; for each leaf, [p_sub_obj t a #lb] forces the
         label [lb] to be the explicit first projection in [a].
-      - [lg_mapg_agree] makes [lb ↦ γ] functional, so the c labels in [a]
+      - [lg_mapg_p_agree] makes [lb ↦ γ] functional, so the c labels in [a]
         determine at most c distinct γ's. Two γ-sets of size c saturating
         these constraints must coincide. *)
   Lemma susp_ser_p_real_γl_unique (γl γl0 : gset gname) (t : evi_type) (a : val) (s : string) (c : nat) :
@@ -1122,9 +1122,9 @@ Section authentikit_helpers.
     ⌜size γl = c⌝ -∗
     ⌜size γl0 = c⌝ -∗
     ([∗ set] γ ∈ γl,
-       ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) -∗
+       ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) -∗
     ([∗ set] γ ∈ γl0,
-       ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) -∗
+       ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) -∗
     ⌜γl = γl0⌝.
   Proof.
     iIntros "#Hser %Hsz %Hsz0 #HbigL #HbigL'".
@@ -1133,7 +1133,7 @@ Section authentikit_helpers.
        [size (γl ∪ γl0) ≤ c]. With [size γl = size γl0 = c], that forces
        [γl = γl0]. *)
     iAssert ([∗ set] γ ∈ γl ∪ γl0,
-              ∃ lb, lg_mapg_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝)%I as "#Hbig_union".
+              ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝)%I as "#Hbig_union".
     { iApply big_sepS_intro. iIntros "!#" (γ Hin).
       apply elem_of_union in Hin as [Hin | Hin].
       - iApply (big_sepS_elem_of with "HbigL"); done.

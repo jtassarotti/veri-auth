@@ -1083,9 +1083,6 @@ Section lg_map.
   Definition lg_mapg_frag (l : loc) (γ : gname) : iProp Σ :=
     own lg_mapG_v_name (◯ ({[ l := Cinr (to_agree γ) ]} : gmap loc lg_mapEntry)).
 
-  Definition lg_mapg_unalloc (l : loc) : iProp Σ :=
-    own lg_mapG_v_name (◯ ({[ l := Cinl (to_agree (tt : unitO)) ]} : gmap loc lg_mapEntry)).
-
   (* Prover-side fragments. *)
   Definition lg_mapg_p_frag (l : loc) (γ : gname) : iProp Σ :=
     own lg_mapG_p_name (◯ ({[ l := Cinr (to_agree γ) ]} : gmap loc lg_mapEntry)).
@@ -1094,9 +1091,6 @@ Section lg_map.
     own lg_mapG_p_name (◯ ({[ l := Cinl (to_agree (tt : unitO)) ]} : gmap loc lg_mapEntry)).
 
   Global Instance lg_mapg_frag_persistent l γ : Persistent (lg_mapg_frag l γ).
-  Proof. apply _. Qed.
-
-  Global Instance lg_mapg_unalloc_persistent l : Persistent (lg_mapg_unalloc l).
   Proof. apply _. Qed.
 
   Global Instance lg_mapg_p_frag_persistent l γ : Persistent (lg_mapg_p_frag l γ).
@@ -1114,16 +1108,6 @@ Section lg_map.
     rewrite -auth_frag_op auth_frag_valid singleton_op singleton_valid -Cinr_op
       Cinr_valid in Hv.
     fold_leibniz. by apply to_agree_op_inv_L in Hv.
-  Qed.
-
-  (* The two states are mutually exclusive at the same location. *)
-  Lemma lg_mapg_frag_unalloc_excl l γ :
-    lg_mapg_frag l γ -∗ lg_mapg_unalloc l -∗ False.
-  Proof.
-    rewrite /lg_mapg_frag /lg_mapg_unalloc. iIntros "H1 H2".
-    iDestruct (own_valid_2 with "H1 H2") as %Hv.
-    rewrite -auth_frag_op singleton_op auth_frag_valid singleton_valid in Hv.
-    done.
   Qed.
 
   Lemma lg_mapg_p_agree l γ1 γ2 :
@@ -1200,21 +1184,6 @@ Section lg_map.
     rewrite /lg_mapg_auth /lg_mapg_frag.
     iIntros "Hvtok ((Hauth_v & Hsmeta) & Hauth_p & Hbig_p)".
     iDestruct (vmeta_combine_dom m_v l (Cinr (to_agree γ))
-               with "Hvtok Hsmeta") as "[%Hl_nin Hsmeta']".
-    apply not_elem_of_dom in Hl_nin.
-    iMod (own_update with "Hauth_v") as "[$ $]";
-      last by iModIntro; iFrame "Hsmeta' Hauth_p Hbig_p".
-    apply auth_update_alloc.
-    by apply alloc_singleton_local_update.
-  Qed.
-
-  Lemma lg_mapg_insert_unalloc m_v m_p l :
-    vmeta_token l -∗ lg_mapg_auth m_v m_p ==∗
-      lg_mapg_auth (<[ l := Cinl (to_agree (tt : unitO)) ]> m_v) m_p ∗ lg_mapg_unalloc l.
-  Proof.
-    rewrite /lg_mapg_auth /lg_mapg_unalloc.
-    iIntros "Hvtok ((Hauth_v & Hsmeta) & Hauth_p & Hbig_p)".
-    iDestruct (vmeta_combine_dom m_v l (Cinl (to_agree (tt : unitO)))
                with "Hvtok Hsmeta") as "[%Hl_nin Hsmeta']".
     apply not_elem_of_dom in Hl_nin.
     iMod (own_update with "Hauth_v") as "[$ $]";

@@ -231,7 +231,7 @@ Section authenticatable_definitions.
   Definition auth_susp_ser_p_fill (v : val) (s : string) : iProp Σ :=
     ∃ (p : proph_id) (lb lr : loc) (a : val) (h : string) (r : bool),
       ⌜v = BoxV (#lb, #lr, a, #h, #p)%V ∧ s = filled_string h⌝ ∗
-      lg_mapg_unalloc lb ∗
+      lg_mapg_p_unalloc lb ∗
       seq_inv (prover_susp_n v) (susp_p_fill_inv p lb lr).
 
   Definition susp_p_unfill_inv (ps : proph_id) (lb lr : loc) : iProp Σ :=
