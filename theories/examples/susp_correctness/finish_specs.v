@@ -135,7 +135,7 @@ Section finish_specs.
         iDestruct (visit_reached_done_inj with "Hvisdone Hvisit") as %->.
         iFrame "Hvisfin". *)
         
-      + iDestruct "Hinv_2" as "(%&%&%& Hlbfrag' & #Hvisfin & Hintr & (%&%&%&%&%&%&%& Hcap & Hunfill & Hmfrag & %Hmsub & Hsusp & Hproph))".
+      + iDestruct "Hinv_2" as "(%&%&%& Hlbfrag' & #Hvisfin & Hintr & (%&%&%&%&%&%&%&[%%]& Hcap & Hunfill & Hmfrag & %Hmsub & %Hsameser & Hsusp & Hproph))".
 
         simplify_eq H1. intros <-.
         simplify_eq H2. intros <-.
@@ -172,10 +172,10 @@ Section finish_specs.
           simplify_eq. *)
 
         assert (x1 = pv) as ->.
-        { rewrite Hyy' in H3. rewrite H3 in H2. simpl in H2.
-          fold_leibniz. by apply (inj to_agree) in H2. }
+        { rewrite Hyy' in H4. rewrite H4 in H3. simpl in H3.
+          fold_leibniz. by apply (inj to_agree) in H3. }
         
-        iMod (count_update with "[//] Hlbfrag Hmfrag Hvisfin Hxc Hsusp Hunfill Hv") as "(Hintr' & Hxc & Hsusp & Hv & Hfill) /=".
+        iMod (count_update with "[//] [//] Hlbfrag Hmfrag Hvisfin Hxser Hxc Hsusp Hunfill Hv") as "(Hintr' & Hxc & Hsusp & Hv & Hfill) /=".
         (* iEval (rewrite visited_map_update_finished_rewrite) in "Hvmauth". *)
 
         (* iPoseProof (stok_combine with "Hstok Hstok'") as "[_ Hstok_comp]".
