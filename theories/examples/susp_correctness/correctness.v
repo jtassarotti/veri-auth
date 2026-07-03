@@ -816,8 +816,8 @@ Section proof.
           { iMod (na_inv_acc with "Hinv_authv Htok") as "(>Hinvo & Htok & Hclose)";
               try solve_ndisj.
             iDestruct "Hinvo" as "[Hinv_1|Hinv_2]".
-            - iDestruct "Hinv_1" as "(%s1&% & (%&%&%&%& Hsusp & #Hfilled & #Hlbvfrag' & #Hvisfin))".
-              destruct! H6. simplify_eq.
+            - iDestruct "Hinv_1" as "(%&%&%&%Hxpure1 & Hsusp & #Hfilled & #Hlbvfrag' & #Hvisfin)".
+              destruct! Hxpure1. simplify_eq.
               iDestruct (lg_mapg_agree with "Hlbvfrag Hlbvfrag'") as "(<- & _ & _)".
               iPoseProof (id_token_unused with "Hvmauth Hidtok") as "(%Hidunused & $ & Hidtok)".
               iFrame "Hmauth Hbigsep". iModIntro.
@@ -833,16 +833,12 @@ Section proof.
                 { apply ndot_ne_disjoint. by intros ->. }
                 set_solver. }
               iSplitR "Hvisinv".
-              { iRight. rewrite H10.
+              { iRight.
                 iFrame "Hgpfrag Hidtok Hxinv Hxlbfrag Htok".
                 repeat (iSplit; eauto). iSplitR. { by iIntros. }
                 repeat (iSplit; eauto).
                 iSplitR "Hclose_inv".
-                { iLeft. iFrame "∗ #". iExists s1.
-                  repeat (iSplit; eauto). 
-                  unfold filled_string in *. 
-                  unfold simple_string in *. 
-                  simplify_eq. by rewrite H8. }
+                { iLeft. iFrame "∗ #". eauto. }
                 iFrame. }
 
                 (* iSplit. { iPureIntro. admit. }
