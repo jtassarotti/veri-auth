@@ -33,7 +33,7 @@ Section finish_specs.
     iMod (na_inv_acc with "Htab Htabtok") as "(Htabo & Htabtok & Hclose_tab)"; try solve_ndisj.
     iMod (lc_fupd_elim_later with "Hlc Htabo") as "Htabo".
     iDestruct "Htabo" as "[(%&%&%&%& %idctr &%&%msp & Hl & %Hm &
-        Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hst' & Hserp)|Hst']";
+        Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hst' & Hserp & %Hmspdom)|Hst']";
       last first.
     { by iPoseProof (tern_state_un_state_excl with "Hst Hst'") as "?". }
 
@@ -95,8 +95,8 @@ Section finish_specs.
       v_pures.
 
       iDestruct "Htrvinv" as "[Hinv_1|Hinv_2]".
-      + iDestruct "Hinv_1" as "(%s1&%& Hintr & (%&%&%&%& Hsusp & #Hfilled & Hrest))".
-        rewrite /filled_string /simple_string in H1 H2. destruct! H2; simplify_eq.
+      + iDestruct "Hinv_1" as "(Hintr & (%&%&%&%& Hsusp & #Hfilled & Hrest))".
+        rewrite /filled_string /simple_string in H1. destruct! H1; simplify_eq.
         (* iPoseProof (lg_mapg_agree with "Hlbfrag' Hlbfrag") as "(-> & _ & _)". *)
         (* iDestruct (visit_finished_keep with "Hvisfin") as "[_ #Hvisreach2]". *)
         (* iDestruct (visited_reached_done_agree with "Hvisreach2 Hvisdone") as %->. *)
@@ -301,8 +301,8 @@ Section finish_specs.
 
               iMod (na_inv_acc with "Hxinv Htok") as "(Hxinvo & Htok & Hclose_inv)"; try solve_ndisj.
               iDestruct "Hxinvo" as ">[Hinv_1|Hinv_2]".
-              + iDestruct "Hinv_1" as "(%s1&% & (%&%&%&%& Hxsusp & #Hfilled & #Hxlbfrag' & #Hxvisfin))".
-                destruct! H9. simplify_eq.
+              + iDestruct "Hinv_1" as "(%&%&%&%Hxpure1 & Hxsusp & #Hfilled & #Hxlbfrag' & #Hxvisfin)".
+                destruct! Hxpure1. simplify_eq.
                 iPoseProof (lg_mapg_agree with "Hxlbfrag' Hxlbfrag") as "(-> & _ & _)".
                 iPoseProof ("Hgetidtok" with "Hxvisfin") as "Hidtok".
                 iPoseProof (id_token_unused with "Hvmauth Hidtok") as "(%Hidunused & $ & Hidtok)".
@@ -319,16 +319,12 @@ Section finish_specs.
                   { apply ndot_ne_disjoint. by intros ->. }
                   set_solver. }
                 iSplitR "Hvisinv".
-                { iRight. rewrite H10.
+                { iRight.
                   iFrame "Hgpfrag Hidtok Hxinv Hxlbfrag Htok".
                   repeat (iSplit; eauto). iSplitR. { by iIntros. }
                   repeat (iSplit; eauto).
                   iSplitR "Hclose_inv".
-                  { iLeft. iFrame "∗ #". iExists s1.
-                    repeat (iSplit; eauto). 
-                    unfold filled_string in *. 
-                    unfold simple_string in *. 
-                    simplify_eq. by rewrite H8. }
+                  { iLeft. iFrame "∗ #". eauto. }
                   iFrame. }
 
                   (* iSplit. { iPureIntro. admit. }
