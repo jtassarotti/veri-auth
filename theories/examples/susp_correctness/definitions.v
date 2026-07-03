@@ -185,7 +185,7 @@ Section authenticatable_definitions.
           (v = InjRV v' ∧ v = v' ∧
             ∃ s', s = inr_ser_str s' ∧ same_ser_for_fill t2 v' s' susp h)
     | tauth =>
-        v = SOMEV (InjRV #susp) ∧ ∃ s_pre, s = filled_string (hash s_pre) ∧ h = hash s_pre
+        v = SOMEV (InjRV #susp) ∧ s = filled_string h
     | _ => False
     end.
 
@@ -288,20 +288,17 @@ Section authenticatable_definitions.
       ⌜v = InjRV #susp⌝ ∗ susp ↦ᵥ{#(1/4)} InjLV (#pid, #p).
 
   Definition auth_susp_v_inv (pid : nat) (v : val) (s : string) : iProp Σ :=
-    (∃ (s1 : string), ⌜s = filled_string (hash s1)⌝ ∗ auth_susp_fill_v v s) ∨ 
-      auth_susp_emp_v pid v s.
+    auth_susp_fill_v v s ∨ auth_susp_emp_v pid v s.
 
   #[global] Instance auth_susp_v_inv_timeless pid v s :
       Timeless (auth_susp_v_inv pid v s).
   Proof. rewrite /auth_susp_v_inv /auth_susp_fill_v /auth_susp_emp_v. apply _. Qed.
 
   Definition auth_susp_ser_v (pid : nat) (v : val) (s : string) : iProp Σ :=
-    (∃ (s1 : string), ⌜s = filled_string (hash s1)⌝ ∗ auth_susp_fill_ser_v v s) ∨ 
-      auth_susp_emp_ser_v pid v.
+    auth_susp_fill_ser_v v s ∨ auth_susp_emp_ser_v pid v.
 
   Definition auth_susp_v_transit_inv (pid : nat) (v : val) (s : string) : iProp Σ :=
-    (∃ (s1 : string),
-      ⌜s = filled_string (hash s1)⌝ ∗ intransit 1 ∗ auth_susp_fill_v v s) ∨
+    (intransit 1 ∗ auth_susp_fill_v v s) ∨
     (∃ γ (susp : loc),
       ⌜v = InjRV #susp⌝ ∗ lg_mapg_frag susp γ ∗ visit_finished γ ∗
         intransit (1/2) ∗ auth_susp_emp_v pid v s).
