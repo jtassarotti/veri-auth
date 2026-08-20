@@ -1428,6 +1428,23 @@ Section lg_map.
       + rewrite lookup_insert_ne in Hγ'; [|done]. by apply Hl_pcoh.
   Qed.
 
+  (** [pval_snapshot susp pid] is a persistent "freshness snapshot": at
+      some past moment, the susps registered for every id in [0, pid]
+      were collected and [susp] was not among them. Combined with
+      [pval_frag id' susp'] for [id' ≤ pid] this gives [susp ≠ susp'].
+      The underlying map [M] is existentially quantified inside. *)
+  Definition pval_snapshot (susp : loc) (pid : nat) : iProp Σ :=
+    ∃ M : gmap nat loc,
+      ⌜dom M = set_seq 0 (S pid)⌝ ∗
+      ⌜susp ∉ (map_img M : gset loc)⌝ ∗
+      [∗ map] id ↦ susp_id ∈ M, pval_frag id susp_id.
+
+  Global Instance pval_snapshot_persistent susp pid : Persistent (pval_snapshot susp pid).
+  Proof. apply _. Qed.
+
+  Global Instance pval_snapshot_timeless susp pid : Timeless (pval_snapshot susp pid).
+  Proof. apply _. Qed.
+
   (** [bind_id_existing_susp]: bind an existing id [from] (whose susp loc
       [susp_from] is *already* in [m_v]) to a γ that the susp is already
       bound to. Distinguished from [bind_id_fresh_susp] by not writing
@@ -1437,22 +1454,30 @@ Section lg_map.
       [m_v] are unchanged. *)
   Lemma bind_id_existing_susp
       m pn ctr
-      from to γ susp_from susp_to :
+      from to γ susp_from :
     to < from →
-    susp_from ≠ susp_to →
     id_token from -∗
     visit_pending γ -∗
     pval_frag from susp_from -∗
-    pval_frag to susp_to -∗
+    pval_snapshot susp_from to -∗
     lg_mapg_frag susp_from γ -∗
     visited_mapg_auth m pn ctr ==∗
       visited_mapg_auth (<[γ := done_val from]>m) pn ctr ∗
       visit_done γ from ∗
       id_ref_frag from to.
   Proof.
-    iIntros (Hlt Hneq) "Htok Hpen #Hpvf #Hpvt #Hlbf
+    iIntros (Hlt) "Htok Hpen #Hpvf #Hsnap #Hlbf
               (%d & %ps & %gm & %pvm & %m_v & %rs & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs &
                %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
+    (* Extract pval_frag to susp_to and susp_from ≠ susp_to from the snapshot. *)
+    iDestruct "Hsnap" as (M) "(%HdomM & %Hnotin & #Hmap)".
+    assert (to ∈ dom M) as HtoIn.
+    { rewrite HdomM. apply elem_of_set_seq. lia. }
+    apply elem_of_dom in HtoIn as [susp_to Hto_eq].
+    iDestruct (big_sepM_lookup _ M to susp_to Hto_eq with "Hmap") as "#Hpvt".
+    assert (susp_from ≠ susp_to) as Hneq.
+    { intros ->. apply Hnotin.
+      apply elem_of_map_img. exists to. exact Hto_eq. }
     rewrite /pval_frag /id_token /visit_pending
             /visit_done /visit_reached_done /lg_mapg_frag /id_ref_frag.
     iDestruct (own_valid_2 with "Hms Hpen") as %Hvm.
@@ -1600,23 +1625,6 @@ Section lg_map.
         rewrite /done_val /pending_val in Hγ'. by inversion Hγ'.
       + rewrite lookup_insert_ne in Hγ'; [|done]. by apply Hl_pcoh.
   Qed.
-
-  (** [pval_snapshot susp pid] is a persistent "freshness snapshot": at
-      some past moment, the susps registered for every id in [0, pid]
-      were collected and [susp] was not among them. Combined with
-      [pval_frag id' susp'] for [id' ≤ pid] this gives [susp ≠ susp'].
-      The underlying map [M] is existentially quantified inside. *)
-  Definition pval_snapshot (susp : loc) (pid : nat) : iProp Σ :=
-    ∃ M : gmap nat loc,
-      ⌜dom M = set_seq 0 (S pid)⌝ ∗
-      ⌜susp ∉ (map_img M : gset loc)⌝ ∗
-      [∗ map] id ↦ susp_id ∈ M, pval_frag id susp_id.
-
-  Global Instance pval_snapshot_persistent susp pid : Persistent (pval_snapshot susp pid).
-  Proof. apply _. Qed.
-
-  Global Instance pval_snapshot_timeless susp pid : Timeless (pval_snapshot susp pid).
-  Proof. apply _. Qed.
 
   (** Mint a [pval_snapshot] from the auth and a user-supplied collection of
       [pval_frag] + [lg_mapg_frag] covering every id in [0, pid]. The

@@ -100,7 +100,7 @@ Section authentikit_helpers.
         + iDestruct "Hr" as (susp) "[-> Hcases]".
           iDestruct "Hcases" as "[Hh|Hp]".
           * iDestruct "Hh" as (h) "[_ %Heq]". lia.
-          * iDestruct "Hp" as (p γ susp_pid) "(_ & _ & _ & Hfrag & _ & _ & _ & _)".
+          * iDestruct "Hp" as (p γ) "(_ & _ & _ & Hfrag & _ & _ & _)".
             iExists _. iFrame "Hfrag". }
     iDestruct ("Hext" $! v t v c with "[%//] Hcnt") as (q) "Hfrag".
     iDestruct (mapg_auth_alive with "Hmauth Hfrag") as %(y & Hy & _).
@@ -250,18 +250,16 @@ Section authentikit_helpers.
         * iDestruct "Hfilled" as (h) "[Hsusp_f _]".
           iDestruct (pointstoS_agree with "Hsusp Hsusp_f") as %[_ Heq''].
           discriminate.
-        * iDestruct "Hsusp_inner" as (p' γ' susp_pid)
-            "(#Hlg' & Hsusp_s & %Hc & Hfrag & #Hcap' & #Hpvf_pid & #Hsnap & Hdisj)".
+        * iDestruct "Hsusp_inner" as (p' γ')
+            "(#Hlg' & Hsusp_s & %Hc & Hfrag & #Hcap' & #Hsnap & Hdisj)".
           iDestruct (lg_mapg_agree with "Hlg Hlg'") as "(<- & _ & _)".
           iDestruct (pointstoS_agree with "Hsusp Hsusp_s") as %[_ Heqvals].
           assert (p = p') as <- by congruence.
-          iDestruct (pval_snapshot_neq _ _ pid susp_pid with "Hsnap Hpvf_pid")
-            as %Hsusp_ne; [lia|].
           iDestruct "Hdisj" as "[Hpen|[Hdone|Hfin]]".
           -- (* Hpen: do the binding via bind_id_existing_susp *)
              iMod (bind_id_existing_susp m pn ctr
-                     id pid γ susp susp_pid Hid Hsusp_ne
-                     with "Htok Hpen Hpvf Hpvf_pid Hlg Hauth")
+                     id pid γ susp Hid
+                     with "Htok Hpen Hpvf Hsnap Hlg Hauth")
                as "(Hauth' & Hvisdone & #Hidref)".
              iDestruct "Hvisdone" as "[Hsf #Hrd]".
              iModIntro.
@@ -273,8 +271,8 @@ Section authentikit_helpers.
              simpl.
              iExists (InjRV #susp). iSplit; [done|].
              iRight. iExists susp. iSplit; [done|].
-             iRight. iExists p, γ, susp_pid.
-             iFrame "Hlg' Hsusp_s Hfrag Hcap' Hpvf_pid Hsnap". iSplit; [done|].
+             iRight. iExists p, γ.
+             iFrame "Hlg' Hsusp_s Hfrag Hcap' Hsnap". iSplit; [done|].
              iRight. iLeft. iExists id. iSplit; [iPureIntro; done|].
              iFrame "Hsf Hrd".
           -- (* Hdone: γ already done at some id_other. The postcondition
@@ -298,8 +296,8 @@ Section authentikit_helpers.
              simpl.
              iExists (InjRV #susp). iSplit; [done|].
              iRight. iExists susp. iSplit; [done|].
-             iRight. iExists p, γ, susp_pid.
-             iFrame "Hlg' Hsusp_s Hfrag Hcap' Hpvf_pid Hsnap". iSplit; [done|].
+             iRight. iExists p, γ.
+             iFrame "Hlg' Hsusp_s Hfrag Hcap' Hsnap". iSplit; [done|].
              iRight. iLeft. iExists id_other. iSplit; [iPureIntro; done|].
              iFrame "Hdf Hrd".
           -- (* Hfin: γ is finished, with intransit (1/2). Combined with input
@@ -481,8 +479,8 @@ Section authentikit_helpers.
         * iDestruct "Hfilled" as (h') "[Hsusp_f _]".
           iDestruct (pointstoS_agree with "Hsusp Hsusp_f") as %[_ Heq''].
           discriminate.
-        * iDestruct "Hsusp_inner" as (p' γ' susp_pid')
-            "(#Hlg' & Hsusp_s & %Hc & Hfrag & #Hcap' & #Hpvf_pid' & #Hsnap' & Hdisj)".
+        * iDestruct "Hsusp_inner" as (p' γ')
+            "(#Hlg' & Hsusp_s & %Hc & Hfrag & #Hcap' & #Hsnap' & Hdisj)".
           iDestruct (lg_mapg_agree with "Hlg Hlg'") as "(<- & _ & _)".
           iDestruct (pointstoS_agree with "Hsusp Hsusp_s") as %[_ Heqvals].
           injection Heqvals as Heqv'. subst v'.
@@ -749,8 +747,8 @@ Section authentikit_helpers.
         * iDestruct "Hfilled" as (h) "[Hsusp_f _]".
           iDestruct (pointstoS_agree with "Hsusp Hsusp_f") as %[_ Heq''].
           discriminate.
-        * iDestruct "Hsusp_inner" as (p' γ' susp_pid')
-            "(#Hlg' & Hsusp_s & %Hc & Hfrag & #Hcap' & #Hpvf_pid' & #Hsnap' & Hdisj)".
+        * iDestruct "Hsusp_inner" as (p' γ')
+            "(#Hlg' & Hsusp_s & %Hc & Hfrag & #Hcap' & #Hsnap' & Hdisj)".
           iDestruct (lg_mapg_agree with "Hlg Hlg'") as "(<- & _ & _)".
           iDestruct (pointstoS_agree with "Hsusp Hsusp_s") as %[_ Heqvals].
           assert (p = p') as <- by congruence.
@@ -772,8 +770,8 @@ Section authentikit_helpers.
              simpl.
              iExists (InjRV #susp). iSplit; [done|].
              iRight. iExists susp. iSplit; [done|].
-             iRight. iExists p, γ, susp_pid'.
-             iFrame "Hlg' Hsusp_s Hfrag Hcap' Hpvf_pid' Hsnap'". iSplit; [done|].
+             iRight. iExists p, γ.
+             iFrame "Hlg' Hsusp_s Hfrag Hcap' Hsnap'". iSplit; [done|].
              iRight. iRight. iFrame "Hfin Hintr2".
           -- (* Hfin: γ already finished — intransit conflict. *)
              iDestruct "Hfin" as "[_ Hintr_half]".
@@ -1184,7 +1182,7 @@ Section authentikit_helpers.
         + iDestruct "H" as (susp) "[_ Hcases]".
           iDestruct "Hcases" as "[Hh|Hp]".
           * iDestruct "Hh" as (h) "[_ %Heq]". lia.
-          * iDestruct "Hp" as (p γ susp_pid) "(_ & _ & _ & _ & _ & _ & _ & Hdisj)".
+          * iDestruct "Hp" as (p γ) "(_ & _ & _ & _ & _ & _ & Hdisj)".
             iExists γ. iExact "Hdisj". }
     iDestruct ("Hext" $! x t x ctr with "[%//] Hcount") as (γ) "[Hpend|[Hdone|Hfin]]".
     - iDestruct "Hauth" as "(%dm & %ps & %gm & %pvm & %m_v & %rs & Hms & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & %Hpcoh)".

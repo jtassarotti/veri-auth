@@ -413,12 +413,12 @@ Section authenticatable_definitions.
         (∃ (susp : loc),
           ⌜v1 = InjRV #susp⌝ ∗
             ((∃ (h : string), susp ↦ᵥ{#1/4} (InjRV #h) ∗ ⌜c = 0⌝) ∨
-              (∃ (p : proph_id) γ (susp_pid : loc),
+              (∃ (p : proph_id) γ,
                 lg_mapg_frag susp γ ∗
                 susp ↦ᵥ{#1/4} InjLV (#pid, #p) ∗ ⌜c = 1⌝ ∗
                 mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat N)))%Qp v_outer ∗
                 cap_frag pid N ∗
-                pval_frag pid susp_pid ∗ pval_snapshot susp pid ∗
+                pval_snapshot susp pid ∗
                 (visit_pending γ ∨
                   (∃ id, ⌜id > pid⌝ ∗ visit_done γ id) ∨
                   (visit_finished γ ∗ intransit (1/2))))))).
