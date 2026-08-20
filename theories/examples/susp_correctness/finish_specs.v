@@ -60,7 +60,7 @@ Section finish_specs.
            } *)
 
     iDestruct "Hvauth" as "[(-> & Hidtok & Hintr & Htok)|
-        (%&%&%&%&%& -> & % & #Hvfrag & #Hpvfrag & #Hpvuneq & #Hlbfrag & #Hvisdone & Hgetidtok & -> & Hvinv & Htrvinv & Htok & Hclose_inv)]".
+        (%&%&%&%& -> & % & #Hvfrag & #Hpvuneq & #Hlbfrag & #Hvisdone & Hgetidtok & -> & Hvinv & Htrvinv & Htok & Hclose_inv)]".
     - v_pures. v_bind (ser _).
       iMod ("Hserspec" with "Hc Hser Hv") as "(Hc & Hser & Hv) /=".
       v_pures. v_bind (Hash _).
@@ -256,7 +256,7 @@ Section finish_specs.
               with "[Htok Hintr Hxauth Hvisinv Hvmauth Hmauth Hbigsep]"
             as ">(%&->& #Hnmspc' & Hxauth & Hvisvm & Hmauth & Hbigsep)".
           { iDestruct "Hxauth" as "[[-> Hidtok]|
-              (%&%&%&%&%& ->& %& Hpvfrag' & #Hgpfrag & #Hgpuneq & #Hxlbfrag & #Hxvisdone & Hgetidtok & -> & #Hxinv)]".
+              (%&%&%&%& ->& %& #Hpvfrag' & #Hgpuneq & #Hxlbfrag & #Hxvisdone & Hgetidtok & -> & #Hxinv)]".
             - iPoseProof (id_token_unused with "Hvmauth Hidtok") as "(%Hidunused & Hvmauth & Hidtok)".
               iFrame. iSplitR; eauto. iSplitR.
               { do 2 iModIntro. iIntros (gpid gsusp gγ Hgpid_lt) "H1 H2 H3".
@@ -279,11 +279,10 @@ Section finish_specs.
               { intros ?. simplify_eq. }
               by iApply "Hvis".
 
-            - 
-              iDestruct (pval_frag_agree with "Hpvfrag' Hpvfrag") as "<-".
-              iPoseProof ("Hnmspc" with "[//] Hpvfrag Hxlbfrag Hxvisdone") as "%".
+            -
+              iPoseProof ("Hnmspc" with "[//] Hpvfrag' Hxlbfrag Hxvisdone") as "%".
 
-              iPoseProof (pval_snapshot_neq with "Hpvuneq Hpvfrag") as "%";
+              iPoseProof (pval_snapshot_neq with "Hpvuneq Hpvfrag'") as "%";
                 try lia.
               
               (* simplify_eq. *)
@@ -320,7 +319,7 @@ Section finish_specs.
                   set_solver. }
                 iSplitR "Hvisinv".
                 { iRight.
-                  iFrame "Hgpfrag Hidtok Hxinv Hxlbfrag Htok".
+                  iFrame "Hpvfrag' Hidtok Hxinv Hxlbfrag Htok".
                   repeat (iSplit; eauto). iSplitR. { by iIntros. }
                   repeat (iSplit; eauto).
                   iSplitR "Hclose_inv".

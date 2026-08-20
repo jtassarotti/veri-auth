@@ -449,7 +449,7 @@ Section proof.
     iDestruct "Hvw" as (??) "([-> %Hvprf] & Hid)".
     iDestruct "Hpvauth" as (??? ->) "Hvinv".
     v_pures; i_pures; wp_pures.
-    iDestruct "Hvinv" as "[[-> Hinv_fill]|(%&%&%&%&%& -> & #Hlbpfrag & Hinv_unfill & #Hpvfrag & #Hpvuneq & #Hlbvfrag & -> & Hinv_authv)]".
+    iDestruct "Hvinv" as "[[-> Hinv_fill]|(%&%&%&%& -> & #Hlbpfrag & Hinv_unfill & #Hpvuneq & #Hlbvfrag & -> & Hinv_authv)]".
     - iMod (na_inv_acc with "Hinv_fill Htok") as "(>Hinvo & Htok & Hclose_inv)"; try solve_ndisj.
       iDestruct "Hinvo" as "[Hlb [(% & Hlr & (Hbrproph & %))|
           [(% & Hlr & Hbrproph)|[(Hlr & Hbrproph)|(%&%&%& Hlr & Hbrproph & Hintr')]]]]";
