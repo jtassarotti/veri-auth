@@ -76,33 +76,33 @@ Section authenticatable.
 
     - (* 5. v_ser_spec *)
       rewrite /v_ser_spec.
-      iIntros (K tᵥ3 a s id Nc v_outer) "!# Hcnt #Hser Hspec".
+      iIntros (K tᵥ3 a s id Nc v_outer) "!# Hcnt Hser Hspec".
       iDestruct "Hcnt" as (c1 c2 pv1 pv2 [-> Hsum]) "[Hcnt1 Hcnt2]".
-      iDestruct "Hser" as (? ? s1 s2 [Heqv ->]) "[#Hser1 #Hser2]".
+      iDestruct "Hser" as (? ? s1 s2 [Heqv ->]) "[Hser1 Hser2]".
       injection Heqv as -> ->.
       assert (c1 = 0%nat) as -> by lia.
       assert (c2 = 0%nat) as -> by lia.
       v_pures.
       v_bind tᵥ3 (v_sA _).
-      iMod ("HvserA" with "Hcnt1 Hser1 Hspec") as "(Hcnt1 & _ & Hspec) /=".
+      iMod ("HvserA" with "Hcnt1 Hser1 Hspec") as "(Hcnt1 & Hser1 & Hspec) /=".
       v_pures.
       v_bind tᵥ3 (v_sB _).
-      iMod ("HvserB" with "Hcnt2 Hser2 Hspec") as "(Hcnt2 & _ & Hspec) /=".
+      iMod ("HvserB" with "Hcnt2 Hser2 Hspec") as "(Hcnt2 & Hser2 & Hspec) /=".
       simpl. v_pures.
-      iModIntro. iFrame "#". rewrite /prod_ser_str.
+      iModIntro. iFrame "Hspec". rewrite /prod_ser_str.
       iSplitL "Hcnt1 Hcnt2".
       { iExists 0%nat, 0%nat, _, _. iFrame. iPureIntro. done. }
-      repeat (iSplit; eauto).
+      iExists _, _, s1, s2. iFrame "Hser1 Hser2". iPureIntro. done.
     - (* 6. v_auth_ser_spec *)
       rewrite /v_auth_ser_spec.
-      iIntros (K tᵥ3 a1 a2 a3) "!# #HA Hv".
+      iIntros (K tᵥ3 a1 a2 a3) "!# Htok HA Hv".
       rewrite /prod_ser''. v_pures.
       interp_unfold! in "HA".
       iDestruct "HA" as (??????) "(>-> & >-> & >-> & Ha & Hb)".
       v_pures. v_bind (v_sA _).
-      iMod ("HvauthserA" with "Ha Hv") as (?) "[Hserav Hv] /=".
+      iMod ("HvauthserA" with "Htok Ha Hv") as (?) "(Htok & Hserav & Hv) /=".
       v_pures. v_bind (v_sB _).
-      iMod ("HvauthserB" with "Hb Hv") as (?) "[Hserbv Hv] /=".
+      iMod ("HvauthserB" with "Htok Hb Hv") as (?) "(Htok & Hserbv & Hv) /=".
       v_pures.
       iModIntro. iFrame.
       iSplit; eauto.
