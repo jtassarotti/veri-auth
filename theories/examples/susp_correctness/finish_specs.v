@@ -267,8 +267,8 @@ Section finish_specs.
                 iPureIntro.
                 assert ((↑ver_susp_n gsusp : coPset) ## ↑ver_susp_n susp) as Hdisj.
                 { apply ndot_ne_disjoint. by intros ->. }
-                set_solver. }
-              iSplitL "Hintr". 
+                by apply subseteq_difference_r. }
+              iSplitL "Hintr".
               { iLeft. iFrame. eauto. }
               iRight. iApply (big_sepM_mono with "Hvisinv").
               iIntros (k x' Hkx) "Hvis".
@@ -316,7 +316,7 @@ Section finish_specs.
                   iPureIntro.
                   assert ((↑ver_susp_n gsusp : coPset) ## ↑ver_susp_n susp) as Hdisj.
                   { apply ndot_ne_disjoint. by intros ->. }
-                  set_solver. }
+                  by apply subseteq_difference_r. }
                 iSplitR "Hvisinv".
                 { iRight.
                   iFrame "Hpvfrag' Hidtok Hxinv Hxlbfrag Htok".
@@ -381,7 +381,7 @@ Section finish_specs.
                   iPureIntro.
                   assert ((↑ver_susp_n gsusp : coPset) ## ↑ver_susp_n susp) as Hdisj.
                   { apply ndot_ne_disjoint. by intros ->. }
-                  set_solver. }
+                  by apply subseteq_difference_r. }
                 iDestruct (serpred_agree with "Hxserpred_emp Hxxserpred_big") as %->.
 
                 iSplitR "Hvisinv Hvmauth".
