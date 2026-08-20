@@ -68,11 +68,122 @@ Section authenticatable.
       wp_apply ("HusserA" with "Hussera"). iIntros "_". wp_pures.
       wp_apply ("HusserB" with "Husserb"). iIntros "_". wp_pures.
       unfold prod_ser_str. iApply "HΨ". by iModIntro.
-    - (* 2. susp_p_ser_spec *) admit.
+    - (* 2. susp_p_ser_spec — restored from e9c0029^ with
+         lg_mapg_frag → lg_mapg_p_frag and the not-loc case analyses
+         factored into helpers.susp_ser_p_real_not_loc. *)
+      rewrite /susp_p_ser_spec.
+      iIntros (E a1 s c q HE Ψ) "!# (Hser & Htok & Hintr) HΨ".
+      iEval (rewrite /susp_ser_p_real /=) in "Hser".
+      iDestruct "Hser" as (c1 c2 ->) "Hser_pair".
+      iDestruct "Hser_pair" as (ua ub sa sb [-> ->]) "[#Hser1 #Hser2]".
+      iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+      iDestruct "Hintr" as "[HintrA HintrB]".
+      rewrite /prod_ser''. wp_pures. rewrite /prod_ser. wp_pures.
+      wp_apply ("HsserA" $! _ _ _ c1 (q/2)%Qp with "[//] [$Hser1 $Htok $HintrA]").
+      iIntros "(Htok & HintrA' & HreachA)". wp_pures.
+      wp_apply ("HsserB" $! _ _ _ c2 (q/2)%Qp with "[//] [$Hser2 $Htok $HintrB]").
+      iIntros "(Htok & HintrB' & HreachB)". wp_pures.
+      unfold prod_ser_str. iApply "HΨ". iModIntro. iFrame "Htok".
+      iCombine "HintrA' HintrB'" as "Hcomb".
+      replace ((q/2)/2 + (q/2)/2)%Qp with (q/2)%Qp by (symmetry; apply Qp.div_2).
+      iFrame "Hcomb".
+      iIntros (γl) "Hg Hpen %Hsz Hbig".
+      iDestruct (susp_ser_p_real_not_loc with "Hser1") as %Hua_not_loc.
+      iDestruct (susp_ser_p_real_not_loc with "Hser2") as %Hub_not_loc.
+      (* Build the partition by induction on γl. Stash Hsz outside the IH. *)
+      assert (size γl = c1 + c2)%nat as Hsz_keep by exact Hsz. clear Hsz.
+      iAssert (∃ γlA γlB : gset gname,
+                 ⌜γlA ## γlB ∧ γl = γlA ∪ γlB⌝ ∗
+                 ([∗ set] γ ∈ γlA, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj tA ua #lb⌝) ∗
+                 ([∗ set] γ ∈ γlB, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj tB ub #lb⌝))%I
+        with "[Hbig]"
+        as "(%γlA & %γlB & [%HdisjAB %HsplitAB] & HbigA & HbigB)".
+      { clear Hsz_keep.
+        iRevert "Hbig".
+        iInduction γl as [|γ γl' Hnotin] "IHγl" using set_ind_L.
+        - iIntros "_". iExists ∅, ∅. rewrite !big_sepS_empty.
+          iSplit; [iPureIntro; set_solver|]. by iSplit.
+        - iIntros "Hbig".
+          iEval (rewrite big_sepS_insert; [|done]) in "Hbig".
+          iDestruct "Hbig" as "[(%lb_γ & #Hfrag_γ & %Hsub_γ) Hbig']".
+          iDestruct ("IHγl" with "Hbig'")
+            as "(%γlA' & %γlB' & [%Hdisj' %Hsplit'] & HA' & HB')".
+          destruct Hsub_γ as (x & y & Heq & Hdisj_p).
+          injection Heq as -> ->.
+          destruct Hdisj_p as [Heq | [Heq | [Hsub | Hsub]]].
+          + exfalso. by apply (Hua_not_loc lb_γ).
+          + exfalso. by apply (Hub_not_loc lb_γ).
+          + iExists ({[γ]} ∪ γlA'), γlB'.
+            iSplit; [iPureIntro; split; [|set_solver]|].
+            { assert (γ ∉ γlA') by set_solver. set_solver. }
+            iSplitL "HA'".
+            * rewrite big_sepS_insert; [|set_solver].
+              iSplitL ""; [iExists lb_γ; by iFrame "Hfrag_γ"|done].
+            * done.
+          + iExists γlA', ({[γ]} ∪ γlB').
+            iSplit; [iPureIntro; split; [|set_solver]|].
+            { assert (γ ∉ γlB') by set_solver. set_solver. }
+            iSplitL "HA'"; [done|].
+            rewrite big_sepS_insert; [|set_solver].
+            iSplitL ""; [iExists lb_γ; by iFrame "Hfrag_γ"|done]. }
+      (* Bounds on |γlA| ≤ c1, |γlB| ≤ c2 via susp_ser_p_real_γl_card_le *)
+      iDestruct (susp_ser_p_real_γl_card_le with "Hser1 HbigA") as %HszA_le.
+      iDestruct (susp_ser_p_real_γl_card_le with "Hser2 HbigB") as %HszB_le.
+      assert (size γlA + size γlB = c1 + c2) as Hsz_sum.
+      { rewrite HsplitAB in Hsz_keep.
+        by rewrite (size_union _ _ HdisjAB) in Hsz_keep. }
+      assert (size γlA = c1) as HszA by lia.
+      assert (size γlB = c2) as HszB by lia.
+      (* Split penset_frag γl into penset_frag γlA ∗ penset_frag γlB *)
+      iAssert (penset_frag γlA ∗ penset_frag γlB)%I with "[Hpen]" as "[HpenA HpenB]".
+      { rewrite /penset_frag.
+        replace (◯ GSet γl) with (◯ GSet γlA ⋅ ◯ GSet γlB).
+        - rewrite own_op. by iDestruct "Hpen" as "[$ $]".
+        - rewrite -auth_frag_op gset_disj_union //. by rewrite -HsplitAB. }
+      iSpecialize ("HreachA" $! γlA with "Hg HpenA [//] HbigA").
+      iDestruct "HreachA" as "(Hg & HpenA & HbigA')".
+      iSpecialize ("HreachB" $! γlB with "Hg HpenB [//] HbigB").
+      iDestruct "HreachB" as "(Hg & HpenB & HbigB')".
+      iFrame "Hg".
+      iAssert (penset_frag (γlA ∪ γlB)) with "[HpenA HpenB]" as "Hpen".
+      { rewrite /penset_frag -gset_disj_union //.
+        rewrite auth_frag_op own_op. iSplitL "HpenA"; [iExact "HpenA"|iExact "HpenB"]. }
+      rewrite -HsplitAB. iFrame "Hpen".
+      rewrite HsplitAB.
+      rewrite (big_sepS_union _ _ _ HdisjAB).
+      iSplitL "HbigA'".
+      { iApply (big_sepS_mono with "HbigA'").
+        iIntros (γ' ?) "[Hreach Hlb]". iFrame "Hreach".
+        iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
+        iPureIntro. simpl. exists ua, ub. split; [done|].
+        right. right. left. done. }
+      iApply (big_sepS_mono with "HbigB'").
+      iIntros (γ' ?) "[Hreach Hlb]". iFrame "Hreach".
+      iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
+      iPureIntro. simpl. exists ua, ub. split; [done|].
+      right. right. right. done.
 
     - (* 3. suspend_v_deser_spec (combined) *) admit.
 
-    - (* 4. unsuspend_spec *) admit.
+    - (* 4. unsuspend_spec — re-derived without the deleted binary
+         projection, mirroring sum's case 4 via interp_prod_combined. *)
+      rewrite /unsuspend_spec.
+      iIntros (E a1 a2 a3 HE Ψ) "!# (HA & Htok & Hintr) HΨ".
+      iEval (rewrite interp_prod_combined) in "HA".
+      wp_pures.
+      iDestruct "HA" as (wa1 wa2 wb1 wb2 wc1 wc2) "(-> & -> & -> & HA & HB)".
+      wp_pures.
+      interp_unfold! in "HA". interp_unfold! in "HB".
+      wp_bind (p_uspB _).
+      wp_apply ("HunsuspB" with "[//] [$HB $Htok $Hintr]").
+      iIntros (un_vb sb) "(Htok & Hintr & %Hunsuspb & #Hserb)".
+      wp_bind (p_uspA _).
+      wp_apply ("HunsuspA" with "[//] [$HA $Htok $Hintr]").
+      iIntros (un_va sa) "(Htok & Hintr & %Hunsuspa & #Hsera)".
+      wp_pures. iApply ("HΨ" $! (un_va, un_vb)%V (prod_ser_str sa sb)).
+      iFrame. iModIntro. iSplit.
+      { iPureIntro. eexists _, _, un_va, un_vb. done. }
+      iExists un_va, un_vb, sa, sb. iSplit; [done|]. iFrame "#".
 
     - (* 5. v_ser_spec *)
       rewrite /v_ser_spec.
