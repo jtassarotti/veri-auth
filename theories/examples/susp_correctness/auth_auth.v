@@ -329,8 +329,8 @@ Section authenticatable.
            invariant disjunct + setting up matching resources. *)
         admit.
       + (* Suspender-side: v2_in = InjRV #susp_pv. *)
-        iDestruct "Hpv_susp" as (γ_pv s'_pv susp_pv psusp_pv pid_pv Hv2_in_eq)
-          "(#Hlbf_pv & #Hinv_unfill_pv & #Hpvf_pv & #Hsnap_pv &
+        iDestruct "Hpv_susp" as (γ_pv s'_pv susp_pv pid_pv Hv2_in_eq)
+          "(#Hlbf_pv & #Hinv_unfill_pv & #Hsnap_pv &
             #Hlbv_pv & %Hs'_pv_eq & #Hinv_susp_v_pv)".
         (* Pass 2 — leaf strategy for suspender-side (symmetric):
            1) Step verifier through [auth_deser_v_partial s_pred].
@@ -449,7 +449,7 @@ Section authenticatable.
           { iPureIntro. simpl. unfold authenticatable_base_susp.auth_unsusp_ser_p.
             by eexists _, (hash s_in). }
       + (* Suspender branch *)
-        iDestruct "Hpv_susp" as (γ_pv s'_pv susp_pv psusp_pv pid_pv Hv2'_eq)
+        iDestruct "Hpv_susp" as (γ_pv s'_pv susp_pv pid_pv Hv2'_eq)
           "(#Hlbf_pv & #Hinv_unfill & _)".
         rewrite Ha1_eq. wp_pures.
         wp_bind (ResolveProph _ _)%E.
@@ -477,15 +477,16 @@ Section authenticatable.
           { iPureIntro. simpl. unfold authenticatable_base_susp.auth_unsusp_ser_p.
             by eexists _, (hash s_in). }
     - (* 5. v_ser_spec *)
-      iIntros (K tᵥ5 a s id Nc v_outer) "!# Hcnt #Hser Hspec".
+      iIntros (K tᵥ5 a s id Nc v_outer) "!# Hcnt Hser Hspec".
       iDestruct "Hcnt" as (vcnt ->) "Hbr".
       iDestruct "Hser" as (vser Hser_eq) "Hser_br".
       injection Hser_eq as <-.
       rewrite /authenticatable_base_susp.auth_ser_v. v_pures.
       iDestruct "Hbr" as "[(%h & [-> %Hc]) | (%susp & -> & Hbr)]".
       + (* InjL h, c = 0 — auth_fill_ser_v matches *)
-        iDestruct "Hser_br" as "[Hfill | Hsusp]"; last first.
-        { iDestruct "Hsusp" as (susp' Heqsusp) "_". done. }
+        iDestruct "Hser_br" as "[Hfill | [Hsf | Hse]]".
+        2: { iDestruct "Hsf" as (h' susp') "[[%Hs' %Heq] _]". simplify_eq. }
+        2: { iDestruct "Hse" as (h' susp' p') "[%Heq _]". simplify_eq. }
         iDestruct "Hfill" as %(h' & -> & Heq). injection Heq as <-.
         v_pures.
         rewrite /auth_scheme /option_serialization_scheme /=.
@@ -501,7 +502,7 @@ Section authenticatable.
         iFrame "Hspec".
         iExists (InjLV #h). iSplit; [done|]. iLeft. iExists h. done.
       + (* InjR #susp *)
-        iDestruct "Hbr" as "[(%h & Hpts & %Hc) | (%p & %γ & %susp_pid & Hbr)]"; last first.
+        iDestruct "Hbr" as "[(%h & Hpts & %Hc) | (%p & %γ & Hbr)]"; last first.
         { (* c = 1 contradicts outer c = 0 *)
           iDestruct "Hbr" as "(_ & _ & %Hc & _)". done. }
         (* c = 0 path: susp ↦ᵥ{#1/4} InjRV #h *)
@@ -514,7 +515,7 @@ Section authenticatable.
         { iDestruct "Hfill" as %(h' & _ & Heq). done. }
         admit.
     - (* 6. v_auth_ser_spec *)
-      iIntros (K tᵥ6 a1 a2 a3) "!# #HA Hspec".
+      iIntros (K tᵥ6 a1 a2 a3) "!# Htok #HA Hspec".
       iEval (rewrite /lrel_auth /=) in "HA".
       iEval (cbv [lrel_auth_tern lrel_car]) in "HA".
       iDestruct "HA" as (t_in v2' a1' a2' un_a1 s_in)
@@ -536,7 +537,7 @@ Section authenticatable.
         rewrite /filled_string /simple_string /some_ser_str /string_ser_str.
         iExists (some_ser_str (string_ser_str (hash s_in))).
         rewrite /some_ser_str /string_ser_str.
-        iFrame "Hspec".
+        iFrame "Hspec Htok".
         iExists (InjLV #(hash s_in)). iSplit; [done|].
         iExists (hash s_in). done.
       + (* Suspender branch: v2' = InjRV #susp.
@@ -556,17 +557,17 @@ Section authenticatable.
         iExists (InjLV #h). iSplit; [done|]. iLeft. iExists h. done.
       + (* InjR #susp *)
         v_pures.
-        iDestruct "Hbr" as "[(%h & Hpts & ->) | (%p & %γ & %susp_pid & Hbr)]".
+        iDestruct "Hbr" as "[(%h & Hpts & ->) | (%p & %γ & Hbr)]".
         * (* susp ↦ᵥ InjRV #h, c = 0 *)
           v_load. v_pures. iModIntro. iFrame.
           iExists (InjRV #susp). iSplit; [done|]. iRight. iExists susp.
           iSplit; [done|]. iLeft. iExists h. by iFrame.
         * (* susp ↦ᵥ InjLV ..., c = 1 *)
           iDestruct "Hbr" as
-            "(Hlg & Hpts & -> & Hmpg & Hcap & Hpval & Hsnap & Hrest)".
+            "(Hlg & Hpts & -> & Hmpg & Hcap & Hsnap & Hrest)".
           v_load. v_pures. iModIntro. iFrame.
           iExists (InjRV #susp). iSplit; [done|]. iRight. iExists susp.
-          iSplit; [done|]. iRight. iExists p, γ, susp_pid. by iFrame.
+          iSplit; [done|]. iRight. iExists p, γ. by iFrame.
   Admitted.
 
 End authenticatable.
