@@ -1100,6 +1100,71 @@ Section authentikit_helpers.
         * by rewrite size_singleton.
   Qed.
 
+  (** No serializable value is a bare location literal — every [evi_type]
+      shape (pair, injection, string, int, SOME-box) is syntactically
+      distinct from [#lb]. Factored out of the [tsum]/[tprod] branches of
+      [susp_ser_p_real_γl_card_le]. *)
+  Lemma susp_ser_p_real_not_loc (t : evi_type) (c : nat) (a : val) (s : string) :
+    susp_ser_p_real t c a s -∗ ⌜∀ lb : loc, a ≠ #lb⌝.
+  Proof.
+    iIntros "Hser". iIntros (lb).
+    destruct t; simpl.
+    - iDestruct "Hser" as (??) "[_ Hser']".
+      iDestruct "Hser'" as (????) "[%Hp _]".
+      iPureIntro. intros Heq. by destruct Hp as [-> _].
+    - iDestruct "Hser" as (??) "[H|H]".
+      + iDestruct "H" as "[_ %Hp]".
+        iPureIntro. intros Heq. by destruct Hp as [-> _].
+      + iDestruct "H" as "[_ %Hp]".
+        iPureIntro. intros Heq. by destruct Hp as [-> _].
+    - iDestruct "Hser" as "[%Hp _]".
+      iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
+    - iDestruct "Hser" as "[%Hp _]".
+      iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
+    - iDestruct "Hser" as "[[Hf _]|[He _]]".
+      + iDestruct "Hf" as (??????) "[%Hp _]".
+        iPureIntro. intros Heq. by destruct Hp as [-> _].
+      + iDestruct "He" as (??????) "[%Hp _]".
+        iPureIntro. intros Heq. by destruct Hp as [-> _].
+  Qed.
+
+  (** Under a [tsum], [p_sub_obj]'s [sv = v'] conjunct forces the label to
+      BE the injected value, which [susp_ser_p_real_not_loc] refutes — so
+      the caller's γ-set is empty. One lemma per injection side. *)
+  Lemma susp_ser_p_real_sum_γl_empty_l (t1 t2 : evi_type) (c : nat) (w : val)
+      (s : string) (γl : gset gname) :
+    susp_ser_p_real t1 c w s -∗
+    ([∗ set] γ ∈ γl,
+       ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj (tsum t1 t2) (InjLV w) #lb⌝) -∗
+    ⌜γl = ∅⌝.
+  Proof.
+    iIntros "Hser Hbig".
+    iDestruct (susp_ser_p_real_not_loc with "Hser") as %Hnl.
+    destruct (decide (γl = ∅)) as [-> | Hne]; [done|].
+    apply set_choose_L in Hne as [γ Hin].
+    iDestruct (big_sepS_elem_of with "Hbig") as (lb) "[_ %Hsub]"; [exact Hin|].
+    simpl in Hsub.
+    destruct Hsub as (v' & [(He1 & _ & He2)|(He1 & _ & _)]); last discriminate.
+    subst v'. injection He1 as ->. iPureIntro. exfalso. by apply (Hnl lb).
+  Qed.
+
+  Lemma susp_ser_p_real_sum_γl_empty_r (t1 t2 : evi_type) (c : nat) (w : val)
+      (s : string) (γl : gset gname) :
+    susp_ser_p_real t2 c w s -∗
+    ([∗ set] γ ∈ γl,
+       ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj (tsum t1 t2) (InjRV w) #lb⌝) -∗
+    ⌜γl = ∅⌝.
+  Proof.
+    iIntros "Hser Hbig".
+    iDestruct (susp_ser_p_real_not_loc with "Hser") as %Hnl.
+    destruct (decide (γl = ∅)) as [-> | Hne]; [done|].
+    apply set_choose_L in Hne as [γ Hin].
+    iDestruct (big_sepS_elem_of with "Hbig") as (lb) "[_ %Hsub]"; [exact Hin|].
+    simpl in Hsub.
+    destruct Hsub as (v' & [(He1 & _ & _)|(He1 & _ & He2)]); first discriminate.
+    subst v'. injection He1 as ->. iPureIntro. exfalso. by apply (Hnl lb).
+  Qed.
+
   (** [γl] uniqueness for [susp_ser_p_real]:
       Two γ-sets of size [c] both ranging over labels of [a] (via
       [lg_mapg_p_frag] and [p_sub_obj]) must coincide. This is the key fact

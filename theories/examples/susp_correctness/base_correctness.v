@@ -77,40 +77,18 @@ Section authenticatable.
         iIntros "(Htok & Hintr & HreachA)". wp_pures.
         unfold inl_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
         iIntros (γl) "Hg Hpen %Hsz Hbig".
-        iAssert ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj tA w #lb⌝)%I
-          with "[Hbig]" as "HbigA".
-        { iApply (big_sepS_mono with "Hbig"). iIntros (γ ?) "(%lb & Hlg & %Hp)".
-          iExists lb. iFrame "Hlg". iPureIntro. simpl in Hp.
-          destruct Hp as (v' & [(Heq & Hsub & _)|(Heq & _)]);
-            [injection Heq as ->; exact Hsub|discriminate]. }
-        iSpecialize ("HreachA" $! γl with "Hg Hpen [//] HbigA").
-        iDestruct "HreachA" as "(Hg & Hpen & HbigA')".
-        iFrame "Hg Hpen".
-        iApply (big_sepS_mono with "HbigA'").
-        iIntros (γ' ?) "[Hreach Hlb]". iFrame "Hreach".
-        iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
-        iPureIntro. simpl. exists w. left. split; [done|]. split; [done|].
-        admit. (* sv = v' constraint - problematic; might need rethink *)
+        (* p_sub_obj's [sv = v'] conjunct makes suspensions under a sum
+           unreachable, so γl is empty and the closure is trivial. *)
+        iDestruct (susp_ser_p_real_sum_γl_empty_l with "Hser1 Hbig") as %->.
+        iFrame "Hg Hpen". by rewrite !big_sepS_empty.
       + (* InjR: B serializer runs *)
         rewrite /sum_ser''. wp_pures. rewrite /sum_ser. wp_pures.
         wp_apply ("HsserB" $! _ _ _ c q with "[//] [$Hser1 $Htok $Hintr]").
         iIntros "(Htok & Hintr & HreachB)". wp_pures.
         unfold inr_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
         iIntros (γl) "Hg Hpen %Hsz Hbig".
-        iAssert ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj tB w #lb⌝)%I
-          with "[Hbig]" as "HbigB".
-        { iApply (big_sepS_mono with "Hbig"). iIntros (γ ?) "(%lb & Hlg & %Hp)".
-          iExists lb. iFrame "Hlg". iPureIntro. simpl in Hp.
-          destruct Hp as (v' & [(Heq & _)|(Heq & Hsub & _)]);
-            [discriminate|injection Heq as ->; exact Hsub]. }
-        iSpecialize ("HreachB" $! γl with "Hg Hpen [//] HbigB").
-        iDestruct "HreachB" as "(Hg & Hpen & HbigB')".
-        iFrame "Hg Hpen".
-        iApply (big_sepS_mono with "HbigB'").
-        iIntros (γ' ?) "[Hreach Hlb]". iFrame "Hreach".
-        iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
-        iPureIntro. simpl. exists w. right. split; [done|]. split; [done|].
-        admit.
+        iDestruct (susp_ser_p_real_sum_γl_empty_r with "Hser1 Hbig") as %->.
+        iFrame "Hg Hpen". by rewrite !big_sepS_empty.
     - (* 3. suspend_v_deser_spec (combined) *) admit.
     - (* 4. unsuspend_spec *)
       rewrite /unsuspend_spec.
@@ -531,7 +509,16 @@ Section authenticatable.
       iIntros (K tᵥ1 a s id Nc v_outer) "!# Hcnt Hser Hspec".
       v_pures.
       by iApply ("HvserA" with "Hcnt Hser Hspec").
-    - (* 6. v_auth_ser_spec   *) admit.
+    - (* 6. v_auth_ser_spec *)
+      (* Delegation to HvauthserA is blocked by a ▷-mismatch: the goal
+         supplies [▷ tern ⟦μ⟧], which unfolds (interp_rec_star_tern_unfold)
+         to [▷ ▷ tern ⟦F μ⟧], but HvauthserA consumes [▷ tern ⟦F μ⟧] and
+         [v_auth_ser_spec] is a bare fupd with no later credit to strip
+         the extra ▷ (contrast the security file's refines_Auth_mu, which
+         uses [wp_pure credit] + [lc_fupd_elim_later]). Needs [£ 1] added
+         to [v_auth_ser_spec]'s precondition (as [v_finish_spec'] already
+         has) — a spec change affecting all provers/consumers. *)
+      admit.
     - (* 7. v_count_spec *)
       rewrite /v_count_spec.
       iIntros (K tᵥ1 a c id Nc v_outer) "!# Hcnt Hspec".
