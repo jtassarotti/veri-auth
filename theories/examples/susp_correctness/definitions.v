@@ -413,12 +413,12 @@ Section authenticatable_definitions.
         (∃ (susp : loc),
           ⌜v1 = InjRV #susp⌝ ∗
             ((∃ (h : string), susp ↦ᵥ{#1/4} (InjRV #h) ∗ ⌜c = 0⌝) ∨
-              (∃ (p : proph_id) γ (susp_pid : loc),
+              (∃ (p : proph_id) γ,
                 lg_mapg_frag susp γ ∗
                 susp ↦ᵥ{#1/4} InjLV (#pid, #p) ∗ ⌜c = 1⌝ ∗
                 mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat N)))%Qp v_outer ∗
                 cap_frag pid N ∗
-                pval_frag pid susp_pid ∗ pval_snapshot susp pid ∗
+                pval_snapshot susp pid ∗
                 (visit_pending γ ∨
                   (∃ id, ⌜id > pid⌝ ∗ visit_done γ id) ∨
                   (visit_finished γ ∗ intransit (1/2))))))).
@@ -645,30 +645,30 @@ Section authenticatable_definitions.
 
   Definition auth_v id (v : val) (s : string) : iProp Σ :=
     (⌜v = InjLV #(hash s)⌝ ∗ id_token id) ∨
-      (∃ (s' : string) (susp psusp : loc) pid γ,
+      (∃ (s' : string) (susp : loc) pid γ,
         ⌜v = InjRV #susp⌝ ∗ ⌜id > pid⌝ ∗
         pval_frag id susp ∗
-        pval_frag pid psusp ∗ pval_snapshot susp pid ∗
+        pval_snapshot susp pid ∗
         lg_mapg_frag susp γ ∗ visit_reached_done γ ∗
         (visit_finished γ -∗ id_token id) ∗
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
-        seq_inv (ver_susp_n susp) 
+        seq_inv (ver_susp_n susp)
           (auth_susp_v_inv pid v s')).
 
   Definition auth_transit_v (E : coPset) (id : nat) (v : val) (s : string) : iProp Σ :=
     (⌜v = InjLV #(hash s)⌝ ∗ id_token id ∗ intransit 1 ∗ seq_tok E) ∨
-      (∃ (s' : string) (susp psusp : loc) pid γ,
+      (∃ (s' : string) (susp : loc) pid γ,
         ⌜v = InjRV #susp⌝ ∗ ⌜id > pid⌝ ∗
         pval_frag id susp ∗
-        pval_frag pid psusp ∗ pval_snapshot susp pid ∗
+        pval_snapshot susp pid ∗
         lg_mapg_frag susp γ ∗ visit_reached_done γ ∗
         (visit_finished γ -∗ id_token id) ∗
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
-        seq_inv (ver_susp_n susp) 
+        seq_inv (ver_susp_n susp)
           (auth_susp_v_inv pid v s') ∗
         auth_susp_v_transit_inv pid v s' ∗
         seq_tok (E ∖ ↑(ver_susp_n susp)) ∗
-        (▷ auth_susp_v_inv pid v s' ∗ 
+        (▷ auth_susp_v_inv pid v s' ∗
           seq_tok (E ∖ ↑(ver_susp_n susp))
           ={⊤}=∗ seq_tok E)).
 
@@ -682,10 +682,10 @@ Section authenticatable_definitions.
       ⌜vₚ = BoxV (#lb, #lr, un_vₚ, #(hash s), #ps)%V⌝ ∗
       ((⌜vᵥ = InjLV #(hash s)⌝ ∗
         seq_inv (prover_susp_n vₚ) (susp_p_fill_inv ps lb lr)) ∨
-      (∃ γ (s' : string) (susp psusp : loc) pid,
+      (∃ γ (s' : string) (susp : loc) pid,
         ⌜vᵥ = InjRV #susp⌝ ∗ lg_mapg_p_frag lb γ ∗
         seq_inv (prover_susp_n vₚ) (susp_p_unfill_inv ps lb lr) ∗
-        pval_frag pid psusp ∗ pval_snapshot susp pid ∗
+        pval_snapshot susp pid ∗
         lg_mapg_frag susp γ ∗
         ⌜s' = some_ser_str (string_ser_str (hash s))⌝ ∗
         seq_inv (ver_susp_n susp)
