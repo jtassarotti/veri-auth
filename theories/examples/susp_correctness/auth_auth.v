@@ -509,11 +509,33 @@ Section authenticatable.
         v_pures.
         v_load. v_pures.
         (* Hser_br: auth_fill_ser_v requires v1 = InjLV — contradiction.
-           So it must be auth_susp_v_ser_proph, which has a seq_inv we
-           cannot open without an na_own token. Admit this sub-case. *)
-        iDestruct "Hser_br" as "[Hfill | Hsusp]".
+           auth_susp_ser_v is invariant-free: both disjuncts carry a
+           1/4-fraction points-to that agrees (fill) or clashes (emp)
+           with Hpts. *)
+        iDestruct "Hser_br" as "[Hfill | [Hsf | Hse]]".
         { iDestruct "Hfill" as %(h' & _ & Heq). done. }
-        admit.
+        2: { iDestruct "Hse" as (h' susp' p') "[%Heq Hpts']".
+             simplify_eq.
+             by iDestruct (pointstoS_agree with "Hpts Hpts'") as %[_ ?]. }
+        iDestruct "Hsf" as (h' susp') "[[%Hs %Heq] Hpts']".
+        injection Heq as <-.
+        iDestruct (pointstoS_agree with "Hpts Hpts'") as %[_ Heq'].
+        injection Heq' as <-.
+        subst s.
+        rewrite /auth_scheme /option_serialization_scheme /=.
+        unfold s_serializer'. simpl.
+        rewrite /option_ser'''. v_pures.
+        rewrite /string_serialization /=.
+        unfold s_serializer'. simpl.
+        rewrite /string_ser' /string_ser. v_pures.
+        iModIntro.
+        rewrite /filled_string /simple_string /some_ser_str /string_ser_str.
+        iSplitL "Hpts".
+        { iExists (InjRV #susp). iSplit; [done|]. iRight. iExists susp.
+          iSplit; [done|]. iLeft. iExists _. by iFrame. }
+        iFrame "Hspec".
+        iExists (InjRV #susp). iSplit; [done|]. iRight. iLeft.
+        iExists _, susp. iFrame "Hpts'". done.
     - (* 6. v_auth_ser_spec *)
       iIntros (K tᵥ6 a1 a2 a3) "!# Htok #HA Hspec".
       iEval (rewrite /lrel_auth /=) in "HA".
