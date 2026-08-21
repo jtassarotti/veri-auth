@@ -1213,6 +1213,24 @@ Section visited_map_res.
         rewrite Hpvm_ctr in Hpt. by inversion Hpt.
   Qed.
 
+  (** Dom-preserving access to the mapg auth inside [visited_mapg_auth]:
+      extract [mapg_auth mp], update it to any [mp'] with the same domain
+      (entry-value updates: fill, remove, fraction moves), and reassemble.
+      The dom ⊆ set_seq invariant carries over through the dom equality. *)
+  Lemma visited_mapg_acc m mp pn ctr :
+    visited_mapg_auth m mp pn ctr -∗
+      mapg_auth mp ∗
+      (∀ mp', ⌜dom mp' = dom mp⌝ -∗ mapg_auth mp' -∗
+              visited_mapg_auth m mp' pn ctr).
+  Proof.
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & %mcap & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & Hmp & Hcap & %Hdommp & %Hdomcap & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
+    iFrame "Hmp".
+    iIntros (mp' Hdomeq) "Hmp'".
+    iExists d, ps, gm, pvm, m_v, rs, mcap.
+    iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta Hrs Hmp' Hcap".
+    iPureIntro. rewrite Hdomeq. eauto 20.
+  Qed.
+
   (** [id_token id] implies [id < ctr]: the id has been allocated (is in
       [dom gm = set_seq 0 ctr]) so it is strictly below the counter. *)
   Lemma id_token_lt_ctr m mp pn ctr id :
