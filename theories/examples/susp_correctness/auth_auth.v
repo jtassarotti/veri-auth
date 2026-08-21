@@ -31,8 +31,14 @@ Section authenticatable.
       iIntros (v s Ψ) "!# Hser HΨ".
       iDestruct "Hser" as %(a & h & [-> ->]).
       rewrite /authenticatable_base_susp.auth_unsusp_ser_p.
-      wp_pures. rewrite /string_ser. wp_pures.
-      rewrite /simple_string /string_ser_str.
+      wp_pures.
+      wp_apply (s_ser_spec auth_scheme _ (InjRV #h)).
+      { iRight. iExists _. iSplit; [done|]. by iExists h. }
+      iIntros (sv) "#Hs".
+      iDestruct "Hs" as "[[%Hbad _] | (%w & %s' & [%Heq ->] & #Hser)]"; [done|].
+      injection Heq as <-.
+      iDestruct "Hser" as %(s0 & Heqw & ->). injection Heqw as <-.
+      rewrite /filled_string /simple_string.
       by iApply "HΨ".
     - (* 2. susp_p_ser_spec *)
       iIntros (E a1 s c q HE Ψ) "!# (Hser & Htok & Hintr) HΨ".
@@ -197,11 +203,12 @@ Section authenticatable.
           iExists lb. iFrame "Hlbfrag''". iPureIntro.
           eexists p, lb, lr, a, h. done.
     - (* 3. suspend_v_deser_spec (combined) *)
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred K tᵥ3 id m vm pn ctr mlg_p) "Hv".
+      iIntros "!#" (K tᵥ3 id) "Hv".
       rewrite /authenticatable_base_susp.auth_deser_v. v_pures.
       iModIntro. iExists _. iFrame "Hv".
-      iIntros "!#" (K' tᵥ3' Ψ).
-      iIntros "!# (%Hunsusp & #HA & #Hser & Hvm & Hlgp & Hmpg & Hpenc & Hv) HΨ".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred m vm pn ctr mlg_p mcap K' tᵥ3' Ψ).
+      iIntros "!# (%Hunsusp & %Hmfresh & %Hcapfresh & #HA & #Hser & #Hserpred &
+                   Hvm & Hlgp & Hmpg & Hcap & Hpenc & Hv) HΨ".
       (* Project HA = (lrel_auth A) a1 a2 a3 into its tern / un parts. *)
       iDestruct "HA" as "[HAtern #HAun]".
       iEval (rewrite /lrel_auth /=) in "HAtern".

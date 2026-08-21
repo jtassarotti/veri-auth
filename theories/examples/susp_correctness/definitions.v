@@ -218,7 +218,7 @@ Section authenticatable_definitions.
 
   Definition auth_unsusp_ser_p (v : val) (s : string) : iProp Σ :=
     ∃ (a : val) (h : string),
-      ⌜v = (a, #h)%V ∧ s = simple_string h⌝.
+      ⌜v = (a, #h)%V ∧ s = filled_string h⌝.
 
   Definition susp_p_fill_inv (ps : proph_id) (lb lr : loc) : iProp Σ :=
     lb ↦ #false ∗
@@ -494,27 +494,38 @@ Section authenticatable_definitions.
         ser v
       {{{ RET #s; True }}}.
 
+  (** The ghost bundle (m, vm, pn, ctr, mlg_p, mcap) is quantified in the
+      INNER □∀ so that one [v_deser_par] can be invoked repeatedly with
+      evolving state — required to compose component calls sequentially
+      (e.g. pair runs deserA then deserB). [cap_auth]/[mapg_auth] come with
+      freshness of [id] so the match case can register the deser'd value;
+      [serpred_frag id s_def] is the caller's registered prediction, handed
+      back in the post. *)
   Definition suspend_v_deser_spec
       (ser suspend v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
-    □(∀ t' (a1 un_a1 a2 a3 : val) (s_def s_pred : string)
-         K tᵥ (id : nat) m vm pn ctr mlg_p,
+    □(∀ K tᵥ (id : nat),
       spec_verifier tᵥ (fill K (v_deser #id))
       ={⊤}=∗ ∃ (v_deser_par : val),
         spec_verifier tᵥ (fill K v_deser_par) ∗
-        □(∀ K' tᵥ',
+        □(∀ t' (a1 un_a1 a2 a3 : val) (s_def s_pred : string)
+             m vm pn ctr mlg_p mcap K' tᵥ',
           {{{ ⌜unsusp t' a1 un_a1⌝ ∗
+              ⌜m !! id = None⌝ ∗ ⌜mcap !! id = None⌝ ∗
               ▷ A a1 a2 a3 ∗ susp_ser_p t' a1 s_def ∗
+              serpred_frag id s_def ∗
               visited_mapg_auth vm pn ctr ∗
-              lg_p_auth mlg_p ∗ mapg_auth m ∗
+              lg_p_auth mlg_p ∗ mapg_auth m ∗ cap_auth mcap ∗
               pencount_frag pn ∗
               spec_verifier tᵥ' (fill K' (v_deser_par #s_pred)) }}}
             suspend un_a1
           {{{ a1' s_real c t_real, RET a1';
               susp_p_ser_spec_at ser t_real c a1' s_real ∗
+              serpred_frag id s_def ∗
               ((⌜s_pred = s_real ∧ t_real = t⌝ ∗ ∃ γl mlg_p' a2',
                 lg_p_auth mlg_p' ∗
                 ((⌜c > 0⌝ ∧ mapg_auth (mapg_insert_def m id a2')) ∨
                   (⌜c = 0⌝ ∧ mapg_auth m)) ∗
+                cap_insert_auth mcap id c ∗
                 ⌜size γl = c⌝ ∗ penset_frag γl ∗ A a1' a2' a3 ∗
                 susp_ser_p t a1' s_def ∗
                 spec_verifier tᵥ' (fill K' (SOMEV a2')) ∗
