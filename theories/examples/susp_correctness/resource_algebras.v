@@ -1021,6 +1021,198 @@ Section visited_map_res.
         rewrite Hpvm_ctr in Hpt. by inversion Hpt.
   Qed.
 
+  (** Deser commit: bump [ctr] to mint the fresh id's [id_token]/[pval_frag]
+      and, in the same update, register the deser'd value (mapg, suspension
+      case only) and the leaf cap [n]. Freshness of [ctr] in [mp]/[mcap] is
+      internal, from the dom ⊆ set_seq invariants — no freshness
+      preconditions. Called once per deser, at the top level. *)
+  Lemma visited_deser_commit_susp m mp pn ctr (l : loc) (v : val) (n : nat) :
+    visited_mapg_auth m mp pn ctr -∗ id_ctr_frag ctr ==∗
+      visited_mapg_auth m (mapg_insert_def mp ctr v) pn (S ctr) ∗
+      id_ctr_frag (S ctr) ∗ id_token ctr ∗ pval_frag ctr l ∗
+      mapg_frag ctr 1 v ∗ cap_frag ctr n.
+  Proof.
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & %mcap & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & Hmp & Hcap & %Hdommp & %Hdomcap & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hid_ctr".
+    rewrite /id_ctr_frag /id_token /pvalmap_auth /pval_frag
+            /mapg_auth /mapg_frag /mapg_insert_def /cap_auth /cap_frag.
+    assert (gm !! ctr = None) as Hgm_ctr.
+    { apply not_elem_of_dom. rewrite Hdom. intro H.
+      apply elem_of_set_seq in H. lia. }
+    assert (pvm !! ctr = None) as Hpvm_ctr.
+    { apply not_elem_of_dom. rewrite Hdompvm. intro H.
+      apply elem_of_set_seq in H. lia. }
+    assert (mp !! ctr = None) as Hmp_ctr.
+    { apply not_elem_of_dom. intro H. apply Hdommp, elem_of_set_seq in H. lia. }
+    assert (mcap !! ctr = None) as Hmcap_ctr.
+    { apply not_elem_of_dom. intro H. apply Hdomcap, elem_of_set_seq in H. lia. }
+    (* rs !! ctr = None: if rs[ctr] = Some to, id_ref_coherent forces
+       gm[ctr] = Some (Cinr ...), contradicting Hgm_ctr. *)
+    assert (rs !! ctr = None) as Hrs_ctr.
+    { destruct (rs !! ctr) as [to|] eqn:Hr; [|done].
+      exfalso. pose proof (Hirc ctr to Hr) as [_ [(γ' & Hgm_eq) _]].
+      rewrite Hgm_ctr in Hgm_eq. by inversion Hgm_eq. }
+    iCombine "Hctr Hid_ctr" as "Hctr_full".
+    iMod (own_update with "Hctr_full") as "[Hctr Hid_ctr']".
+    { apply frac_agree_update_2. by rewrite Qp.half_half. }
+    iMod (own_update _ _
+      (● <[ctr := Cinl (Excl ())]>gm ⋅ ◯ {[ctr := Cinl (Excl ())]})
+      with "Hgm") as "[Hgm Htok]".
+    { apply auth_update_alloc.
+      apply alloc_singleton_local_update; [rewrite Hgm_ctr; done | done]. }
+    iMod (own_update _ _
+      (● <[ctr := to_agree l]>pvm ⋅ ◯ {[ctr := to_agree l]})
+      with "Hpvm") as "[Hpvm #Hpvf]".
+    { apply auth_update_alloc.
+      apply alloc_singleton_local_update; [exact Hpvm_ctr | done]. }
+    iMod (own_update _ _
+      (● <[ctr := Cinl (to_frac_agree 1 v)]>mp ⋅ ◯ {[ctr := Cinl (to_frac_agree 1 v)]})
+      with "Hmp") as "[Hmp Hmf]".
+    { apply auth_update_alloc.
+      apply alloc_singleton_local_update; [exact Hmp_ctr | done]. }
+    iMod (own_update _ _
+      (● <[ctr := to_agree n]>mcap ⋅ ◯ {[ctr := to_agree n]})
+      with "Hcap") as "[Hcap #Hcapf]".
+    { apply auth_update_alloc.
+      apply alloc_singleton_local_update; [exact Hmcap_ctr | done]. }
+    iModIntro. rewrite /visited_mapg_auth.
+    iSplitR "Hid_ctr' Htok Hpvf Hmf Hcapf"; last by iFrame "∗ #".
+    iExists d, ps, (<[ctr := Cinl (Excl ())]>gm), (<[ctr := to_agree l]>pvm), m_v, rs, (<[ctr := to_agree n]>mcap).
+    iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta Hrs Hmp Hcap".
+    iPureIntro.
+    split.
+    { rewrite dom_insert_L. intros x Hx.
+      apply elem_of_union in Hx as [Hx|Hx];
+        [apply elem_of_singleton in Hx as ->|apply Hdommp, elem_of_set_seq in Hx];
+        apply elem_of_set_seq; lia. }
+    split.
+    { rewrite dom_insert_L. intros x Hx.
+      apply elem_of_union in Hx as [Hx|Hx];
+        [apply elem_of_singleton in Hx as ->|apply Hdomcap, elem_of_set_seq in Hx];
+        apply elem_of_set_seq; lia. }
+    split; [|split; [|split; [|split; [|split; [|split; [exact Hdid|exact Hpcoh]]]]]].
+    - rewrite dom_insert_L Hdom -(set_seq_S_end_union_L 0) /=. set_solver.
+    - rewrite dom_insert_L Hdompvm -(set_seq_S_end_union_L 0) /=. set_solver.
+    - destruct Hgmm as [Hgmm1 Hgmm2]. split.
+      + intros id γ' Hgm'.
+        destruct (decide (id = ctr)) as [-> | Hne].
+        * rewrite lookup_insert in Hgm'. discriminate.
+        * rewrite lookup_insert_ne in Hgm'; [|done]. by apply Hgmm1.
+      + intros id γ' Hm.
+        destruct (decide (id = ctr)) as [-> | Hne].
+        * exfalso. have Hcin := Hgmm2 ctr γ' Hm.
+          rewrite Hgm_ctr in Hcin. discriminate.
+        * rewrite lookup_insert_ne; [|done]. by apply Hgmm2.
+    - (* id_susp_gamma_coherent: forward direction; pvm at ctr is new but
+         gm[ctr] is Cinl so we never query it. Other ids unchanged. *)
+      intros id γ' Hgm'.
+      destruct (decide (id = ctr)) as [-> | Hne_id].
+      + rewrite lookup_insert in Hgm'. discriminate.
+      + rewrite lookup_insert_ne in Hgm'; [|done].
+        destruct (Hisgc id γ' Hgm') as (susp & Hpvm_id & Hmv_susp).
+        exists susp. split; [|exact Hmv_susp].
+        rewrite lookup_insert_ne; [exact Hpvm_id|]. done.
+    - (* id_ref_coherent: existing entries in rs have from ≠ ctr and to ≠ ctr
+         because their pvm lookups must exist (old pvm[ctr] = None). *)
+      intros from' to' Hrs'.
+      destruct (Hirc from' to' Hrs') as [Hlt' [(γ' & Hgm_from) (sf & st & Hpf & Hpt & Hneq)]].
+      split; [exact Hlt'|]. split.
+      { exists γ'. rewrite lookup_insert_ne; [exact Hgm_from|]. intros ->.
+        rewrite Hgm_ctr in Hgm_from. by inversion Hgm_from. }
+      exists sf, st. split_and!; [| |exact Hneq].
+      + rewrite lookup_insert_ne; [exact Hpf|]. intros ->.
+        rewrite Hpvm_ctr in Hpf. by inversion Hpf.
+      + rewrite lookup_insert_ne; [exact Hpt|]. intros ->.
+        rewrite Hpvm_ctr in Hpt. by inversion Hpt.
+  Qed.
+
+  Lemma visited_deser_commit_pure m mp pn ctr (l : loc) (n : nat) :
+    visited_mapg_auth m mp pn ctr -∗ id_ctr_frag ctr ==∗
+      visited_mapg_auth m mp pn (S ctr) ∗
+      id_ctr_frag (S ctr) ∗ id_token ctr ∗ pval_frag ctr l ∗ cap_frag ctr n.
+  Proof.
+    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & %mcap & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & Hmp & Hcap & %Hdommp & %Hdomcap & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hid_ctr".
+    rewrite /id_ctr_frag /id_token /pvalmap_auth /pval_frag
+            /cap_auth /cap_frag.
+    assert (gm !! ctr = None) as Hgm_ctr.
+    { apply not_elem_of_dom. rewrite Hdom. intro H.
+      apply elem_of_set_seq in H. lia. }
+    assert (pvm !! ctr = None) as Hpvm_ctr.
+    { apply not_elem_of_dom. rewrite Hdompvm. intro H.
+      apply elem_of_set_seq in H. lia. }
+    assert (mcap !! ctr = None) as Hmcap_ctr.
+    { apply not_elem_of_dom. intro H. apply Hdomcap, elem_of_set_seq in H. lia. }
+    (* rs !! ctr = None: if rs[ctr] = Some to, id_ref_coherent forces
+       gm[ctr] = Some (Cinr ...), contradicting Hgm_ctr. *)
+    assert (rs !! ctr = None) as Hrs_ctr.
+    { destruct (rs !! ctr) as [to|] eqn:Hr; [|done].
+      exfalso. pose proof (Hirc ctr to Hr) as [_ [(γ' & Hgm_eq) _]].
+      rewrite Hgm_ctr in Hgm_eq. by inversion Hgm_eq. }
+    iCombine "Hctr Hid_ctr" as "Hctr_full".
+    iMod (own_update with "Hctr_full") as "[Hctr Hid_ctr']".
+    { apply frac_agree_update_2. by rewrite Qp.half_half. }
+    iMod (own_update _ _
+      (● <[ctr := Cinl (Excl ())]>gm ⋅ ◯ {[ctr := Cinl (Excl ())]})
+      with "Hgm") as "[Hgm Htok]".
+    { apply auth_update_alloc.
+      apply alloc_singleton_local_update; [rewrite Hgm_ctr; done | done]. }
+    iMod (own_update _ _
+      (● <[ctr := to_agree l]>pvm ⋅ ◯ {[ctr := to_agree l]})
+      with "Hpvm") as "[Hpvm #Hpvf]".
+    { apply auth_update_alloc.
+      apply alloc_singleton_local_update; [exact Hpvm_ctr | done]. }
+    iMod (own_update _ _
+      (● <[ctr := to_agree n]>mcap ⋅ ◯ {[ctr := to_agree n]})
+      with "Hcap") as "[Hcap #Hcapf]".
+    { apply auth_update_alloc.
+      apply alloc_singleton_local_update; [exact Hmcap_ctr | done]. }
+    iModIntro. rewrite /visited_mapg_auth.
+    iSplitR "Hid_ctr' Htok Hpvf Hcapf"; last by iFrame "∗ #".
+    iExists d, ps, (<[ctr := Cinl (Excl ())]>gm), (<[ctr := to_agree l]>pvm), m_v, rs, (<[ctr := to_agree n]>mcap).
+    iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta Hrs Hmp Hcap".
+    iPureIntro.
+    split; [etrans; [exact Hdommp|];
+      intros x Hx%elem_of_set_seq; apply elem_of_set_seq; lia|].
+    split.
+    { rewrite dom_insert_L. intros x Hx.
+      apply elem_of_union in Hx as [Hx|Hx];
+        [apply elem_of_singleton in Hx as ->|apply Hdomcap, elem_of_set_seq in Hx];
+        apply elem_of_set_seq; lia. }
+    split; [|split; [|split; [|split; [|split; [|split; [exact Hdid|exact Hpcoh]]]]]].
+    - rewrite dom_insert_L Hdom -(set_seq_S_end_union_L 0) /=. set_solver.
+    - rewrite dom_insert_L Hdompvm -(set_seq_S_end_union_L 0) /=. set_solver.
+    - destruct Hgmm as [Hgmm1 Hgmm2]. split.
+      + intros id γ' Hgm'.
+        destruct (decide (id = ctr)) as [-> | Hne].
+        * rewrite lookup_insert in Hgm'. discriminate.
+        * rewrite lookup_insert_ne in Hgm'; [|done]. by apply Hgmm1.
+      + intros id γ' Hm.
+        destruct (decide (id = ctr)) as [-> | Hne].
+        * exfalso. have Hcin := Hgmm2 ctr γ' Hm.
+          rewrite Hgm_ctr in Hcin. discriminate.
+        * rewrite lookup_insert_ne; [|done]. by apply Hgmm2.
+    - (* id_susp_gamma_coherent: forward direction; pvm at ctr is new but
+         gm[ctr] is Cinl so we never query it. Other ids unchanged. *)
+      intros id γ' Hgm'.
+      destruct (decide (id = ctr)) as [-> | Hne_id].
+      + rewrite lookup_insert in Hgm'. discriminate.
+      + rewrite lookup_insert_ne in Hgm'; [|done].
+        destruct (Hisgc id γ' Hgm') as (susp & Hpvm_id & Hmv_susp).
+        exists susp. split; [|exact Hmv_susp].
+        rewrite lookup_insert_ne; [exact Hpvm_id|]. done.
+    - (* id_ref_coherent: existing entries in rs have from ≠ ctr and to ≠ ctr
+         because their pvm lookups must exist (old pvm[ctr] = None). *)
+      intros from' to' Hrs'.
+      destruct (Hirc from' to' Hrs') as [Hlt' [(γ' & Hgm_from) (sf & st & Hpf & Hpt & Hneq)]].
+      split; [exact Hlt'|]. split.
+      { exists γ'. rewrite lookup_insert_ne; [exact Hgm_from|]. intros ->.
+        rewrite Hgm_ctr in Hgm_from. by inversion Hgm_from. }
+      exists sf, st. split_and!; [| |exact Hneq].
+      + rewrite lookup_insert_ne; [exact Hpf|]. intros ->.
+        rewrite Hpvm_ctr in Hpf. by inversion Hpf.
+      + rewrite lookup_insert_ne; [exact Hpt|]. intros ->.
+        rewrite Hpvm_ctr in Hpt. by inversion Hpt.
+  Qed.
+
   (** [id_token id] implies [id < ctr]: the id has been allocated (is in
       [dom gm = set_seq 0 ctr]) so it is strictly below the counter. *)
   Lemma id_token_lt_ctr m mp pn ctr id :
