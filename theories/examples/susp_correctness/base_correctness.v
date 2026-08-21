@@ -11,12 +11,182 @@ Section authenticatable.
   Local Typeclasses Opaque susp_p_ser_spec unsusp_p_ser_spec suspend_v_deser_spec
         unsuspend_spec v_ser_spec auth_ser_spec v_count_spec.
 
+  (** Unary (prover-only) evidence for the sum. Discharges every tern/un
+      split in [refines_Auth_sum] (mirrors the security file's
+      [refines_un_Auth_sum]); the conclusion's closures are what
+      [p_Auth_sum]'s body reduces to on the given component values. *)
+  Lemma refines_un_Auth_sum Θ (Δ : ctxO Σ Θ) (A B : kindO Σ ⋆)
+      (p_ssA p_usA p_spA p_uspA p_ssB p_usB p_spB p_uspB : val) :
+    lrel_tern_un (lrel_evidence A) (p_ssA, p_usA, p_spA, p_uspA)%V -∗
+    lrel_tern_un (lrel_evidence B) (p_ssB, p_usB, p_spB, p_uspB)%V -∗
+    lrel_tern_un
+      (lrel_evidence (⟦ var1 + var0 ⟧ (ext (ext (ext Δ lrel_evidence) A) B)))
+      (λ: "v",
+         match: "v" with
+           InjL "x" => #"L" ^ #"_" ^ p_ssA "x"
+         | InjR "x" => #"R" ^ #"_" ^ p_ssB "x"
+         end,
+       λ: "v",
+         match: "v" with
+           InjL "x" => #"L" ^ #"_" ^ p_usA "x"
+         | InjR "x" => #"R" ^ #"_" ^ p_usB "x"
+         end,
+       λ: "a",
+         match: "a" with
+           InjL "a" => InjL (p_spA "a")
+         | InjR "b" => InjR (p_spB "b")
+         end,
+       λ: "a",
+         match: "a" with
+           InjL "a" => InjL (p_uspA "a")
+         | InjR "b" => InjR (p_uspB "b")
+         end)%V.
+  Proof.
+    iIntros "#HA_un #HB_un".
+    iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HA_un".
+    iDestruct "HA_un" as (tA ssA usA spA uspA eA1 eA2 eA3)
+      "(%HeqA & #HusserA & #HsserA & #HspbA & #HuspbA)".
+    injection HeqA as <- <- <- <-.
+    iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HB_un".
+    iDestruct "HB_un" as (tB ssB usB spB uspB eB1 eB2 eB3)
+      "(%HeqB & #HusserB & #HsserB & #HspbB & #HuspbB)".
+    injection HeqB as <- <- <- <-.
+    iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=).
+    iExists (tsum tA tB), _, _, _, _, #(), #(), #().
+    iSplit; [done|]. iSplit; [|iSplit; [|iSplit]].
+    - (* unsusp_p_ser_spec *)
+      rewrite /unsusp_p_ser_spec.
+      iIntros (v s Ψ) "!# Hser HΨ".
+      iDestruct "Hser" as (w s') "[[Husser %HeqL] | [Husser %HeqR]]".
+      + destruct HeqL as [-> ->]. wp_pures.
+        wp_apply ("HusserA" with "Husser"). iIntros "_". wp_pures.
+        unfold inl_ser_str. iApply "HΨ". by iModIntro.
+      + destruct HeqR as [-> ->]. wp_pures.
+        wp_apply ("HusserB" with "Husser"). iIntros "_". wp_pures.
+        unfold inr_ser_str. iApply "HΨ". by iModIntro.
+    - (* susp_p_ser_spec *)
+      rewrite /susp_p_ser_spec.
+      iIntros (E a1 s c q HE Ψ) "!# (Hser & Htok & Hintr) HΨ".
+      iEval (rewrite /susp_ser_p_real /=) in "Hser".
+      iDestruct "Hser" as (w s') "[[#Hser1 [-> ->]] | [#Hser1 [-> ->]]]".
+      + wp_pures.
+        wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser1 $Htok $Hintr]").
+        iIntros "(Htok & Hintr & HreachA)". wp_pures.
+        unfold inl_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
+        iIntros (γl) "Hg Hpen %Hsz Hbig".
+        iDestruct (susp_ser_p_real_sum_γl_empty_l with "Hser1 Hbig") as %->.
+        iFrame "Hg Hpen". by rewrite !big_sepS_empty.
+      + wp_pures.
+        wp_apply ("HsserB" $! _ _ _ c q with "[//] [$Hser1 $Htok $Hintr]").
+        iIntros "(Htok & Hintr & HreachB)". wp_pures.
+        unfold inr_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
+        iIntros (γl) "Hg Hpen %Hsz Hbig".
+        iDestruct (susp_ser_p_real_sum_γl_empty_r with "Hser1 Hbig") as %->.
+        iFrame "Hg Hpen". by rewrite !big_sepS_empty.
+    - (* suspend_spec_bin *)
+      rewrite /suspend_spec_bin.
+      iIntros (t' v0 un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+      rewrite interp_un_sum_unfold interp_var1_ext2 interp_var0_ext1.
+      iDestruct "HA" as (w) "[[>-> HAw] | [>-> HBw]]".
+      + (* v0 = InjLV w *)
+        destruct t'; simpl in Hunsusp.
+        * destruct Hunsusp as (?&?&?&?&Hx&_). simplify_eq.
+        * destruct Hunsusp as [(w1&un1&Heq&->&Hu1)|(w1&un1&Heq&->&_)];
+            last by simplify_eq.
+          injection Heq as <-. wp_pures.
+          wp_apply ("HspbA" $! _ _ un1 with "[HAw]").
+          { iSplit; [by iPureIntro|]. iApply "HAw". }
+          iIntros (v' s c) "[HA' Hreal]". wp_pures.
+          iApply ("HΨ" $! (InjLV v')).
+          iSplitL "HA'".
+          { iExists v'. iLeft. iModIntro. iSplit; [done|]. iApply "HA'". }
+          simpl. iExists v', s. iLeft. by iFrame "Hreal".
+        * subst un_v. wp_pures.
+          wp_apply ("HspbA" $! tstring w w with "[HAw]").
+          { iSplit; [by iPureIntro|]. iApply "HAw". }
+          iIntros (v' s c) "[HA' Hreal]". wp_pures.
+          iApply ("HΨ" $! (InjLV v')).
+          iSplitL "HA'".
+          { iExists v'. iLeft. iModIntro. iSplit; [done|]. iApply "HA'". }
+          simpl. iExists v', s. iLeft. by iFrame "Hreal".
+        * subst un_v. wp_pures.
+          wp_apply ("HspbA" $! tint w w with "[HAw]").
+          { iSplit; [by iPureIntro|]. iApply "HAw". }
+          iIntros (v' s c) "[HA' Hreal]". wp_pures.
+          iApply ("HΨ" $! (InjLV v')).
+          iSplitL "HA'".
+          { iExists v'. iLeft. iModIntro. iSplit; [done|]. iApply "HA'". }
+          simpl. iExists v', s. iLeft. by iFrame "Hreal".
+        * destruct Hunsusp as (?&?&?&?&?&Hx&_). simplify_eq.
+      + (* v0 = InjRV w *)
+        destruct t'; simpl in Hunsusp.
+        * destruct Hunsusp as (?&?&?&?&Hx&_). simplify_eq.
+        * destruct Hunsusp as [(w1&un1&Heq&->&_)|(w1&un1&Heq&->&Hu1)];
+            first by simplify_eq.
+          injection Heq as <-. wp_pures.
+          wp_apply ("HspbB" $! _ _ un1 with "[HBw]").
+          { iSplit; [by iPureIntro|]. iApply "HBw". }
+          iIntros (v' s c) "[HB' Hreal]". wp_pures.
+          iApply ("HΨ" $! (InjRV v')).
+          iSplitL "HB'".
+          { iExists v'. iRight. iModIntro. iSplit; [done|]. iApply "HB'". }
+          simpl. iExists v', s. iRight. by iFrame "Hreal".
+        * subst un_v. wp_pures.
+          wp_apply ("HspbB" $! tstring w w with "[HBw]").
+          { iSplit; [by iPureIntro|]. iApply "HBw". }
+          iIntros (v' s c) "[HB' Hreal]". wp_pures.
+          iApply ("HΨ" $! (InjRV v')).
+          iSplitL "HB'".
+          { iExists v'. iRight. iModIntro. iSplit; [done|]. iApply "HB'". }
+          simpl. iExists v', s. iRight. by iFrame "Hreal".
+        * subst un_v. wp_pures.
+          wp_apply ("HspbB" $! tint w w with "[HBw]").
+          { iSplit; [by iPureIntro|]. iApply "HBw". }
+          iIntros (v' s c) "[HB' Hreal]". wp_pures.
+          iApply ("HΨ" $! (InjRV v')).
+          iSplitL "HB'".
+          { iExists v'. iRight. iModIntro. iSplit; [done|]. iApply "HB'". }
+          simpl. iExists v', s. iRight. by iFrame "Hreal".
+        * destruct Hunsusp as (?&?&?&?&?&Hx&_). simplify_eq.
+    - (* unsuspend_spec_bin *)
+      rewrite /unsuspend_spec_bin.
+      iIntros (E a1 HE Ψ) "!# (HA & Htok) HΨ".
+      rewrite interp_un_sum_unfold interp_var1_ext2 interp_var0_ext1.
+      iDestruct "HA" as (w) "[[>-> HAw] | [>-> HBw]]".
+      + wp_pures.
+        wp_apply ("HuspbA" with "[//] [$HAw $Htok]").
+        iIntros (un_w) "[Htok %Hu]".
+        wp_pures. iApply ("HΨ" $! (InjLV un_w)). iFrame "Htok".
+        iPureIntro. simpl. left. by exists w, un_w.
+      + wp_pures.
+        wp_apply ("HuspbB" with "[//] [$HBw $Htok]").
+        iIntros (un_w) "[Htok %Hu]".
+        wp_pures. iApply ("HΨ" $! (InjRV un_w)). iFrame "Htok".
+        iPureIntro. simpl. right. by exists w, un_w.
+  Qed.
+
   Lemma refines_Auth_sum Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 + var0) ⟧
       (ext Δ (lrel_evidence)) p_Auth_sum v_Auth_sum i_Auth_sum.
   Proof.
     iSplit; interp_unfold!; last first.
-    { (* unary  *) admit. }
+    { (* unary  *)
+      iIntros (A' vA0) "!# _ Htok". rewrite /p_Auth_sum. wp_pures.
+      iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (B' vB0) "!# _ Htok". wp_pures.
+      iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (vA') "!# #HA' Htok".
+      iPoseProof "HA'" as "HA0". interp_unfold! in "HA0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HA0".
+      iDestruct "HA0" as (? ? ? ? ? ? ? ?) "[%HeqA' _]". subst vA'.
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (vB') "!# #HB' Htok".
+      iPoseProof "HB'" as "HB0". interp_unfold! in "HB0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HB0".
+      iDestruct "HB0" as (? ? ? ? ? ? ? ?) "[%HeqB' _]". subst vB'.
+      rewrite /sum_ser. wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      interp_unfold! in "HA'". interp_unfold! in "HB'".
+      iApply (refines_un_Auth_sum with "HA' HB'"). }
     (* ternary *)
     iIntros (A v1 v2 v3) "!# _"; rewrite -/interp.
     iIntros (????) "Hv Hi Htok".
@@ -24,12 +194,38 @@ Section authenticatable.
     v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
     iSplit; interp_unfold!; last first.
-    { (* inner-after-A unary *) admit. }
+    { (* inner-after-A unary *)
+      iIntros (B' vB0) "!# _ Htok". wp_pures.
+      iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (vA') "!# #HA' Htok".
+      iPoseProof "HA'" as "HA0". interp_unfold! in "HA0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HA0".
+      iDestruct "HA0" as (? ? ? ? ? ? ? ?) "[%HeqA' _]". subst vA'.
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (vB') "!# #HB' Htok".
+      iPoseProof "HB'" as "HB0". interp_unfold! in "HB0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HB0".
+      iDestruct "HB0" as (? ? ? ? ? ? ? ?) "[%HeqB' _]". subst vB'.
+      rewrite /sum_ser. wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      interp_unfold! in "HA'". interp_unfold! in "HB'".
+      iApply (refines_un_Auth_sum with "HA' HB'"). }
     iIntros (B w1 w2 w3) "!# _"; rewrite -/interp.
     iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
     iSplit; interp_unfold!; last first.
-    { (* inner-after-B unary *) admit. }
+    { (* inner-after-B unary *)
+      iIntros (vA') "!# #HA' Htok".
+      iPoseProof "HA'" as "HA0". interp_unfold! in "HA0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HA0".
+      iDestruct "HA0" as (? ? ? ? ? ? ? ?) "[%HeqA' _]". subst vA'.
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (vB') "!# #HB' Htok".
+      iPoseProof "HB'" as "HB0". interp_unfold! in "HB0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HB0".
+      iDestruct "HB0" as (? ? ? ? ? ? ? ?) "[%HeqB' _]". subst vB'.
+      rewrite /sum_ser. wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      interp_unfold! in "HA'". interp_unfold! in "HB'".
+      iApply (refines_un_Auth_sum with "HA' HB'"). }
     iIntros (vA1 vA2 vA3) "!# #HA".
     interp_unfold! in "HA".
     iDestruct "HA" as "(HA_tern & #HA_un)".
@@ -38,7 +234,14 @@ Section authenticatable.
     iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
     iSplit; interp_unfold!; last first.
-    { (* inner-after-HA unary *) admit. }
+    { (* inner-after-HA unary *)
+      iIntros (vB') "!# #HB' Htok".
+      iPoseProof "HB'" as "HB0". interp_unfold! in "HB0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HB0".
+      iDestruct "HB0" as (? ? ? ? ? ? ? ?) "[%HeqB' _]". subst vB'.
+      rewrite /sum_ser. wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      interp_unfold! in "HB'".
+      iApply (refines_un_Auth_sum with "HA_un HB'"). }
     iIntros (vB1 vB2 vB3) "!# #HB".
     interp_unfold! in "HB".
     iDestruct "HB" as "(HB_tern & #HB_un)".
@@ -48,7 +251,7 @@ Section authenticatable.
     v_pures; i_pures; wp_pures.
     iModIntro. iFrame.
     iSplit; interp_unfold!; last first.
-    { (* final unary  *) admit. }
+    { (* final unary  *) iApply (refines_un_Auth_sum with "HA_un HB_un"). }
     (* Ternary evidence for the sum. *)
     iExists (tsum tA tB), _, _, _, _, _, _, _.
     iSplit; [done|]. iSplit; [done|].
