@@ -10,12 +10,230 @@ Section authenticatable.
   Local Typeclasses Opaque susp_p_ser_spec unsusp_p_ser_spec suspend_v_deser_spec
         unsuspend_spec v_ser_spec auth_ser_spec v_count_spec.
 
+  (** Unary (prover-only) evidence for the product; discharges every
+      tern/un split in [refines_Auth_pair]. Mirrors
+      [refines_un_Auth_sum] in base_correctness.v. *)
+  Lemma refines_un_Auth_pair Θ (Δ : ctxO Σ Θ) (A B : kindO Σ ⋆)
+      (p_ssA p_usA p_spA p_uspA p_ssB p_usB p_spB p_uspB : val) :
+    lrel_tern_un (lrel_evidence A) (p_ssA, p_usA, p_spA, p_uspA)%V -∗
+    lrel_tern_un (lrel_evidence B) (p_ssB, p_usB, p_spB, p_uspB)%V -∗
+    lrel_tern_un
+      (lrel_evidence (⟦ var1 * var0 ⟧ (ext (ext (ext Δ lrel_evidence) A) B)))
+      (λ: "v",
+         let: "s1" := p_ssA (Fst "v") in
+         let: "s2" := p_ssB (Snd "v") in z2s (strlen "s1") ^ #"_" ^ "s1" ^ "s2",
+       λ: "v",
+         let: "s1" := p_usA (Fst "v") in
+         let: "s2" := p_usB (Snd "v") in z2s (strlen "s1") ^ #"_" ^ "s1" ^ "s2",
+       λ: "a",
+         let: "b" := "a" in
+         let: "a" := Fst "b" in
+         let: "b" := Snd "b" in
+         let: "ra" := p_spA "a" in let: "rb" := p_spB "b" in ("ra", "rb"),
+       λ: "a",
+         let: "b" := "a" in
+         let: "a" := Fst "b" in let: "b" := Snd "b" in
+         (p_uspA "a", p_uspB "b"))%V.
+  Proof.
+    iIntros "#HA_un #HB_un".
+    iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HA_un".
+    iDestruct "HA_un" as (tA ssA usA spA uspA eA1 eA2 eA3)
+      "(%HeqA & #HusserA & #HsserA & #HspbA & #HuspbA)".
+    injection HeqA as <- <- <- <-.
+    iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HB_un".
+    iDestruct "HB_un" as (tB ssB usB spB uspB eB1 eB2 eB3)
+      "(%HeqB & #HusserB & #HsserB & #HspbB & #HuspbB)".
+    injection HeqB as <- <- <- <-.
+    iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=).
+    iExists (tprod tA tB), _, _, _, _, #(), #(), #().
+    iSplit; [done|]. iSplit; [|iSplit; [|iSplit]].
+    - (* unsusp_p_ser_spec *)
+      rewrite /unsusp_p_ser_spec.
+      iIntros (v s Ψ) "!# Hser HΨ".
+      iDestruct "Hser" as (a1 a2 sa sb [-> ->]) "[Hussera Husserb]".
+      wp_pures.
+      wp_apply ("HusserA" with "Hussera"). iIntros "_". wp_pures.
+      wp_apply ("HusserB" with "Husserb"). iIntros "_". wp_pures.
+      unfold prod_ser_str. iApply "HΨ". by iModIntro.
+    - (* susp_p_ser_spec — same partition argument as the ternary case 2 *)
+      rewrite /susp_p_ser_spec.
+      iIntros (E a1 s c q HE Ψ) "!# (Hser & Htok & Hintr) HΨ".
+      iEval (rewrite /susp_ser_p_real /=) in "Hser".
+      iDestruct "Hser" as (c1 c2 ->) "Hser_pair".
+      iDestruct "Hser_pair" as (ua ub sa sb [-> ->]) "[#Hser1 #Hser2]".
+      iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+      iDestruct "Hintr" as "[HintrA HintrB]".
+      wp_pures.
+      wp_apply ("HsserA" $! _ _ _ c1 (q/2)%Qp with "[//] [$Hser1 $Htok $HintrA]").
+      iIntros "(Htok & HintrA' & HreachA)". wp_pures.
+      wp_apply ("HsserB" $! _ _ _ c2 (q/2)%Qp with "[//] [$Hser2 $Htok $HintrB]").
+      iIntros "(Htok & HintrB' & HreachB)". wp_pures.
+      unfold prod_ser_str. iApply "HΨ". iModIntro. iFrame "Htok".
+      iCombine "HintrA' HintrB'" as "Hcomb".
+      replace ((q/2)/2 + (q/2)/2)%Qp with (q/2)%Qp by (symmetry; apply Qp.div_2).
+      iFrame "Hcomb".
+      iIntros (γl) "Hg Hpen %Hsz Hbig".
+      iDestruct (susp_ser_p_real_not_loc with "Hser1") as %Hua_not_loc.
+      iDestruct (susp_ser_p_real_not_loc with "Hser2") as %Hub_not_loc.
+      assert (size γl = c1 + c2)%nat as Hsz_keep by exact Hsz. clear Hsz.
+      iAssert (∃ γlA γlB : gset gname,
+                 ⌜γlA ## γlB ∧ γl = γlA ∪ γlB⌝ ∗
+                 ([∗ set] γ ∈ γlA, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj tA ua #lb⌝) ∗
+                 ([∗ set] γ ∈ γlB, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj tB ub #lb⌝))%I
+        with "[Hbig]"
+        as "(%γlA & %γlB & [%HdisjAB %HsplitAB] & HbigA & HbigB)".
+      { clear Hsz_keep.
+        iRevert "Hbig".
+        iInduction γl as [|γ γl' Hnotin] "IHγl" using set_ind_L.
+        - iIntros "_". iExists ∅, ∅. rewrite !big_sepS_empty.
+          iSplit; [iPureIntro; set_solver|]. by iSplit.
+        - iIntros "Hbig".
+          iEval (rewrite big_sepS_insert; [|done]) in "Hbig".
+          iDestruct "Hbig" as "[(%lb_γ & #Hfrag_γ & %Hsub_γ) Hbig']".
+          iDestruct ("IHγl" with "Hbig'")
+            as "(%γlA' & %γlB' & [%Hdisj' %Hsplit'] & HA' & HB')".
+          destruct Hsub_γ as (x & y & Heq & Hdisj_p).
+          injection Heq as -> ->.
+          destruct Hdisj_p as [Heq | [Heq | [Hsub | Hsub]]].
+          + exfalso. by apply (Hua_not_loc lb_γ).
+          + exfalso. by apply (Hub_not_loc lb_γ).
+          + iExists ({[γ]} ∪ γlA'), γlB'.
+            iSplit; [iPureIntro; split; [|set_solver]|].
+            { assert (γ ∉ γlA') by set_solver. set_solver. }
+            iSplitL "HA'".
+            * rewrite big_sepS_insert; [|set_solver].
+              iSplitL ""; [iExists lb_γ; by iFrame "Hfrag_γ"|done].
+            * done.
+          + iExists γlA', ({[γ]} ∪ γlB').
+            iSplit; [iPureIntro; split; [|set_solver]|].
+            { assert (γ ∉ γlB') by set_solver. set_solver. }
+            iSplitL "HA'"; [done|].
+            rewrite big_sepS_insert; [|set_solver].
+            iSplitL ""; [iExists lb_γ; by iFrame "Hfrag_γ"|done]. }
+      iDestruct (susp_ser_p_real_γl_card_le with "Hser1 HbigA") as %HszA_le.
+      iDestruct (susp_ser_p_real_γl_card_le with "Hser2 HbigB") as %HszB_le.
+      assert (size γlA + size γlB = c1 + c2) as Hsz_sum.
+      { rewrite HsplitAB in Hsz_keep.
+        by rewrite (size_union _ _ HdisjAB) in Hsz_keep. }
+      assert (size γlA = c1) as HszA by lia.
+      assert (size γlB = c2) as HszB by lia.
+      iAssert (penset_frag γlA ∗ penset_frag γlB)%I with "[Hpen]" as "[HpenA HpenB]".
+      { rewrite /penset_frag.
+        replace (◯ GSet γl) with (◯ GSet γlA ⋅ ◯ GSet γlB).
+        - rewrite own_op. by iDestruct "Hpen" as "[$ $]".
+        - rewrite -auth_frag_op gset_disj_union //. by rewrite -HsplitAB. }
+      iSpecialize ("HreachA" $! γlA with "Hg HpenA [//] HbigA").
+      iDestruct "HreachA" as "(Hg & HpenA & HbigA')".
+      iSpecialize ("HreachB" $! γlB with "Hg HpenB [//] HbigB").
+      iDestruct "HreachB" as "(Hg & HpenB & HbigB')".
+      iFrame "Hg".
+      iAssert (penset_frag (γlA ∪ γlB)) with "[HpenA HpenB]" as "Hpen".
+      { rewrite /penset_frag -gset_disj_union //.
+        rewrite auth_frag_op own_op. iSplitL "HpenA"; [iExact "HpenA"|iExact "HpenB"]. }
+      rewrite -HsplitAB. iFrame "Hpen".
+      rewrite HsplitAB.
+      rewrite (big_sepS_union _ _ _ HdisjAB).
+      iSplitL "HbigA'".
+      { iApply (big_sepS_mono with "HbigA'").
+        iIntros (γ' ?) "[Hreach Hlb]". iFrame "Hreach".
+        iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
+        iPureIntro. simpl. exists ua, ub. split; [done|].
+        right. right. left. done. }
+      iApply (big_sepS_mono with "HbigB'").
+      iIntros (γ' ?) "[Hreach Hlb]". iFrame "Hreach".
+      iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
+      iPureIntro. simpl. exists ua, ub. split; [done|].
+      right. right. right. done.
+    - (* suspend_spec_bin *)
+      rewrite /suspend_spec_bin.
+      iIntros (t' v0 un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+      rewrite interp_un_prod_unfold interp_var1_ext2 interp_var0_ext1.
+      iDestruct "HA" as (w1 w2) "(>-> & HAw & HBw)".
+      destruct t'; simpl in Hunsusp.
+      + (* tprod *)
+        destruct Hunsusp as (x1&x2&un1&un2&Heq&->&Hu1&Hu2).
+        injection Heq as <- <-.
+        wp_pures.
+        wp_apply ("HspbA" $! _ _ un1 with "[HAw]").
+        { iSplit; [by iPureIntro|]. iApply "HAw". }
+        iIntros (v1' s1 c1) "[HA' Hreal1]". wp_pures.
+        wp_apply ("HspbB" $! _ _ un2 with "[HBw]").
+        { iSplit; [by iPureIntro|]. iApply "HBw". }
+        iIntros (v2' s2 c2) "[HB' Hreal2]". wp_pures.
+        iApply ("HΨ" $! (v1', v2')%V (prod_ser_str s1 s2) (c1 + c2)%nat).
+        iSplitL "HA' HB'".
+        { iExists v1', v2'. iModIntro. iSplit; [done|].
+          iSplitL "HA'"; [iApply "HA'"|iApply "HB'"]. }
+        simpl. iExists c1, c2. iModIntro. iSplit; [done|].
+        iExists v1', v2', s1, s2. iSplit; [done|]. iFrame.
+      + (* tsum: v0 is a pair — contradiction *)
+        destruct Hunsusp as [(?&?&Hx&_)|(?&?&Hx&_)]; simplify_eq.
+      + (* tstring: un_v = v0 *)
+        subst un_v. wp_pures.
+        wp_apply ("HspbA" $! tstring w1 w1 with "[HAw]").
+        { iSplit; [by iPureIntro|]. iApply "HAw". }
+        iIntros (v1' s1 c1) "[HA' Hreal1]". wp_pures.
+        wp_apply ("HspbB" $! tstring w2 w2 with "[HBw]").
+        { iSplit; [by iPureIntro|]. iApply "HBw". }
+        iIntros (v2' s2 c2) "[HB' Hreal2]". wp_pures.
+        iApply ("HΨ" $! (v1', v2')%V (prod_ser_str s1 s2) (c1 + c2)%nat).
+        iSplitL "HA' HB'".
+        { iExists v1', v2'. iModIntro. iSplit; [done|].
+          iSplitL "HA'"; [iApply "HA'"|iApply "HB'"]. }
+        simpl. iExists c1, c2. iModIntro. iSplit; [done|].
+        iExists v1', v2', s1, s2. iSplit; [done|]. iFrame.
+      + (* tint: un_v = v0 *)
+        subst un_v. wp_pures.
+        wp_apply ("HspbA" $! tint w1 w1 with "[HAw]").
+        { iSplit; [by iPureIntro|]. iApply "HAw". }
+        iIntros (v1' s1 c1) "[HA' Hreal1]". wp_pures.
+        wp_apply ("HspbB" $! tint w2 w2 with "[HBw]").
+        { iSplit; [by iPureIntro|]. iApply "HBw". }
+        iIntros (v2' s2 c2) "[HB' Hreal2]". wp_pures.
+        iApply ("HΨ" $! (v1', v2')%V (prod_ser_str s1 s2) (c1 + c2)%nat).
+        iSplitL "HA' HB'".
+        { iExists v1', v2'. iModIntro. iSplit; [done|].
+          iSplitL "HA'"; [iApply "HA'"|iApply "HB'"]. }
+        simpl. iExists c1, c2. iModIntro. iSplit; [done|].
+        iExists v1', v2', s1, s2. iSplit; [done|]. iFrame.
+      + (* tauth: v0 is a Box — contradiction *)
+        destruct Hunsusp as (?&?&?&?&?&Hx&_). simplify_eq.
+    - (* unsuspend_spec_bin *)
+      rewrite /unsuspend_spec_bin.
+      iIntros (E a1 HE Ψ) "!# (HA & Htok) HΨ".
+      rewrite interp_un_prod_unfold interp_var1_ext2 interp_var0_ext1.
+      iDestruct "HA" as (w1 w2) "(>-> & HAw & HBw)".
+      wp_pures.
+      wp_apply ("HuspbB" with "[//] [$HBw $Htok]").
+      iIntros (un2) "[Htok %Hu2]".
+      wp_apply ("HuspbA" with "[//] [$HAw $Htok]").
+      iIntros (un1) "[Htok %Hu1]".
+      wp_pures. iApply ("HΨ" $! (un1, un2)%V). iFrame "Htok".
+      iPureIntro. simpl. by exists w1, w2, un1, un2.
+  Qed.
+
   Lemma refines_Auth_pair Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 * var0) ⟧
       (ext Δ (lrel_evidence)) p_Auth_pair v_Auth_pair i_Auth_pair.
   Proof.
     iSplit; interp_unfold!; last first.
-    { (* unary  *) admit. }
+    { (* unary  *)
+      iIntros (A' vA0) "!# _ Htok". rewrite /p_Auth_pair. wp_pures.
+      iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (B' vB0) "!# _ Htok". wp_pures.
+      iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (vA') "!# #HA' Htok".
+      iPoseProof "HA'" as "HA0". interp_unfold! in "HA0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HA0".
+      iDestruct "HA0" as (? ? ? ? ? ? ? ?) "[%HeqA' _]". subst vA'.
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (vB') "!# #HB' Htok".
+      iPoseProof "HB'" as "HB0". interp_unfold! in "HB0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HB0".
+      iDestruct "HB0" as (? ? ? ? ? ? ? ?) "[%HeqB' _]". subst vB'.
+      rewrite /prod_ser. wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      interp_unfold! in "HA'". interp_unfold! in "HB'".
+      iApply (refines_un_Auth_pair with "HA' HB'"). }
     (* ternary *)
     iIntros (A v1 v2 v3) "!# _"; rewrite -/interp.
     iIntros (????) "Hv Hi Htok".
@@ -23,12 +241,38 @@ Section authenticatable.
     v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
     iSplit; interp_unfold!; last first.
-    { (* inner-after-A unary *) admit. }
+    { (* inner-after-A unary *)
+      iIntros (B' vB0) "!# _ Htok". wp_pures.
+      iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (vA') "!# #HA' Htok".
+      iPoseProof "HA'" as "HA0". interp_unfold! in "HA0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HA0".
+      iDestruct "HA0" as (? ? ? ? ? ? ? ?) "[%HeqA' _]". subst vA'.
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (vB') "!# #HB' Htok".
+      iPoseProof "HB'" as "HB0". interp_unfold! in "HB0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HB0".
+      iDestruct "HB0" as (? ? ? ? ? ? ? ?) "[%HeqB' _]". subst vB'.
+      rewrite /prod_ser. wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      interp_unfold! in "HA'". interp_unfold! in "HB'".
+      iApply (refines_un_Auth_pair with "HA' HB'"). }
     iIntros (B w1 w2 w3) "!# _"; rewrite -/interp.
     iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
     iSplit; interp_unfold!; last first.
-    { (* inner-after-B unary *) admit. }
+    { (* inner-after-B unary *)
+      iIntros (vA') "!# #HA' Htok".
+      iPoseProof "HA'" as "HA0". interp_unfold! in "HA0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HA0".
+      iDestruct "HA0" as (? ? ? ? ? ? ? ?) "[%HeqA' _]". subst vA'.
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (vB') "!# #HB' Htok".
+      iPoseProof "HB'" as "HB0". interp_unfold! in "HB0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HB0".
+      iDestruct "HB0" as (? ? ? ? ? ? ? ?) "[%HeqB' _]". subst vB'.
+      rewrite /prod_ser. wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      interp_unfold! in "HA'". interp_unfold! in "HB'".
+      iApply (refines_un_Auth_pair with "HA' HB'"). }
     iIntros (vA1 vA2 vA3) "!# #HA".
     interp_unfold! in "HA".
     iDestruct "HA" as "(HA_tern & #HA_un)".
@@ -37,7 +281,14 @@ Section authenticatable.
     iIntros (????) "Hv Hi Htok". v_pures; i_pures; wp_pures.
     iModIntro. iFrame. clear.
     iSplit; interp_unfold!; last first.
-    { (* inner-after-HA unary *) admit. }
+    { (* inner-after-HA unary *)
+      iIntros (vB') "!# #HB' Htok".
+      iPoseProof "HB'" as "HB0". interp_unfold! in "HB0".
+      iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=) in "HB0".
+      iDestruct "HB0" as (? ? ? ? ? ? ? ?) "[%HeqB' _]". subst vB'.
+      rewrite /prod_ser. wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      interp_unfold! in "HB'".
+      iApply (refines_un_Auth_pair with "HA_un HB'"). }
     iIntros (vB1 vB2 vB3) "!# #HB".
     interp_unfold! in "HB".
     iDestruct "HB" as "(HB_tern & #HB_un)".
@@ -48,7 +299,7 @@ Section authenticatable.
     iModIntro. iFrame.
     (* Final 3-way split: prove only the ternary [lrel_tern_evidence]. *)
     iSplit; interp_unfold!; last first.
-    { (* final unary  *) admit. }
+    { (* final unary  *) iApply (refines_un_Auth_pair with "HA_un HB_un"). }
     (* Ternary evidence for the product. *)
     iExists (tprod tA tB), _, _, _, _, _, _, _.
     iSplit; [done|]. iSplit; [done|].
