@@ -1313,9 +1313,9 @@ Section authentikit_helpers.
     Persistent (v_ser_spec v_ser t).
   Proof. rewrite /v_ser_spec. apply _. Qed.
 
-  Global Instance v_auth_ser_spec_pers v_ser A t :
-    Persistent (v_auth_ser_spec v_ser A t).
-  Proof. rewrite /v_auth_ser_spec. apply _. Qed.
+  Global Instance auth_ser_spec_pers p_ser v_ser A t :
+    Persistent (auth_ser_spec p_ser v_ser A t).
+  Proof. rewrite /auth_ser_spec. apply _. Qed.
 
   Global Instance v_count_spec_pers v_count t :
     Persistent (v_count_spec v_count t).

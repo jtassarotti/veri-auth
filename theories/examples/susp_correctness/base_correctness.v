@@ -9,7 +9,7 @@ Section authenticatable.
   Context `{!authG Σ, !seqG Σ, !correctnessG Σ}.
 
   Local Typeclasses Opaque susp_p_ser_spec unsusp_p_ser_spec suspend_v_deser_spec
-        unsuspend_spec v_ser_spec v_auth_ser_spec v_count_spec.
+        unsuspend_spec v_ser_spec auth_ser_spec v_count_spec.
 
   Lemma refines_Auth_sum Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 + var0) ⟧
@@ -134,24 +134,44 @@ Section authenticatable.
         unfold inr_ser_str. iModIntro. iFrame "Hspec".
         iSplitL "HcntB"; [iRight; iExists vB; by iFrame|].
         iExists vB, s'. iRight. iFrame "Hser1". done.
-    - (* 6. v_auth_ser_spec *)
-      rewrite /v_auth_ser_spec.
-      iIntros (K tᵥ3 a1 a2 a3) "!# Htok HA Hv".
+    - (* 6. auth_ser_spec *)
+      rewrite /auth_ser_spec.
+      iIntros (K tᵥ3 a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & Htok & Hv) HΨ".
       rewrite /sum_ser''. v_pures.
       interp_unfold! in "HA".
       iDestruct "HA" as (v1' v2' v3') "[(>-> & >-> & >-> & HrA) | (>-> & >-> & >-> & HrB)]".
       + (* InjL *)
+        destruct Hunsusp as [(w1 & un_w1 & Heq & -> & Hunsusp1) | (w1 & un_w1 & Heq & -> & _)];
+          last by inversion Heq.
+        injection Heq as <-.
+        iDestruct "Hser" as (w s') "[[#Hser1 [%Hequ %Heqs]] | [_ [%Hequ _]]]";
+          last by inversion Hequ.
+        injection Hequ as <-. subst s.
+        wp_pures.
         v_pures. v_bind (v_sA _).
-        iMod ("HvauthserA" with "Htok HrA Hv") as (sv) "(Htok & Hsserv & Hv) /=".
-        v_pures. iModIntro. iExists (inl_ser_str sv).
-        unfold inl_ser_str. iFrame "Hv Htok".
-        iExists v2', sv. iLeft. iSplit; [iExact "Hsserv"|]. done.
+        wp_apply ("HvauthserA" with "[HrA Htok Hv]").
+        { by iFrame "HrA Hser1 Htok Hv". }
+        iIntros "(Htok & Hsv & Hv) /=".
+        v_pures. wp_pures.
+        iApply "HΨ". iModIntro.
+        unfold inl_ser_str. iFrame "Htok Hv".
+        iExists v2', s'. iLeft. iSplit; [iExact "Hsv"|]. done.
       + (* InjR *)
+        destruct Hunsusp as [(w1 & un_w1 & Heq & -> & _) | (w1 & un_w1 & Heq & -> & Hunsusp1)];
+          first by inversion Heq.
+        injection Heq as <-.
+        iDestruct "Hser" as (w s') "[[_ [%Hequ _]] | [#Hser1 [%Hequ %Heqs]]]";
+          first by inversion Hequ.
+        injection Hequ as <-. subst s.
+        wp_pures.
         v_pures. v_bind (v_sB _).
-        iMod ("HvauthserB" with "Htok HrB Hv") as (sv) "(Htok & Hsserv & Hv) /=".
-        v_pures. iModIntro. iExists (inr_ser_str sv).
-        unfold inr_ser_str. iFrame "Hv Htok".
-        iExists v2', sv. iRight. iSplit; [iExact "Hsserv"|]. done.
+        wp_apply ("HvauthserB" with "[HrB Htok Hv]").
+        { by iFrame "HrB Hser1 Htok Hv". }
+        iIntros "(Htok & Hsv & Hv) /=".
+        v_pures. wp_pures.
+        iApply "HΨ". iModIntro.
+        unfold inr_ser_str. iFrame "Htok Hv".
+        iExists v2', s'. iRight. iSplit; [iExact "Hsv"|]. done.
     - (* 7. v_count_spec *)
       rewrite /v_count_spec.
       iIntros (K tᵥ3 a c id Nc v_outer) "!# Hcnt Hspec".
@@ -249,13 +269,15 @@ Section authenticatable.
       iDestruct "Hser" as %(s' & -> & ->).
       rewrite /string_ser' /string_ser. v_pures. iFrame.
       iModIntro. iExists s'. done.
-    - (* 6. v_auth_ser_spec *)
-      rewrite /v_auth_ser_spec.
-      iIntros (K tᵥ a1 a2 a3) "!# Htok #HA Hspec".
+    - (* 6. auth_ser_spec *)
+      rewrite /auth_ser_spec.
+      iIntros (K tᵥ a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & Htok & Hv) HΨ".
+      simpl in Hunsusp. subst un_a1.
       iEval (rewrite /lrel_tern_tern /lrel_string /=) in "HA".
       iDestruct "HA" as ">%H". destruct H as (s' & -> & -> & ->).
-      rewrite /string_ser' /string_ser. v_pures. iModIntro.
-      iExists (string_ser_str s'). iFrame "Htok Hspec". iExists s'. done.
+      iDestruct "Hser" as %(s'' & Heq & ->). injection Heq as <-.
+      rewrite /string_ser' /string_ser /string_ser_str. v_pures. wp_pures.
+      iApply "HΨ". iModIntro. iFrame "Htok Hv". iExists s'. done.
     - (* 7. v_count_spec *)
       rewrite /v_count_spec.
       iIntros (K tᵥ a c id Nc v_outer) "!# Hcnt Hspec".
@@ -345,13 +367,15 @@ Section authenticatable.
       iDestruct "Hser" as %(z' & -> & ->).
       rewrite /int_ser' /int_ser. v_pures. iFrame.
       iModIntro. iExists z'. done.
-    - (* 6. v_auth_ser_spec *)
-      rewrite /v_auth_ser_spec.
-      iIntros (K tᵥ a1 a2 a3) "!# Htok #HA Hspec".
+    - (* 6. auth_ser_spec *)
+      rewrite /auth_ser_spec.
+      iIntros (K tᵥ a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & Htok & Hv) HΨ".
+      simpl in Hunsusp. subst un_a1.
       iEval (rewrite /lrel_tern_tern /lrel_int /=) in "HA".
       iDestruct "HA" as ">%H". destruct H as (z' & -> & -> & ->).
-      rewrite /int_ser' /int_ser. v_pures. iModIntro.
-      iExists (int_ser_str z'). iFrame "Htok Hspec". iExists z'. done.
+      iDestruct "Hser" as %(z'' & Heq & ->). injection Heq as <-.
+      rewrite /int_ser' /int_ser /int_ser_str. v_pures. wp_pures.
+      iApply "HΨ". iModIntro. iFrame "Htok Hv". iExists z'. done.
     - (* 7. v_count_spec *)
       rewrite /v_count_spec.
       iIntros (K tᵥ a c id Nc v_outer) "!# Hcnt Hspec".
@@ -509,16 +533,19 @@ Section authenticatable.
       iIntros (K tᵥ1 a s id Nc v_outer) "!# Hcnt Hser Hspec".
       v_pures.
       by iApply ("HvserA" with "Hcnt Hser Hspec").
-    - (* 6. v_auth_ser_spec *)
-      (* Delegation to HvauthserA is blocked by a ▷-mismatch: the goal
-         supplies [▷ tern ⟦μ⟧], which unfolds (interp_rec_star_tern_unfold)
-         to [▷ ▷ tern ⟦F μ⟧], but HvauthserA consumes [▷ tern ⟦F μ⟧] and
-         [v_auth_ser_spec] is a bare fupd with no later credit to strip
-         the extra ▷ (contrast the security file's refines_Auth_mu, which
-         uses [wp_pure credit] + [lc_fupd_elim_later]). Needs [£ 1] added
-         to [v_auth_ser_spec]'s precondition (as [v_finish_spec'] already
-         has) — a spec change affecting all provers/consumers. *)
-      admit.
+    - (* 6. auth_ser_spec — the prover's [rec_fold] step mints the later
+         credit that pays for the [interp_rec_star_tern_unfold] ▷. *)
+      rewrite /auth_ser_spec.
+      iIntros (K tᵥ1 a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & Htok & Hv) HΨ".
+      v_pures.
+      rewrite /rec_fold. wp_pure credit:"Hlc". wp_pures.
+      iEval (rewrite interp_rec_star_tern_unfold) in "HA".
+      iMod (lc_fupd_elim_later with "Hlc HA") as "HA".
+      interp_unfold! in "HA".
+      wp_apply ("HvauthserA" with "[HA Htok Hv]").
+      { by iFrame "HA Hser Htok Hv". }
+      iIntros "(Htok & Hsv & Hv)".
+      iApply "HΨ". by iFrame.
     - (* 7. v_count_spec *)
       rewrite /v_count_spec.
       iIntros (K tᵥ1 a c id Nc v_outer) "!# Hcnt Hspec".

@@ -8,7 +8,7 @@ Section authenticatable.
   Context `{!authG Σ, !seqG Σ, !correctnessG Σ}.
 
   Local Typeclasses Opaque susp_p_ser_spec unsusp_p_ser_spec suspend_v_deser_spec
-        unsuspend_spec v_ser_spec v_auth_ser_spec v_count_spec.
+        unsuspend_spec v_ser_spec auth_ser_spec v_count_spec.
 
   Lemma refines_Auth_pair Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 * var0) ⟧
@@ -204,19 +204,30 @@ Section authenticatable.
       iSplitL "Hcnt1 Hcnt2".
       { iExists 0%nat, 0%nat, _, _. iFrame. iPureIntro. done. }
       iExists _, _, s1, s2. iFrame "Hser1 Hser2". iPureIntro. done.
-    - (* 6. v_auth_ser_spec *)
-      rewrite /v_auth_ser_spec.
-      iIntros (K tᵥ3 a1 a2 a3) "!# Htok HA Hv".
+    - (* 6. auth_ser_spec *)
+      rewrite /auth_ser_spec.
+      iIntros (K tᵥ3 a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & Htok & Hv) HΨ".
+      destruct Hunsusp as (x1 & x2 & un1 & un2 & -> & -> & Hun1 & Hun2).
+      iDestruct "Hser" as (w1 w2 s1 s2 [Heq ->]) "[#Hser1 #Hser2]".
+      injection Heq as <- <-.
       rewrite /prod_ser''. v_pures.
       interp_unfold! in "HA".
-      iDestruct "HA" as (??????) "(>-> & >-> & >-> & Ha & Hb)".
+      iDestruct "HA" as (xa1 xa2 xb1 xb2 xc1 xc2) "(>%Heqa & >-> & >-> & Ha & Hb)".
+      injection Heqa as <- <-.
+      rewrite /prod_ser. wp_pures.
       v_pures. v_bind (v_sA _).
-      iMod ("HvauthserA" with "Htok Ha Hv") as (?) "(Htok & Hserav & Hv) /=".
+      wp_apply ("HvauthserA" with "[Ha Htok Hv]").
+      { by iFrame "Ha Hser1 Htok Hv". }
+      iIntros "(Htok & Hsva & Hv) /=".
       v_pures. v_bind (v_sB _).
-      iMod ("HvauthserB" with "Htok Hb Hv") as (?) "(Htok & Hserbv & Hv) /=".
-      v_pures.
-      iModIntro. iFrame.
-      iSplit; eauto.
+      wp_pures.
+      wp_apply ("HvauthserB" with "[Hb Htok Hv]").
+      { by iFrame "Hb Hser2 Htok Hv". }
+      iIntros "(Htok & Hsvb & Hv) /=".
+      v_pures. wp_pures.
+      iApply "HΨ". iModIntro.
+      unfold prod_ser_str. iFrame "Htok Hv".
+      iExists _, _, s1, s2. iFrame "Hsva Hsvb". done.
     - (* 7. v_count_spec *)
       rewrite /v_count_spec.
       iIntros (K tᵥ3 a c id Nc v_outer) "!# Hcnt Hspec".

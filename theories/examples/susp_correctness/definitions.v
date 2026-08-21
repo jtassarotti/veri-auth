@@ -583,15 +583,26 @@ Section authenticatable_definitions.
         ser_v_proph t id a s ∗
         spec_verifier tᵥ (fill K (SOMEV #s))).
       
-  Definition v_auth_ser_spec (v_ser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
-    □(∀ K tᵥ a1 a2 a3,
-      seq_tok ⊤ -∗
-      ▷ (lrel_tern_tern A) a1 a2 a3 -∗
-      spec_verifier tᵥ (fill K (v_ser a2))
-      ={⊤}=∗ ∃ s,
-        seq_tok ⊤ ∗
-        ser_v t a2 s ∗
-        spec_verifier tᵥ (fill K (SOMEV #s))).
+  (** Step the prover's unsusp-serializer and the verifier's serializer
+      together, in the style of [suspend_v_deser_spec]/[unsuspend_spec].
+      The WP over [p_ser un_a1] is what pays for interp unfoldings: each
+      prover pure step mints a later credit, so recursive wrappers (mu)
+      strip exactly as many ▷s as they take steps — a verifier-only fupd
+      cannot (and a fixed [£ n] precondition would not scale to nested
+      recursion). The post returns the SAME string on both sides, so
+      hash agreement in [refines_auth_auth] is by construction. *)
+  Definition auth_ser_spec (p_ser v_ser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
+    ∀ K tᵥ (a1 un_a1 a2 a3 : val) (s : string),
+      {{{ ⌜unsusp t a1 un_a1⌝ ∗
+          ▷ (lrel_tern_tern A) a1 a2 a3 ∗
+          unsusp_ser_p t un_a1 s ∗
+          seq_tok ⊤ ∗
+          spec_verifier tᵥ (fill K (v_ser a2)) }}}
+        p_ser un_a1
+      {{{ RET #s;
+          seq_tok ⊤ ∗
+          ser_v t a2 s ∗
+          spec_verifier tᵥ (fill K (SOMEV #s)) }}}.
       
   (* Definition v_auth_ser_spec_un (v_ser : val) (A : lrel_un Σ) (t : evi_type) : iProp Σ :=
     □(∀ K tᵥ a2 s,
@@ -605,7 +616,7 @@ Section authenticatable_definitions.
       ⌜v1 = (p_ser_susp, p_ser_unsusp, p_susp, p_unsusp)%V⌝ ∗ ⌜v2 = (v_ser, v_deser, v_count)%V⌝ ∗
       unsusp_p_ser_spec p_ser_unsusp t ∗ susp_p_ser_spec p_ser_susp t ∗
       suspend_v_deser_spec p_ser_susp p_susp v_deser A t ∗ unsuspend_spec p_unsusp A t ∗
-      v_ser_spec v_ser t ∗ v_auth_ser_spec v_ser A t ∗
+      v_ser_spec v_ser t ∗ auth_ser_spec p_ser_unsusp v_ser A t ∗
       v_count_spec v_count t)%I.
 
   Definition lrel_un_evidence (A : lrel_un Σ) : lrel_un Σ := LRelUn (λ v1,
@@ -633,7 +644,7 @@ Section authenticatable_definitions.
       rewrite /lrel_car/= /lrel_un_car/=
         /lrel_tern_evidence /lrel_un_evidence
         /suspend_v_deser_spec /unsuspend_spec
-        /v_auth_ser_spec /suspend_spec_bin /unsuspend_spec_bin;
+        /auth_ser_spec /suspend_spec_bin /unsuspend_spec_bin;
       solve_proper.
   Qed.
 
