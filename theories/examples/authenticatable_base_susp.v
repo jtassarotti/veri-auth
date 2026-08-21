@@ -149,7 +149,7 @@ Definition auth_susp_ser_p : val :=
 Definition auth_unsusp_ser_p : val :=
   λ: "a",
     let, ("a", "h") := "a" in
-    string_ser "h".
+    auth_scheme.(s_serializer) (SOME "h").
 
 Definition auth_suspend_p : val :=
   λ: "unsusp_a",
