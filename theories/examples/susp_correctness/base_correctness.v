@@ -456,7 +456,77 @@ Section authenticatable.
       iIntros (γl) "Hg Hpen %Hsz Hbig".
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
-    - (* 3. suspend_v_deser_spec (combined) *) admit.
+    - (* 3. suspend_v_deser_spec (combined) *)
+      rewrite /suspend_v_deser_spec.
+      iIntros "!#" (K tᵥ3 pid) "Hv".
+      v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      rewrite /id. wp_pure _.
+      iPoseProof "HA" as "[HAt #HAun]".
+      iDestruct "HAt" as %(sv & -> & -> & ->).
+      (* [A] forces a string literal, so [Hser] refutes every t' ≠ tstring. *)
+      destruct t'; simpl in Hunsusp.
+      { iDestruct "Hser" as (v1 v2 s1 s2) "[%Hp _]".
+        destruct Hp as [Hp _]. simplify_eq. }
+      { iDestruct "Hser" as (w s') "[[_ %Hp] | [_ %Hp]]";
+          destruct Hp as [Hp _]; simplify_eq. }
+      2:{ iDestruct "Hser" as %(z & Hp & _). simplify_eq. }
+      2:{ iDestruct "Hser" as %(p & lb & lr & a & h & Hp & _). simplify_eq. }
+      (* t' = tstring *)
+      iDestruct "Hser" as %(s' & Heq & ->). injection Heq as <-. subst un_a1.
+      iMod penset_frag_empty as "Hpen0".
+      (* The serializer spec at the result — shared by match and mismatch. *)
+      iAssert (susp_p_ser_spec_at string_ser tstring 0 #sv
+                 (string_ser_str sv)) with "[]" as "#Hspecat".
+      { rewrite /susp_p_ser_spec_at.
+        iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+        rewrite /string_ser. wp_pures.
+        iApply "HΨ'". iModIntro. iFrame "Htok".
+        iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+        iDestruct "Hintr" as "[$ _]".
+        iIntros (γl) "Hg Hpen %Hsz Hbig".
+        apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+        iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+      destruct (decide (s_pred = string_ser_str sv)) as [->|Hne].
+      + (* match: the verifier parses the real serialization back to #sv *)
+        rewrite /string_deser. v_pures; try solve_vals_compare_safe.
+        iEval (rewrite substring_n_0) in "Hv".
+        iEval (rewrite bool_decide_eq_true_2 //) in "Hv".
+        v_pures.
+        assert (Z.to_nat (S (S (String.length sv)) - 2) = String.length sv)
+          as Hlen by lia.
+        iEval (rewrite Hlen substring_0_length) in "Hv".
+        v_pures.
+        iApply ("HΨ" $! #sv (string_ser_str sv) 0 tstring).
+        iFrame "Hspecat Hserpred". iModIntro.
+        iLeft. iSplit; [done|].
+        iExists ∅, mlg_p, #sv.
+        iFrame "Hlgp Hpen0 Hv".
+        iSplit; [by rewrite size_empty|].
+        iSplit. { iPureIntro. by exists sv. }
+        iSplit. { by rewrite big_sepS_empty. }
+        iSplitL "Hpenc"; [by iFrame "Hpenc"|].
+        rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
+        iFrame "Hvm".
+        (* the decoration wand: everything is pure at c = 0 *)
+        iIntros "#Hcap _ #Hmint". iModIntro.
+        iSplit. { iSplit; [by iExists sv|]. iApply "HAun". }
+        iSplit.
+        { iFrame "Hcap". iSplit; [done|]. iSplit.
+          - iSplit; [by iExists sv|done].
+          - by iLeft. }
+        iPureIntro. by exists sv.
+      + (* mismatch: parse fails or parses to a different string *)
+        rewrite /string_deser. v_pures; try solve_vals_compare_safe.
+        case_bool_decide as Htag; v_pures.
+        * iApply ("HΨ" $! #sv (string_ser_str sv) 0 tstring).
+          iFrame "Hspecat Hserpred". iModIntro.
+          iRight. iSplit; [done|]. by iExists sv.
+        * iApply ("HΨ" $! #sv (string_ser_str sv) 0 tstring).
+          iFrame "Hspecat Hserpred". iModIntro.
+          iRight. iSplit; [done|]. by iExists sv.
 
     - (* 4. unsuspend_spec *)
       rewrite /unsuspend_spec.

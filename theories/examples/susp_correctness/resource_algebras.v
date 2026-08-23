@@ -541,6 +541,10 @@ Section visited_map_res.
       [id]. Holding it claims [id] has been issued but not yet bound to
       any [γ] (via [visited_transition_done]). Exclusive at the same [id]
       since [Cinl (Excl ())] is exclusive. *)
+  (** ◯ GSet ∅ is the unit — an empty pending-set fragment is free. *)
+  Lemma penset_frag_empty : ⊢ |==> penset_frag ∅.
+  Proof. rewrite /penset_frag. iApply own_unit. Qed.
+
   Definition id_token (id : nat) : iProp Σ :=
     own pending_id_name (◯ {[ id := Cinl (Excl ()) ]}).
 
