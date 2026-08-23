@@ -857,7 +857,57 @@ Section authenticatable.
       wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser $Htok $Hintr]").
       iIntros "(Htok & Hintr & HreachA)".
       iApply "HΨ". iFrame.
-    - (* 3. suspend_v_deser_spec (combined) *) admit.
+    - (* 3. suspend_v_deser_spec (combined) — delegation to the component:
+         the outer fupd picks the eta-wrapped deser as v_deser_par; the
+         component's own outer fupd is consumed inside the inner triple at
+         the extended evaluation context (fill-trick), and wp_pures' later
+         stripping turns ▷⟦μ⟧ into the component's ▷⟦F μ⟧ for free. *)
+      rewrite /suspend_v_deser_spec.
+      iIntros "!#" (K tᵥ1 pid) "Hv".
+      v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      rewrite /rec_fold. wp_pures.
+      iEval (rewrite interp_rec_star_unfold) in "HA".
+      interp_unfold! in "HA".
+      v_pures.
+      v_bind (v_dA _).
+      iMod ("HsuspvdeserA" with "Hv") as (v_parA) "(Hv & #HinnerA) /=".
+      wp_apply ("HinnerA" with "[$HA $Hser $Hserpred $Hvm $Hlgp $Hpenc $Hv]").
+      { done. }
+      iIntros (a1' s_real c t_real) "(#Hspecat & _ & Hpost)".
+      iAssert (∀ (ser : val), susp_p_ser_spec_at ser t_real c a1' s_real -∗
+                 susp_p_ser_spec_at (λ: "a", rec_fold ser "a")%V t_real c a1' s_real)%I
+        with "[]" as "#Hwrap".
+      { iIntros (ser) "#Hat".
+        rewrite /susp_p_ser_spec_at.
+        iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+        rewrite /rec_fold. wp_pures.
+        wp_apply ("Hat" $! E q with "[//] [$Htok $Hintr]").
+        iIntros "(? & ? & ?)". iApply "HΨ'". iFrame. }
+      iDestruct "Hpost" as "[Hmatch | [%Hnm #Hun]]".
+      + iDestruct "Hmatch" as "([%Hsp %Htr] & %γl & %mlg' & %a2' &
+            Hlgp' & %Hsz & Hpens & Hpserp' & Hv & Hbig & Hpenc' & Hvm' & Hwand)".
+        iApply ("HΨ" $! a1' s_real c t_real).
+        iSplitR. { by iApply "Hwrap". }
+        iFrame "Hserpred".
+        iLeft. iSplit; [by iPureIntro|].
+        iExists γl, mlg', a2'.
+        iFrame "Hlgp' Hpens Hpserp' Hv Hbig Hpenc' Hvm'".
+        iSplit; [done|].
+        iIntros "Hcap Hmap #Hmint".
+        iMod ("Hwand" with "Hcap [Hmap] Hmint") as "(HAf & Hcnt & Hserv)".
+        { subst t_real. iExact "Hmap". }
+        iModIntro.
+        iSplitL "HAf".
+        { rewrite interp_rec_star_unfold. interp_unfold!. iApply "HAf". }
+        subst t_real. iFrame "Hcnt Hserv".
+      + iApply ("HΨ" $! a1' s_real c t_real).
+        iSplitR. { by iApply "Hwrap". }
+        iFrame "Hserpred".
+        iRight. iSplit; [done|].
+        rewrite interp_rec_star_un_unfold. interp_unfold!. iApply "Hun".
 
     - (* 4. unsuspend_spec *)
       rewrite /unsuspend_spec.
