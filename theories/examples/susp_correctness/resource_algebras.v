@@ -1511,6 +1511,35 @@ Section lg_map.
     by apply alloc_singleton_local_update.
   Qed.
 
+  (** Prover-only variants of the above: insert into [lg_p_auth] alone
+      (the suspend/deser leaves hold only the prover half). *)
+  Lemma lg_p_insert m_p l γ :
+    meta_token l ⊤ -∗ lg_p_auth m_p ==∗
+      lg_p_auth (<[ l := Cinr (to_agree γ) ]> m_p) ∗ lg_mapg_p_frag l γ.
+  Proof.
+    rewrite /lg_p_auth /lg_mapg_p_frag.
+    iIntros "Hmtok [Hauth_p Hbig_p]".
+    iMod (meta_combine_dom m_p l (Cinr (to_agree γ)) with "Hmtok Hbig_p")
+      as "[%Hl_nin Hbig_p']".
+    apply not_elem_of_dom in Hl_nin.
+    iMod (own_update with "Hauth_p") as "[$ $]"; last by iFrame "Hbig_p'".
+    apply auth_update_alloc. by apply alloc_singleton_local_update.
+  Qed.
+
+  Lemma lg_p_insert_unalloc m_p l :
+    meta_token l ⊤ -∗ lg_p_auth m_p ==∗
+      lg_p_auth (<[ l := Cinl (to_agree (tt : unitO)) ]> m_p) ∗
+      lg_mapg_p_unalloc l.
+  Proof.
+    rewrite /lg_p_auth /lg_mapg_p_unalloc.
+    iIntros "Hmtok [Hauth_p Hbig_p]".
+    iMod (meta_combine_dom m_p l (Cinl (to_agree (tt : unitO)))
+      with "Hmtok Hbig_p") as "[%Hl_nin Hbig_p']".
+    apply not_elem_of_dom in Hl_nin.
+    iMod (own_update with "Hauth_p") as "[$ $]"; last by iFrame "Hbig_p'".
+    apply auth_update_alloc. by apply alloc_singleton_local_update.
+  Qed.
+
   (** [bind_id_fresh_susp]: bind an existing id [from] (whose susp loc is
       [l], certified by the input [pval_frag from l]) to a fresh γ. The
       caller provides [vmeta_token l] which guarantees [l ∉ dom m_v];
