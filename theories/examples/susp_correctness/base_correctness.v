@@ -624,7 +624,74 @@ Section authenticatable.
       iIntros (γl) "Hg Hpen %Hsz Hbig".
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
-    - (* 3. suspend_v_deser_spec (combined) *) admit.
+    - (* 3. suspend_v_deser_spec (combined) *)
+      rewrite /suspend_v_deser_spec.
+      iIntros "!#" (K tᵥ3 pid) "Hv".
+      v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      rewrite /id. wp_pure _.
+      iPoseProof "HA" as "[HAt #HAun]".
+      iDestruct "HAt" as %(zv & -> & -> & ->).
+      (* [A] forces an int literal, so [Hser] refutes every t' ≠ tint. *)
+      destruct t'; simpl in Hunsusp.
+      { iDestruct "Hser" as (v1 v2 s1 s2) "[%Hp _]".
+        destruct Hp as [Hp _]. simplify_eq. }
+      { iDestruct "Hser" as (w s') "[[_ %Hp] | [_ %Hp]]";
+          destruct Hp as [Hp _]; simplify_eq. }
+      { iDestruct "Hser" as %(s' & Hp & _). simplify_eq. }
+      2:{ iDestruct "Hser" as %(p & lb & lr & a & h & Hp & _). simplify_eq. }
+      (* t' = tint *)
+      iDestruct "Hser" as %(z & Heq & ->). injection Heq as <-. subst un_a1.
+      iMod penset_frag_empty as "Hpen0".
+      iAssert (susp_p_ser_spec_at int_ser tint 0 #zv
+                 (int_ser_str zv)) with "[]" as "#Hspecat".
+      { rewrite /susp_p_ser_spec_at.
+        iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+        rewrite /int_ser. wp_pures.
+        iApply "HΨ'". iModIntro. iFrame "Htok".
+        iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+        iDestruct "Hintr" as "[$ _]".
+        iIntros (γl) "Hg Hpen %Hsz Hbig".
+        apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+        iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+      destruct (decide (s_pred = int_ser_str zv)) as [->|Hne].
+      + (* match: the verifier parses the real serialization back to #zv *)
+        rewrite /int_deser. v_pures; try solve_vals_compare_safe.
+        iEval (rewrite substring_n_0) in "Hv".
+        iEval (rewrite bool_decide_eq_true_2 //) in "Hv".
+        v_pures.
+        assert (Z.to_nat (S (S (String.length (StringOfZ zv))) - 2)
+                  = String.length (StringOfZ zv)) as Hlen by lia.
+        iEval (rewrite Hlen substring_0_length) in "Hv".
+        v_pures.
+        iEval (rewrite ZOfString_inv) in "Hv".
+        v_pures; try solve_vals_compare_safe.
+        iEval (rewrite bool_decide_eq_true_2 //) in "Hv".
+        v_pures.
+        iApply ("HΨ" $! #zv (int_ser_str zv) 0 tint).
+        iFrame "Hspecat Hserpred". iModIntro.
+        iLeft. iSplit; [done|].
+        iExists ∅, mlg_p, #zv.
+        iFrame "Hlgp Hpen0 Hv".
+        iSplit; [by rewrite size_empty|].
+        iSplit. { iPureIntro. by exists zv. }
+        iSplit. { by rewrite big_sepS_empty. }
+        iSplitL "Hpenc"; [by iFrame "Hpenc"|].
+        rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
+        iFrame "Hvm".
+        iIntros "#Hcap _ #Hmint". iModIntro.
+        iSplit. { iSplit; [by iExists zv|]. iApply "HAun". }
+        iSplit.
+        { iFrame "Hcap". iSplit; [done|]. iSplit.
+          - iSplit; [by iExists zv|done].
+          - by iLeft. }
+        iPureIntro. by exists zv.
+      + (* mismatch: no need to step the verifier — the post drops it *)
+        iApply ("HΨ" $! #zv (int_ser_str zv) 0 tint).
+        iFrame "Hspecat Hserpred". iModIntro.
+        iRight. iSplit; [done|]. by iExists zv.
 
     - (* 4. unsuspend_spec *)
       rewrite /unsuspend_spec.
