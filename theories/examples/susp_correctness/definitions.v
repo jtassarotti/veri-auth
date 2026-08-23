@@ -519,6 +519,7 @@ Section authenticatable_definitions.
             suspend un_a1
           {{{ a1' s_real c t_real, RET a1';
               susp_p_ser_spec_at ser t_real c a1' s_real ∗
+              susp_ser_p_real t_real c a1' s_real ∗
               serpred_frag id s_reg ∗
               ((⌜s_pred = s_real ∧ t_real = t⌝ ∗ ∃ γl mlg_p' a2',
                 lg_p_auth mlg_p' ∗

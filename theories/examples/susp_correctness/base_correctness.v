@@ -561,6 +561,7 @@ Section authenticatable.
         v_pures.
         iApply ("HΨ" $! #sv (string_ser_str sv) 0 tstring).
         iFrame "Hspecat Hserpred". iModIntro.
+        iSplitR. { iPureIntro. naive_solver. }
         iLeft. iSplit; [done|].
         iExists ∅, mlg_p, #sv.
         iFrame "Hlgp Hpen0 Hv".
@@ -583,9 +584,11 @@ Section authenticatable.
         case_bool_decide as Htag; v_pures.
         * iApply ("HΨ" $! #sv (string_ser_str sv) 0 tstring).
           iFrame "Hspecat Hserpred". iModIntro.
+        iSplitR. { iPureIntro. naive_solver. }
           iRight. iSplit; [done|]. by iExists sv.
         * iApply ("HΨ" $! #sv (string_ser_str sv) 0 tstring).
           iFrame "Hspecat Hserpred". iModIntro.
+        iSplitR. { iPureIntro. naive_solver. }
           iRight. iSplit; [done|]. by iExists sv.
 
     - (* 4. unsuspend_spec *)
@@ -732,6 +735,7 @@ Section authenticatable.
         v_pures.
         iApply ("HΨ" $! #zv (int_ser_str zv) 0 tint).
         iFrame "Hspecat Hserpred". iModIntro.
+        iSplitR. { iPureIntro. naive_solver. }
         iLeft. iSplit; [done|].
         iExists ∅, mlg_p, #zv.
         iFrame "Hlgp Hpen0 Hv".
@@ -751,6 +755,7 @@ Section authenticatable.
       + (* mismatch: no need to step the verifier — the post drops it *)
         iApply ("HΨ" $! #zv (int_ser_str zv) 0 tint).
         iFrame "Hspecat Hserpred". iModIntro.
+        iSplitR. { iPureIntro. naive_solver. }
         iRight. iSplit; [done|]. by iExists zv.
 
     - (* 4. unsuspend_spec *)
@@ -936,7 +941,7 @@ Section authenticatable.
       iMod ("HsuspvdeserA" with "Hv") as (v_parA) "(Hv & #HinnerA) /=".
       wp_apply ("HinnerA" with "[$HA $Hser $Hserpred $Hvm $Hlgp $Hpenc $Hv]").
       { done. }
-      iIntros (a1' s_real c t_real) "(#Hspecat & _ & Hpost)".
+      iIntros (a1' s_real c t_real) "(#Hspecat & #Hreal & _ & Hpost)".
       iAssert (∀ (ser : val), susp_p_ser_spec_at ser t_real c a1' s_real -∗
                  susp_p_ser_spec_at (λ: "a", rec_fold ser "a")%V t_real c a1' s_real)%I
         with "[]" as "#Hwrap".
@@ -951,7 +956,7 @@ Section authenticatable.
             Hlgp' & %Hsz & Hpens & Hpserp' & Hv & Hbig & Hpenc' & Hvm' & Hwand)".
         iApply ("HΨ" $! a1' s_real c t_real).
         iSplitR. { by iApply "Hwrap". }
-        iFrame "Hserpred".
+        iFrame "Hreal Hserpred".
         iLeft. iSplit; [by iPureIntro|].
         iExists γl, mlg', a2'.
         iFrame "Hlgp' Hpens Hpserp' Hv Hbig Hpenc' Hvm'".
@@ -965,7 +970,7 @@ Section authenticatable.
         subst t_real. iFrame "Hcnt Hserv".
       + iApply ("HΨ" $! a1' s_real c t_real).
         iSplitR. { by iApply "Hwrap". }
-        iFrame "Hserpred".
+        iFrame "Hreal Hserpred".
         iRight. iSplit; [done|].
         rewrite interp_rec_star_un_unfold. interp_unfold!. iApply "Hun".
 

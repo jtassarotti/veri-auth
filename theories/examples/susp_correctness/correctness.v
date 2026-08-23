@@ -498,7 +498,7 @@ Section proof.
         wp_apply ("Hpsuspdeserspec" with "[$HA $Hpserp $Hserpfrag $Hvmauth $Hpenc $Hv]").
         { admit. (* ⌜unsusp⌝ + lg_p_auth (Group C: prover-side lg auth has no
                     external owner yet) *) }
-        iIntros (a1' s_real c' t_real) "(#Hpserspecat & _ &
+        iIntros (a1' s_real c' t_real) "(#Hpserspecat & #Hpreal & _ &
               [([% %] & %&%&%& Hlmauth & % & Hpens & Hpserp' & Hv &
                   Hsubsep & Hpenc & Hvmauth & Hdecorate)|
               [% #HA']])"; wp_pures; last first.
@@ -745,7 +745,7 @@ Section proof.
           wp_apply ("Hpsuspdeserspec" with "[$HA $Hpserp $Hserpfrag $Hvmauth $Hpenc $Hv]").
           { admit. (* ⌜unsusp⌝ + lg_p_auth (Group C: prover-side lg auth has no
                       external owner yet) *) }
-          iIntros (a1' s_real c' t_real) "(#Hpserspecat & _ &
+          iIntros (a1' s_real c' t_real) "(#Hpserspecat & #Hpreal & _ &
               [([% %] & %&%&%& Hlmauth & % & Hpens & Hpserp' & Hv &
                   Hsubsep & Hpenc & Hvmauth & Hdecorate)|
               [% #HA']])"; wp_pures; last first.
