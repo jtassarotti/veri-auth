@@ -1100,6 +1100,46 @@ Section authentikit_helpers.
         * by rewrite size_singleton.
   Qed.
 
+  (** [susp_p_ser_spec_at] from the general serializer spec plus the
+      shape witness. *)
+  Lemma susp_p_ser_spec_at_intro ser t c a s :
+    susp_ser_p_real t c a s -∗ susp_p_ser_spec ser t -∗
+    susp_p_ser_spec_at ser t c a s.
+  Proof.
+    iIntros "#Hreal #Hspec".
+    rewrite /susp_p_ser_spec_at /susp_p_ser_spec.
+    iIntros (E q HE Ψ) "!# (Htok & Hintr) HΨ".
+    wp_apply ("Hspec" $! E _ _ c q with "[//] [$Hreal $Htok $Hintr]").
+    iIntros "(Htok & Hintr & Hreach)". iApply "HΨ". iFrame.
+  Qed.
+
+  (** At [c = 0] the count structure never mentions [v_outer] (only the
+      tauth suspender leaf does, and it forces [c = 1]) — so the outer
+      value can be re-pinned freely. *)
+  Lemma sub_susp_count_c0_vout t v id N vo vo' :
+    sub_susp_count t v 0 id N vo -∗ sub_susp_count t v 0 id N vo'.
+  Proof.
+    iIntros "Hc". iInduction t as [t1 t2|t1 t2| | |] "IH" forall (v); simpl.
+    - iDestruct "Hc" as (c1 c2 v1 v2 [-> Hc]) "[Hc1 Hc2]".
+      assert (c1 = 0) as -> by lia. assert (c2 = 0) as -> by lia.
+      iExists 0, 0, v1, v2. iSplit; [done|].
+      iSplitL "Hc1"; [by iApply "IH"|by iApply "IH1"].
+    - iDestruct "Hc" as "[(%v1 & -> & Hc)|(%v2 & -> & Hc)]".
+      + iLeft. iExists v1. iSplit; [done|]. by iApply "IH".
+      + iRight. iExists v2. iSplit; [done|]. by iApply "IH1".
+    - done.
+    - done.
+    - iDestruct "Hc" as (v1) "[%Heqv Hbr]".
+      iExists v1. iSplit; [done|].
+      iDestruct "Hbr" as "[%Hl | (%susp & %Heqr & Hpts)]".
+      + by iLeft.
+      + iRight. iExists susp. iSplit; [done|].
+        iDestruct "Hpts" as "[Hfill | Hleaf]".
+        * iLeft. iFrame "Hfill".
+        * iDestruct "Hleaf" as (p γ) "(_ & _ & %Hc1 & _)". simplify_eq.
+  Qed.
+
+
   (** No serializable value is a bare location literal — every [evi_type]
       shape (pair, injection, string, int, SOME-box) is syntactically
       distinct from [#lb]. Factored out of the [tsum]/[tprod] branches of

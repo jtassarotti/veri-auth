@@ -443,7 +443,129 @@ Section authenticatable.
       interp_unfold! in "HAc". interp_unfold! in "HBc".
       v_pures; try solve_vals_compare_safe.
       (* the verifier's parse of the abstract s_pred *)
-      admit.
+      destruct (String.index (Z.to_nat 0) "_" s_pred) as [i|] eqn:Hidx; last first.
+      { iSimpl in "Hv". v_pures.
+        admit. (* no separator: prover-only unary run for both components;
+                  mismatch pure from the prod format. *) }
+      iSimpl in "Hv". v_pures.
+      destruct (ZOfString (String.substring (Z.to_nat 0) (Z.to_nat i) s_pred))
+        as [Alen|] eqn:HAlen; last first.
+      { iSimpl in "Hv". v_pures.
+        admit. (* unparseable length prefix — unary mismatch arm. *) }
+      iSimpl in "Hv". v_pures; try solve_vals_compare_safe.
+      destruct (decide (StringOfZ Alen
+                        = String.substring (Z.to_nat 0) (Z.to_nat i) s_pred))
+        as [Hecho|Hecho]; last first.
+      { assert (¬ ((#(StringOfZ Alen) : val)
+                   = #(String.substring (Z.to_nat 0) (Z.to_nat i) s_pred)))
+          as Hvne.
+        { intros Heq. apply Hecho. by injection Heq. }
+        iEval (rewrite (bool_decide_eq_false_2 _ Hvne) /=) in "Hv".
+        v_pures.
+        admit. (* length-prefix echo-check fails — unary mismatch arm. *) }
+      assert ((#(StringOfZ Alen) : val)
+              = #(String.substring (Z.to_nat 0) (Z.to_nat i) s_pred)) as Hveq
+        by (by rewrite Hecho).
+      iEval (rewrite (bool_decide_eq_true_2 _ Hveq) /=) in "Hv".
+      v_pures.
+      case_bool_decide as Hsign; v_pures.
+      { admit. (* negative length — unary mismatch arm. *) }
+      case_bool_decide as Hbound; v_pures.
+      { admit. (* length bound fails — unary mismatch arm. *) }
+      (* coupled path: verifier at deserA s1 *)
+      v_bind (v_parA _).
+      wp_apply ("HinnerA" with "[$HAc $HserA' $Hserpred $Hvm $Hlgp $Hpenc $Hv]").
+      { done. }
+      iIntros (a1A' s_realA cA t_realA) "(#HspecatA & #HrealA & _ & HpostA)".
+      iDestruct "HpostA" as "[HmatchA | [%HnmA #HunA]]"; last first.
+      { admit. (* A mismatched: prover still runs B via the unary evidence;
+                  pair mismatch via the s1 component. *) }
+      iDestruct "HmatchA" as "([%HspA %HtA] & %γlA & %mlgA & %a2A' &
+          HlgpA & %HszA & HpensA & #HpserpA2 & Hv & HbigA & HpencA & HvmA & HwandA)".
+      destruct cA as [|cA'']; last first.
+      { admit. (* cA > 0: needs the wand generalized over v_outer —
+                  composition TODO, not a design exclusion. *) }
+      apply size_empty_inv in HszA. fold_leibniz. subst γlA.
+      wp_pures. wp_bind (p_spB _).
+      iEval (rewrite /visited_map_update_pending set_fold_empty size_empty
+               Nat.add_0_r) in "HvmA".
+      iSimpl in "Hv". v_pures.
+      v_bind (v_parB _).
+      wp_apply ("HinnerB" with "[$HBc $HserB' $Hserpred $HvmA $HlgpA $HpencA $Hv]").
+      { done. }
+      iIntros (a1B' s_realB cB t_realB) "(#HspecatB & #HrealB & _ & HpostB)".
+      iDestruct "HpostB" as "[HmatchB | [%HnmB #HunB]]"; last first.
+      { admit. (* B mismatched after A matched — pair mismatch via s2. *) }
+      iDestruct "HmatchB" as "([%HspB %HtB] & %γlB & %mlgB & %a2B' &
+          HlgpB & %HszB & HpensB & #HpserpB2 & Hv & HbigB & HpencB & HvmB & HwandB)".
+      destruct cB as [|cB'']; last first.
+      { admit. (* cB > 0 — composition TODO. *) }
+      apply size_empty_inv in HszB. fold_leibniz. subst γlB.
+      subst t_realA t_realB.
+      wp_pures.
+      iSimpl in "Hv". v_pures.
+      iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_realA s_realB) 0
+                (tprod tA tB)).
+      iModIntro.
+      iSplitR.
+      { (* the pair serializer spec — both halves at c = 0, closure trivial *)
+        rewrite /susp_p_ser_spec_at.
+        iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+        wp_pures.
+        iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+        iDestruct "Hintr" as "[HintrA HintrB]".
+        wp_apply ("HspecatA" $! E (q/2)%Qp with "[//] [$Htok $HintrA]").
+        iIntros "(Htok & HintrA' & _)". wp_pures.
+        wp_apply ("HspecatB" $! E (q/2)%Qp with "[//] [$Htok $HintrB]").
+        iIntros "(Htok & HintrB' & _)". wp_pures.
+        unfold prod_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok".
+        iCombine "HintrA' HintrB'" as "Hcomb".
+        replace ((q/2)/2 + (q/2)/2)%Qp with (q/2)%Qp by (symmetry; apply Qp.div_2).
+        iFrame "Hcomb".
+        iIntros (γl') "Hg Hpen %Hsz' Hbig'".
+        apply size_empty_inv in Hsz'. fold_leibniz. subst γl'.
+        iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+      iSplitR.
+      { iExists 0, 0. iSplit; [done|].
+        iExists a1A', a1B', s_realA, s_realB. iSplit; [done|].
+        iSplitR; [iApply "HrealA"|iApply "HrealB"]. }
+      iFrame "Hserpred".
+      iLeft. iSplit.
+      { admit. (* s_pred = prod_ser_str s_realA s_realB — string-format pure
+                  from Hidx/HAlen/Hecho/Hsign/Hbound + HspA/HspB; isolated. *) }
+      iExists ∅, mlgB, (a2A', a2B')%V.
+      iFrame "HlgpB Hv".
+      iSplit; [by rewrite size_empty|].
+      iSplitL "HpensA"; [by iFrame "HpensA"|].
+      iSplit.
+      { iExists a1A', a1B', s1_def, s2_def. iSplit; [done|].
+        iSplitR; [iApply "HpserpA2"|iApply "HpserpB2"]. }
+      iSplit. { by rewrite big_sepS_empty. }
+      iSplitL "HpencB"; [by iFrame "HpencB"|].
+      iEval (rewrite /visited_map_update_pending set_fold_empty size_empty
+               Nat.add_0_r) in "HvmB".
+      rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
+      iFrame "HvmB".
+      (* the pair wand: compose both component wands; the shared cap_frag is
+         persistent, and at c = 0 both frag inputs are emp *)
+      iIntros "#Hcap _ #Hmint".
+      iMod ("HwandA" with "Hcap [//] Hmint") as "(HAf & HcntA & HservA)".
+      iMod ("HwandB" with "Hcap [//] Hmint") as "(HBf & HcntB & HservB)".
+      iModIntro.
+      iSplitL "HAf HBf".
+      { iEval (rewrite interp_prod_combined).
+        iExists a1A', a1B', a2A', a2B', wc1, wc2.
+        do 3 (iSplit; [done|]).
+        iSplitL "HAf"; [interp_unfold!; iApply "HAf"|interp_unfold!; iApply "HBf"]. }
+      iDestruct "HcntA" as "(_ & _ & HcA & _)".
+      iDestruct "HcntB" as "(_ & _ & HcB & _)".
+      iSplitL "HcA HcB".
+      { iFrame "Hcap". iSplit; [done|]. iSplitL.
+        - iExists 0, 0, a2A', a2B'. iSplit; [done|].
+          iSplitL "HcA"; by iApply sub_susp_count_c0_vout.
+        - by iLeft. }
+      iExists a2A', a2B', s1_def, s2_def. iSplit; [done|].
+      iSplitL "HservA"; [iExact "HservA"|iExact "HservB"].
 
     - (* 4. unsuspend_spec — re-derived without the deleted binary
          projection, mirroring sum's case 4 via interp_prod_combined. *)
