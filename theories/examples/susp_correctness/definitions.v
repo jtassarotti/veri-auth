@@ -499,7 +499,7 @@ Section authenticatable_definitions.
       evolving state — required to compose component calls sequentially
       (e.g. pair runs deserA then deserB). [cap_auth]/[mapg_auth] come with
       freshness of [id] so the match case can register the deser'd value;
-      [serpred_frag id s_def] is the caller's registered prediction, handed
+      [serpred_frag id s_reg] is the caller's registered prediction, handed
       back in the post. *)
   Definition suspend_v_deser_spec
       (ser suspend v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
@@ -507,11 +507,11 @@ Section authenticatable_definitions.
       spec_verifier tᵥ (fill K (v_deser #id))
       ={⊤}=∗ ∃ (v_deser_par : val),
         spec_verifier tᵥ (fill K v_deser_par) ∗
-        □(∀ t' (a1 un_a1 a2 a3 : val) (s_def s_pred : string)
+        □(∀ t' (a1 un_a1 a2 a3 : val) (s_def s_pred s_reg : string)
              vm mp pn ctr mlg_p K' tᵥ',
           {{{ ⌜unsusp t' a1 un_a1⌝ ∗
               ▷ A a1 a2 a3 ∗ susp_ser_p t' a1 s_def ∗
-              serpred_frag id s_def ∗
+              serpred_frag id s_reg ∗
               visited_mapg_auth vm mp pn ctr ∗
               lg_p_auth mlg_p ∗
               pencount_frag pn ∗
@@ -519,7 +519,7 @@ Section authenticatable_definitions.
             suspend un_a1
           {{{ a1' s_real c t_real, RET a1';
               susp_p_ser_spec_at ser t_real c a1' s_real ∗
-              serpred_frag id s_def ∗
+              serpred_frag id s_reg ∗
               ((⌜s_pred = s_real ∧ t_real = t⌝ ∗ ∃ γl mlg_p' a2',
                 lg_p_auth mlg_p' ∗
                 ⌜size γl = c⌝ ∗ penset_frag γl ∗

@@ -461,7 +461,7 @@ Section authenticatable.
       iIntros "!#" (K tᵥ3 pid) "Hv".
       v_pures.
       iModIntro. iExists _. iFrame "Hv".
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
       iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
       rewrite /id. wp_pure _.
       iPoseProof "HA" as "[HAt #HAun]".
@@ -629,7 +629,7 @@ Section authenticatable.
       iIntros "!#" (K tᵥ3 pid) "Hv".
       v_pures.
       iModIntro. iExists _. iFrame "Hv".
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
       iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
       rewrite /id. wp_pure _.
       iPoseProof "HA" as "[HAt #HAun]".
@@ -866,7 +866,7 @@ Section authenticatable.
       iIntros "!#" (K tᵥ1 pid) "Hv".
       v_pures.
       iModIntro. iExists _. iFrame "Hv".
-      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
       iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
       rewrite /rec_fold. wp_pures.
       iEval (rewrite interp_rec_star_unfold) in "HA".
