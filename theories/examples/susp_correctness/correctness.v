@@ -129,13 +129,13 @@ Section proof.
                 iIntros (?) "(% & % & Hv & Hi & #HmB & Htok) /=".
                 
                 iDestruct "HmB" as "(HmB & _)".
-                wp_apply ("HmB" with "[$Htok $Hv $Hi $Hpw $Hvw $Hpr]"); first admit.
+                wp_apply ("HmB" with "[$Htok $Hv $Hi $Hpw $Hvw $Hpr]"); first done.
                 iIntros (ps1'' w1'' a1' a3') "(Htok & Hi & Hpr & Hv)".
                 iDestruct "Hv" as 
                 "[(%&%&%&% &% &#HB & Hpw & Hv & Hvw)|
                   (#HAb & Hpw)]".
                 { iApply "HΨ". iFrame "∗ #".
-                  iLeft. iFrame. admit. }
+                  iLeft. iFrame. done. }
                 { iApply "HΨ". iFrame "∗ #". } }
 
               { iDestruct "HAmB" as "(_ & HAmBb & HAmBu)".
@@ -144,7 +144,7 @@ Section proof.
                 wp_apply (wp_wand with "HAmBb").
                 iIntros (?) "(% & Hi & #HmBb & Htok) /=".
 
-                wp_apply ("HmBb" with "[$Htok $Hi $Hpw $Hpr]"); first admit.
+                wp_apply ("HmBb" with "[$Htok $Hi $Hpw $Hpr]"); first done.
                 iIntros (ps1'' ? w1'' a1' a3') "(Hpr & %& Htok & Hpw & Hi & #HBb) /=".
                 iApply "HΨ". iFrame.
                 iRight. iFrame "∗ #". } }
