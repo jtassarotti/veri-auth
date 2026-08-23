@@ -521,7 +521,8 @@ Section authenticatable_definitions.
               susp_p_ser_spec_at ser t_real c a1' s_real ∗
               susp_ser_p_real t_real c a1' s_real ∗
               serpred_frag id s_reg ∗
-              ((⌜s_pred = s_real ∧ t_real = t⌝ ∗ ∃ γl mlg_p' a2',
+              ((⌜s_pred = s_real ∧ t_real = t⌝ ∗
+                (lrel_tern_un A) a1' ∗ ∃ γl mlg_p' a2',
                 lg_p_auth mlg_p' ∗
                 ⌜size γl = c⌝ ∗ penset_frag γl ∗
                 susp_ser_p t a1' s_def ∗

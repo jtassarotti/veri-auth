@@ -499,7 +499,7 @@ Section proof.
         { admit. (* ⌜unsusp⌝ + lg_p_auth (Group C: prover-side lg auth has no
                     external owner yet) *) }
         iIntros (a1' s_real c' t_real) "(#Hpserspecat & #Hpreal & _ &
-              [([% %] & %&%&%& Hlmauth & % & Hpens & Hpserp' & Hv &
+              [([% %] & #Hun1' & %&%&%& Hlmauth & % & Hpens & Hpserp' & Hv &
                   Hsubsep & Hpenc & Hvmauth & Hdecorate)|
               [% #HA']])"; wp_pures; last first.
         { wp_bind (p_finish _ _).
@@ -746,7 +746,7 @@ Section proof.
           { admit. (* ⌜unsusp⌝ + lg_p_auth (Group C: prover-side lg auth has no
                       external owner yet) *) }
           iIntros (a1' s_real c' t_real) "(#Hpserspecat & #Hpreal & _ &
-              [([% %] & %&%&%& Hlmauth & % & Hpens & Hpserp' & Hv &
+              [([% %] & #Hun1' & %&%&%& Hlmauth & % & Hpens & Hpserp' & Hv &
                   Hsubsep & Hpenc & Hvmauth & Hdecorate)|
               [% #HA']])"; wp_pures; last first.
           { wp_bind (p_finish _ _).

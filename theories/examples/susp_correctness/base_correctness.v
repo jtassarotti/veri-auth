@@ -332,7 +332,7 @@ Section authenticatable.
           wp_pures.
           iDestruct "HpostA" as "[HmatchA | [%HnmA #HunA]]".
           ** (* component match *)
-             iDestruct "HmatchA" as "([%HspA %HtA] & %γl & %mlg' & %a2A' &
+             iDestruct "HmatchA" as "([%HspA %HtA] & #HunA1' & %γl & %mlg' & %a2A' &
                  Hlgp' & %Hsz & Hpens & #HpserpA' & Hv & Hbig & Hpenc' & Hvm' & Hwand)".
              iSimpl in "Hv". v_pures.
              subst t_realA.
@@ -373,6 +373,10 @@ Section authenticatable.
              { iExists a1A', s_realA. iLeft. iSplit; [iApply "HrealA"|done]. }
              iFrame "Hserpred".
              iLeft. iSplit; [done|].
+             iSplitR.
+             { rewrite interp_un_sum_unfold. iExists a1A'. iLeft.
+               iSplit; [done|]. interp_unfold!.
+               iDestruct "HunA1'" as "HunA1c". iApply "HunA1c". }
              iExists ∅, mlg', (InjLV a2A').
              iFrame "Hlgp' Hpens Hv".
              iSplit; [by rewrite size_empty|].
@@ -568,7 +572,7 @@ Section authenticatable.
              wp_pures.
              iDestruct "HpostB" as "[HmatchB | [%HnmB #HunB]]".
              ** (* component match *)
-                iDestruct "HmatchB" as "([%HspB %HtB] & %γl & %mlg' & %a2B' &
+                iDestruct "HmatchB" as "([%HspB %HtB] & #HunB1' & %γl & %mlg' & %a2B' &
                     Hlgp' & %Hsz & Hpens & #HpserpB' & Hv & Hbig & Hpenc' & Hvm' & Hwand)".
                 iSimpl in "Hv". v_pures.
                 subst t_realB.
@@ -605,6 +609,10 @@ Section authenticatable.
                 { iExists a1B', s_realB. iRight. iSplit; [iApply "HrealB"|done]. }
                 iFrame "Hserpred".
                 iLeft. iSplit; [done|].
+                iSplitR.
+                { rewrite interp_un_sum_unfold. iExists a1B'. iRight.
+                  iSplit; [done|]. interp_unfold!.
+                  iDestruct "HunB1'" as "HunB1c". iApply "HunB1c". }
                 iExists ∅, mlg', (InjRV a2B').
                 iFrame "Hlgp' Hpens Hv".
                 iSplit; [by rewrite size_empty|].
@@ -904,6 +912,7 @@ Section authenticatable.
         iFrame "Hspecat Hserpred". iModIntro.
         iSplitR. { iPureIntro. naive_solver. }
         iLeft. iSplit; [done|].
+        iSplitR; [iApply "HAun"|].
         iExists ∅, mlg_p, #sv.
         iFrame "Hlgp Hpen0 Hv".
         iSplit; [by rewrite size_empty|].
@@ -1078,6 +1087,7 @@ Section authenticatable.
         iFrame "Hspecat Hserpred". iModIntro.
         iSplitR. { iPureIntro. naive_solver. }
         iLeft. iSplit; [done|].
+        iSplitR; [iApply "HAun"|].
         iExists ∅, mlg_p, #zv.
         iFrame "Hlgp Hpen0 Hv".
         iSplit; [by rewrite size_empty|].
@@ -1293,12 +1303,14 @@ Section authenticatable.
         wp_apply ("Hat" $! E q with "[//] [$Htok $Hintr]").
         iIntros "(? & ? & ?)". iApply "HΨ'". iFrame. }
       iDestruct "Hpost" as "[Hmatch | [%Hnm #Hun]]".
-      + iDestruct "Hmatch" as "([%Hsp %Htr] & %γl & %mlg' & %a2' &
+      + iDestruct "Hmatch" as "([%Hsp %Htr] & #Hun1' & %γl & %mlg' & %a2' &
             Hlgp' & %Hsz & Hpens & Hpserp' & Hv & Hbig & Hpenc' & Hvm' & Hwand)".
         iApply ("HΨ" $! a1' s_real c t_real).
         iSplitR. { by iApply "Hwrap". }
         iFrame "Hreal Hserpred".
         iLeft. iSplit; [by iPureIntro|].
+        iSplitR.
+        { rewrite interp_rec_star_un_unfold. interp_unfold!. iApply "Hun1'". }
         iExists γl, mlg', a2'.
         iFrame "Hlgp' Hpens Hpserp' Hv Hbig Hpenc' Hvm'".
         iSplit; [done|].
