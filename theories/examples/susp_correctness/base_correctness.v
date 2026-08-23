@@ -436,7 +436,37 @@ Section authenticatable.
                - by iLeft. }
              iExists a2A', s1_def. iLeft. iSplit; [iExact "Hserv"|done].
           ** (* component mismatch *)
-             admit.
+             injection HtagL as HtagL'.
+             replace (Z.to_nat 0) with 0 in HtagL' by done.
+             replace (Z.to_nat 2) with 2 in HtagL' by done.
+             replace (Z.to_nat 2) with 2 in HnmA by done.
+             replace (Z.to_nat (String.length s_pred - 2))
+               with (String.length s_pred - 2)%nat in HnmA by lia.
+             iApply ("HΨ" $! (InjLV a1A') (inl_ser_str s_realA) cA
+                       (tsum t_realA tB)).
+             iModIntro.
+             iSplitR.
+             { rewrite /susp_p_ser_spec_at.
+               iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+               wp_pures.
+               wp_apply ("HspecatA" $! E q with "[//] [$Htok $Hintr]").
+               iIntros "(Htok & Hintr & Hreach)". wp_pures.
+               unfold inl_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
+               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
+               iDestruct (susp_ser_p_real_sum_γl_empty_l with "HrealA Hbig'") as %->.
+               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+             iSplitR.
+             { iExists a1A', s_realA. iLeft. iSplit; [iApply "HrealA"|done]. }
+             iFrame "Hserpred".
+             iRight. iSplit.
+             { iPureIntro. intros Heqs. apply HnmA.
+               rewrite Heqs /inl_ser_str /=.
+               replace (String.length ("L_" +:+ s_realA) - 2)%nat
+                 with (String.length s_realA) by (simpl; lia).
+               by rewrite /= Nat.sub_0_r substring_0_length. }
+             rewrite interp_un_sum_unfold.
+             iExists a1A'. iLeft. iSplit; [done|].
+             interp_unfold!. iDestruct "HunA" as "HunA'". iApply "HunA'".
         * case_bool_decide as HtagR; v_pures.
           -- (* verifier parses an R-tag while the prover is InjL *)
              admit.
