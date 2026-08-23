@@ -414,7 +414,36 @@ Section authenticatable.
       iPureIntro. simpl. exists ua, ub. split; [done|].
       right. right. right. done.
 
-    - (* 3. suspend_v_deser_spec (combined) *) admit.
+    - (* 3. suspend_v_deser_spec (combined) *)
+      rewrite /suspend_v_deser_spec.
+      iIntros "!#" (K tᵥ3 pid) "Hv".
+      v_pures.
+      v_bind (v_dB _).
+      iMod ("HsuspvdeserB" with "Hv") as (v_parB) "(Hv & #HinnerB) /=".
+      v_bind (v_dA _).
+      iMod ("HsuspvdeserA" with "Hv") as (v_parA) "(Hv & #HinnerA) /=".
+      rewrite /prod_deser. v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      wp_pure _.
+      iPoseProof "HA" as "HA'".
+      iEval (rewrite interp_prod_combined) in "HA'".
+      iDestruct "HA'" as (wa1 wa2 wb1 wb2 wc1 wc2) "(-> & -> & -> & HAc & HBc)".
+      destruct t' as [t1' t2'|t1' t2'| | |]; simpl in Hunsusp; first last.
+      { destruct Hunsusp as (?&?&?&?&?&Heq&_). simplify_eq. }
+      { iDestruct "Hser" as %(z & Heq & _). simplify_eq. }
+      { iDestruct "Hser" as %(s' & Heq & _). simplify_eq. }
+      { destruct Hunsusp as [(?&?&Heq&_)|(?&?&Heq&_)]; simplify_eq. }
+      destruct Hunsusp as (x & y & un_x & un_y & Heq & -> & Hunx & Huny).
+      simplify_eq.
+      iDestruct "Hser" as (v1 v2 s1_def s2_def [Heqv Heqs]) "[#HserA' #HserB']".
+      simplify_eq.
+      wp_pures. wp_bind (p_spA _).
+      interp_unfold! in "HAc". interp_unfold! in "HBc".
+      v_pures; try solve_vals_compare_safe.
+      (* the verifier's parse of the abstract s_pred *)
+      admit.
 
     - (* 4. unsuspend_spec — re-derived without the deleted binary
          projection, mirroring sum's case 4 via interp_prod_combined. *)
