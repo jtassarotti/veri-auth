@@ -480,22 +480,27 @@ Section proof.
         iMod (na_inv_acc with "Htab Htabtok") as "(Htabo & Htabtok & Hclose_tab)"; try solve_ndisj.
         iMod (lc_fupd_elim_later with "Hlctab Htabo") as "Htabo".
         iDestruct "Htabo" as "[(%&%&%&%& %idctr &%&%msp_ & Hl & %Hm &
-            Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hst' & Hserp) | Hst']";
+            Hbigsep &% & Hvmauth & %Hidinv & Hvisinv & Hst' & Hserp & %Hmspdom) | Hst']";
           last first.
         { by iPoseProof (tern_state_un_state_excl with "Hst Hst'") as "?". }
           (* iPoseProof (state_agree with "Hst Hst'") as "(% & Hst & Hst')"; simplify_eq. *)
 
         iDestruct (pn_agree with "Hvmauth Hpenc") as "->".
+        iDestruct (id_ctr_frag_agree with "Hvmauth Hid") as "->".
+        iMod (serpred_alloc msp_ cntr s with "Hserp") as "[Hserp #Hserpfrag]".
+        { apply not_elem_of_dom. intro Hin.
+          apply Hmspdom, elem_of_set_seq in Hin. lia. }
 
         v_bind (v_deser _).
         iMod ("Hpsuspspec" with "Hv") as (?) "(Hv & Hpsuspdeserspec) /=".
 
         v_bind (v_deser_par _).
-        wp_apply ("Hpsuspdeserspec" with "[$HA $Hpserp $Hvmauth $Hmauth $Hpenc $Hv]").
-        { admit. (* getting lg_mapg_auth externally *) }
-        iIntros (a1' s_real c' t_real) "(#Hpserspecat & 
-              [([% %] & %&%&%& Hlmauth & Hmauth & % & Hpens & #HA' & Hpserp' & Hv & 
-                  Hsubsep & Hc & Hvser & Hpenc & Hvmauth)|
+        wp_apply ("Hpsuspdeserspec" with "[$HA $Hpserp $Hserpfrag $Hvmauth $Hpenc $Hv]").
+        { admit. (* ⌜unsusp⌝ + lg_p_auth (Group C: prover-side lg auth has no
+                    external owner yet) *) }
+        iIntros (a1' s_real c' t_real) "(#Hpserspecat & _ &
+              [([% %] & %&%&%& Hlmauth & % & Hpens & Hpserp' & Hv &
+                  Hsubsep & Hpenc & Hvmauth & Hdecorate)|
               [% #HA']])"; wp_pures; last first.
         { wp_bind (p_finish _ _).
 
@@ -550,8 +555,12 @@ Section proof.
         { iSplit; eauto. simplify_eq.
           iIntros "Hst". by iFrame. }
 
-        iDestruct (id_ctr_frag_agree with "Hvmauth Hid") as "->".
-        iMod (id_ctr_frag_alloc with "Hvmauth Hid") as "(Hvmauth & Hid & Hidtok & Hpvfrag)".
+        iEval (rewrite visited_map_update_pending_rewrite) in "Hvmauth".
+        iMod (visited_deser_commit _ _ _ _ _ a2' c' with "Hvmauth Hid")
+          as "(Hvmauth & Hid & Hidtok & Hpvfrag & Hcapf & Hmapf)".
+        iMod ("Hdecorate" with "Hcapf Hmapf []") as "(#HA' & Hc & Hvser)".
+        { admit. (* pval_snapshot minting for the fresh verifier locs at the
+                    just-committed id — pending the general apartness lemma. *) }
 
         (* iPoseProof (big_sepM_mono
             (vm_big_sep_lam_unset m)
@@ -571,10 +580,11 @@ Section proof.
 
         case_bool_decide; simplify_eq; v_pures.
         * v_bind (v_finish _).
-          assert (size γl = 0) as -> by lia.
-          iDestruct "Hmauth" as "[[% Hmauth]|[% Hmauth]]"; try lia.
+          assert (size γl = 0) as Hγl0 by lia.
+          iEval (rewrite Hγl0 /=) in "Hvmauth".
+          rewrite Hγl0.
 
-          iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hmauth Hvmauth Hvisinv Hst' Hserp]") as "Htabtok".
+          iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hvmauth Hvisinv Hst' Hserp]") as "Htabtok".
           { iNext. iLeft. iFrame "Hvmauth". iFrame "∗ %".
             iSplit. { iPureIntro; intros ??; apply Hidinv; lia. }
 
@@ -610,7 +620,9 @@ Section proof.
 
         * assert (size γl > 0).
           { destruct (size γl); simplify_eq. lia. }
-          iDestruct "Hmauth" as "[[% Hmauth]|[% Hmauth]]"; try lia.
+          assert (∃ n', size γl = S n') as [n' Hszpos].
+          { destruct (size γl); [lia|eauto]. }
+          iEval (rewrite Hszpos /=) in "Hvmauth".
 
           iAssert (sub_susp_count_frags tA a2' (size γl) cntr (size γl))%I
             with "[$Hcap $Hc $Hagg //]" as "Hc".
@@ -624,7 +636,7 @@ Section proof.
           
           v_store.
 
-          iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hmauth Hvmauth Hvisinv Hst' Hc Hlc Hvfinish Hvser Hidtok Hserp]") as "Htabtok".
+          iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hvmauth Hvisinv Hst' Hc Hlc Hvfinish Hvser Hidtok Hserp]") as "Htabtok".
           { iNext. iLeft. iFrame "Hvmauth". iFrame "∗ %".
 
             iPoseProof (big_sepM_mono
@@ -714,23 +726,28 @@ Section proof.
 
           iMod (na_inv_acc with "Htab Htabtok") as "(Htabo & Htabtok & Hclose_tab)"; try solve_ndisj.
           iMod (lc_fupd_elim_later with "Hlctab Htabo") as "Htabo".
-          iDestruct "Htabo" as "[(%&%&%&%& %idctr &% & Hl & %Hm & 
-              Hbigsep & Hmauth &% & Hvmauth & %Hidinv & Hvisinv & Hst') | Hst']";
+          iDestruct "Htabo" as "[(%&%&%m2 &%& %idctr &%&%msp_2 & Hl & %Hm &
+              Hbigsep &% & Hvmauth & %Hidinv & Hvisinv & Hst' & Hserp & %Hmspdom2) | Hst']";
             last first.
           { admit. }
             (* iPoseProof (state_agree with "Hst Hst'") as "(% & Hst & Hst')"; simplify_eq. *)
 
           iDestruct (pn_agree with "Hvmauth Hpenc") as "->".
+          iDestruct (id_ctr_frag_agree with "Hvmauth Hid") as "->".
+          iMod (serpred_alloc msp_2 cntr s with "Hserp") as "[Hserp #Hserpfrag]".
+          { apply not_elem_of_dom. intro Hin.
+            apply Hmspdom2, elem_of_set_seq in Hin. lia. }
 
           v_bind (v_deser _).
           iMod ("Hpsuspspec" with "Hv") as (?) "(Hv & Hpsuspdeserspec) /=".
 
           v_bind (v_deser_par _).
-          wp_apply ("Hpsuspdeserspec" with "[$HA $Hpserp $Hvmauth $Hmauth $Hpenc $Hv]").
-          { admit. (* getting lg_mapg_auth externally *) }
-          iIntros (a1' s_real c' t_real) "(#Hpserspecat & 
-              [([% %] & %&%&%& Hlmauth & Hmauth & % & Hpens & #HA' & Hpserp' & Hv & 
-                  Hsubsep & Hc & Hvser & Hpenc & Hvmauth)|
+          wp_apply ("Hpsuspdeserspec" with "[$HA $Hpserp $Hserpfrag $Hvmauth $Hpenc $Hv]").
+          { admit. (* ⌜unsusp⌝ + lg_p_auth (Group C: prover-side lg auth has no
+                      external owner yet) *) }
+          iIntros (a1' s_real c' t_real) "(#Hpserspecat & _ &
+              [([% %] & %&%&%& Hlmauth & % & Hpens & Hpserp' & Hv &
+                  Hsubsep & Hpenc & Hvmauth & Hdecorate)|
               [% #HA']])"; wp_pures; last first.
           { wp_bind (p_finish _ _).
 
@@ -785,8 +802,12 @@ Section proof.
           { iSplit; eauto. simplify_eq.
             iIntros "Hst". by iFrame. }
 
-          iDestruct (id_ctr_frag_agree with "Hvmauth Hid") as "->".
-          iMod (id_ctr_frag_alloc _ _ _ susp with "Hvmauth Hid") as "(Hvmauth & Hid & Hidtok & #Hvfrag)".
+          iEval (rewrite visited_map_update_pending_rewrite) in "Hvmauth".
+          iMod (visited_deser_commit _ _ _ _ susp a2' c' with "Hvmauth Hid")
+            as "(Hvmauth & Hid & Hidtok & #Hvfrag & Hcapf & Hmapf)".
+          iMod ("Hdecorate" with "Hcapf Hmapf []") as "(#HA' & Hc & Hvser)".
+          { admit. (* pval_snapshot minting for the fresh verifier locs at the
+                      just-committed id — pending the general apartness lemma. *) }
 
           iSimpl in "Hv". v_pures. v_bind (v_count _).
           iDestruct "Hc" as "(Hcap & % & Hc & Hagg)".
@@ -799,6 +820,10 @@ Section proof.
           set (vm' := set_fold (λ (γ : gname) (m0 : state_mapg_type), <[γ:=pending_val]> m0) vm γl).
           set (pn' := definitions.sum_list lpn + size γl).
           set (cntr' := S cntr).
+          set (mp2 := match c' with
+                      | 0%nat => m2
+                      | _ => mapg_insert_def m2 cntr a2'
+                      end) in *.
           simplify_eq.
           assert (pn' = size γl + definitions.sum_list lpn) as <- by lia.
 
@@ -808,9 +833,9 @@ Section proof.
               auth_v cntr (InjRV #susp) s ∗
               ((∃ vm'',
                   ⌜vm'' = (<[ γ0 := done_val cntr ]>vm')⌝ ∗
-                  visited_mapg_auth vm'' pn' cntr') ∨
+                  visited_mapg_auth vm'' mp2 pn' cntr') ∨
               (visit_finished γ0 ∗
-                visited_mapg_auth vm' pn' cntr')))%I
+                visited_mapg_auth vm' mp2 pn' cntr')))%I
             with "[Htok Hintr Hidtok Hvmauth]"
           as ">(Htok & Hauthv & Hvmauth')".
           { iMod (na_inv_acc with "Hinv_authv Htok") as "(>Hinvo & Htok & Hclose)";

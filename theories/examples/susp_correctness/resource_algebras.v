@@ -1231,6 +1231,25 @@ Section visited_map_res.
     iPureIntro. rewrite Hdomeq. eauto 20.
   Qed.
 
+  (** Combined commit, keyed on the leaf count [n]: registers the value
+      only when suspensions exist. Keeps the caller's control flow linear —
+      the [match] outputs line up with the deser spec's decoration wand. *)
+  Lemma visited_deser_commit m mp pn ctr (l : loc) (v : val) (n : nat) :
+    visited_mapg_auth m mp pn ctr -∗ id_ctr_frag ctr ==∗
+      visited_mapg_auth m
+        (match n with 0%nat => mp | _ => mapg_insert_def mp ctr v end)
+        pn (S ctr) ∗
+      id_ctr_frag (S ctr) ∗ id_token ctr ∗ pval_frag ctr l ∗
+      cap_frag ctr n ∗
+      (match n with 0%nat => emp | _ => mapg_frag ctr 1 v end).
+  Proof.
+    iIntros "Hvm Hid". destruct n.
+    - iMod (visited_deser_commit_pure _ _ _ _ l 0 with "Hvm Hid")
+        as "($ & $ & $ & $ & $)". by iModIntro.
+    - iMod (visited_deser_commit_susp _ _ _ _ l v (S n) with "Hvm Hid")
+        as "($ & $ & $ & $ & $ & $)". by iModIntro.
+  Qed.
+
   (** [id_token id] implies [id < ctr]: the id has been allocated (is in
       [dom gm = set_seq 0 ctr]) so it is strictly below the counter. *)
   Lemma id_token_lt_ctr m mp pn ctr id :
