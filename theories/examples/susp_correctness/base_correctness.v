@@ -85,7 +85,7 @@ Section authenticatable.
         iFrame "Hg Hpen". by rewrite !big_sepS_empty.
     - (* suspend_spec_bin *)
       rewrite /suspend_spec_bin.
-      iIntros (t' v0 un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+      iIntros (t' v0 un_v s_def Ψ) "!# (%Hunsusp & #Hsw & HA) HΨ".
       rewrite interp_un_sum_unfold interp_var1_ext2 interp_var0_ext1.
       iDestruct "HA" as (w) "[[>-> HAw] | [>-> HBw]]".
       + (* v0 = InjLV w *)
@@ -93,60 +93,42 @@ Section authenticatable.
         * destruct Hunsusp as (?&?&?&?&Hx&_). simplify_eq.
         * destruct Hunsusp as [(w1&un1&Heq&->&Hu1)|(w1&un1&Heq&->&_)];
             last by simplify_eq.
-          injection Heq as <-. wp_pures.
-          wp_apply ("HspbA" $! _ _ un1 with "[HAw]").
-          { iSplit; [by iPureIntro|]. iApply "HAw". }
+          injection Heq as <-.
+          iDestruct "Hsw" as (w0 s0) "[[#Hsw1 [%HeqW _]] | [_ [%HeqW _]]]";
+            last by simplify_eq.
+          injection HeqW as <-. wp_pures.
+          wp_apply ("HspbA" $! _ _ un1 _ with "[HAw]").
+          { iSplit; [by iPureIntro|]. iFrame "Hsw1". iApply "HAw". }
           iIntros (v' s c) "[HA' Hreal]". wp_pures.
           iApply ("HΨ" $! (InjLV v')).
           iSplitL "HA'".
           { iExists v'. iLeft. iModIntro. iSplit; [done|]. iApply "HA'". }
           simpl. iExists v', s. iLeft. by iFrame "Hreal".
-        * subst un_v. wp_pures.
-          wp_apply ("HspbA" $! tstring w w with "[HAw]").
-          { iSplit; [by iPureIntro|]. iApply "HAw". }
-          iIntros (v' s c) "[HA' Hreal]". wp_pures.
-          iApply ("HΨ" $! (InjLV v')).
-          iSplitL "HA'".
-          { iExists v'. iLeft. iModIntro. iSplit; [done|]. iApply "HA'". }
-          simpl. iExists v', s. iLeft. by iFrame "Hreal".
-        * subst un_v. wp_pures.
-          wp_apply ("HspbA" $! tint w w with "[HAw]").
-          { iSplit; [by iPureIntro|]. iApply "HAw". }
-          iIntros (v' s c) "[HA' Hreal]". wp_pures.
-          iApply ("HΨ" $! (InjLV v')).
-          iSplitL "HA'".
-          { iExists v'. iLeft. iModIntro. iSplit; [done|]. iApply "HA'". }
-          simpl. iExists v', s. iLeft. by iFrame "Hreal".
+        * (* witness forces a tstring-shaped value — contradiction with InjL *)
+          iDestruct "Hsw" as %(? & Heqv & _). simplify_eq.
+        * (* witness forces a tint-shaped value — contradiction with InjL *)
+          iDestruct "Hsw" as %(? & Heqv & _). simplify_eq.
         * destruct Hunsusp as (?&?&?&?&?&Hx&_). simplify_eq.
       + (* v0 = InjRV w *)
         destruct t'; simpl in Hunsusp.
         * destruct Hunsusp as (?&?&?&?&Hx&_). simplify_eq.
         * destruct Hunsusp as [(w1&un1&Heq&->&_)|(w1&un1&Heq&->&Hu1)];
             first by simplify_eq.
-          injection Heq as <-. wp_pures.
-          wp_apply ("HspbB" $! _ _ un1 with "[HBw]").
-          { iSplit; [by iPureIntro|]. iApply "HBw". }
+          injection Heq as <-.
+          iDestruct "Hsw" as (w0 s0) "[[_ [%HeqW _]] | [#Hsw1 [%HeqW _]]]";
+            first by simplify_eq.
+          injection HeqW as <-. wp_pures.
+          wp_apply ("HspbB" $! _ _ un1 _ with "[HBw]").
+          { iSplit; [by iPureIntro|]. iFrame "Hsw1". iApply "HBw". }
           iIntros (v' s c) "[HB' Hreal]". wp_pures.
           iApply ("HΨ" $! (InjRV v')).
           iSplitL "HB'".
           { iExists v'. iRight. iModIntro. iSplit; [done|]. iApply "HB'". }
           simpl. iExists v', s. iRight. by iFrame "Hreal".
-        * subst un_v. wp_pures.
-          wp_apply ("HspbB" $! tstring w w with "[HBw]").
-          { iSplit; [by iPureIntro|]. iApply "HBw". }
-          iIntros (v' s c) "[HB' Hreal]". wp_pures.
-          iApply ("HΨ" $! (InjRV v')).
-          iSplitL "HB'".
-          { iExists v'. iRight. iModIntro. iSplit; [done|]. iApply "HB'". }
-          simpl. iExists v', s. iRight. by iFrame "Hreal".
-        * subst un_v. wp_pures.
-          wp_apply ("HspbB" $! tint w w with "[HBw]").
-          { iSplit; [by iPureIntro|]. iApply "HBw". }
-          iIntros (v' s c) "[HB' Hreal]". wp_pures.
-          iApply ("HΨ" $! (InjRV v')).
-          iSplitL "HB'".
-          { iExists v'. iRight. iModIntro. iSplit; [done|]. iApply "HB'". }
-          simpl. iExists v', s. iRight. by iFrame "Hreal".
+        * (* witness forces a tstring-shaped value — contradiction with InjR *)
+          iDestruct "Hsw" as %(? & Heqv & _). simplify_eq.
+        * (* witness forces a tint-shaped value — contradiction with InjR *)
+          iDestruct "Hsw" as %(? & Heqv & _). simplify_eq.
         * destruct Hunsusp as (?&?&?&?&?&Hx&_). simplify_eq.
     - (* unsuspend_spec_bin *)
       rewrite /unsuspend_spec_bin.
@@ -415,7 +397,7 @@ Section authenticatable.
         apply size_empty_inv in Hsz. fold_leibniz. subst γl.
         iFrame "Hg Hpen". by rewrite big_sepS_empty.
       - rewrite /suspend_spec_bin.
-        iIntros (t' v un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+        iIntros (t' v un_v s_def Ψ) "!# (%Hunsusp & #Hsw & HA) HΨ".
         rewrite /id. wp_pures.
         iDestruct "HA" as %(s' & ->).
         destruct t' eqn:Ht; simpl in Hunsusp; try done.
@@ -513,7 +495,7 @@ Section authenticatable.
         apply size_empty_inv in Hsz. fold_leibniz. subst γl.
         iFrame "Hg Hpen". by rewrite big_sepS_empty.
       - rewrite /suspend_spec_bin.
-        iIntros (t' v un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+        iIntros (t' v un_v s_def Ψ) "!# (%Hunsusp & #Hsw & HA) HΨ".
         rewrite /id. wp_pures.
         iDestruct "HA" as %(z & ->).
         destruct t' eqn:Ht; simpl in Hunsusp; try done.
@@ -612,11 +594,11 @@ Section authenticatable.
         wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser $Htok $Hintr]").
         iIntros "(Htok & Hintr & HreachA)". iApply "HΨ". iFrame.
       - rewrite /suspend_spec_bin.
-        iIntros (t' v0 un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+        iIntros (t' v0 un_v s_def Ψ) "!# (%Hunsusp & #Hsw & HA) HΨ".
         rewrite /rec_fold. wp_pures.
         iEval (rewrite interp_rec_star_un_unfold) in "HA". interp_unfold! in "HA".
-        wp_apply ("HspbA" $! _ _ un_v with "[HA]").
-        { iSplit; first by iPureIntro. iApply "HA". }
+        wp_apply ("HspbA" $! _ _ un_v _ with "[HA]").
+        { iSplit; first by iPureIntro. iFrame "Hsw". iApply "HA". }
         iIntros (v' s c) "[HA Hreal]". iApply ("HΨ" $! v' s c).
         iSplit; [|by iFrame].
         rewrite interp_rec_star_un_unfold. interp_unfold!. iApply "HA".
@@ -651,11 +633,11 @@ Section authenticatable.
         wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser $Htok $Hintr]").
         iIntros "(Htok & Hintr & HreachA)". iApply "HΨ". iFrame.
       - rewrite /suspend_spec_bin.
-        iIntros (t' v0 un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+        iIntros (t' v0 un_v s_def Ψ) "!# (%Hunsusp & #Hsw & HA) HΨ".
         rewrite /rec_fold. wp_pures.
         iEval (rewrite interp_rec_star_un_unfold) in "HA". interp_unfold! in "HA".
-        wp_apply ("HspbA" $! _ _ un_v with "[HA]").
-        { iSplit; first by iPureIntro. iApply "HA". }
+        wp_apply ("HspbA" $! _ _ un_v _ with "[HA]").
+        { iSplit; first by iPureIntro. iFrame "Hsw". iApply "HA". }
         iIntros (v' s c) "[HA Hreal]". iApply ("HΨ" $! v' s c).
         iSplit; [|by iFrame].
         rewrite interp_rec_star_un_unfold. interp_unfold!. iApply "HA".
@@ -689,11 +671,11 @@ Section authenticatable.
         wp_apply ("HsserA'" $! _ _ _ c q with "[//] [$Hser $Htok $Hintr]").
         iIntros "(Htok & Hintr & HreachA)". iApply "HΨ". iFrame.
       - rewrite /suspend_spec_bin.
-        iIntros (t' v0 un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+        iIntros (t' v0 un_v s_def Ψ) "!# (%Hunsusp & #Hsw & HA) HΨ".
         rewrite /rec_fold. wp_pures.
         iEval (rewrite interp_rec_star_un_unfold) in "HA". interp_unfold! in "HA".
-        wp_apply ("HspbA'" $! _ _ un_v with "[HA]").
-        { iSplit; first by iPureIntro. iApply "HA". }
+        wp_apply ("HspbA'" $! _ _ un_v _ with "[HA]").
+        { iSplit; first by iPureIntro. iFrame "Hsw". iApply "HA". }
         iIntros (v' s c) "[HA Hreal]". iApply ("HΨ" $! v' s c).
         iSplit; [|by iFrame].
         rewrite interp_rec_star_un_unfold. interp_unfold!. iApply "HA".

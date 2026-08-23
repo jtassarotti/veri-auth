@@ -146,19 +146,21 @@ Section authenticatable.
       right. right. right. done.
     - (* suspend_spec_bin *)
       rewrite /suspend_spec_bin.
-      iIntros (t' v0 un_v Ψ) "!# (%Hunsusp & HA) HΨ".
+      iIntros (t' v0 un_v s_def Ψ) "!# (%Hunsusp & #Hsw & HA) HΨ".
       rewrite interp_un_prod_unfold interp_var1_ext2 interp_var0_ext1.
       iDestruct "HA" as (w1 w2) "(>-> & HAw & HBw)".
       destruct t'; simpl in Hunsusp.
       + (* tprod *)
         destruct Hunsusp as (x1&x2&un1&un2&Heq&->&Hu1&Hu2).
         injection Heq as <- <-.
+        iDestruct "Hsw" as (w1' w2' sw1 sw2 [Heqw _]) "[#Hsw1 #Hsw2]".
+        injection Heqw as <- <-.
         wp_pures.
-        wp_apply ("HspbA" $! _ _ un1 with "[HAw]").
-        { iSplit; [by iPureIntro|]. iApply "HAw". }
+        wp_apply ("HspbA" $! _ _ un1 _ with "[HAw]").
+        { iSplit; [by iPureIntro|]. iFrame "Hsw1". iApply "HAw". }
         iIntros (v1' s1 c1) "[HA' Hreal1]". wp_pures.
-        wp_apply ("HspbB" $! _ _ un2 with "[HBw]").
-        { iSplit; [by iPureIntro|]. iApply "HBw". }
+        wp_apply ("HspbB" $! _ _ un2 _ with "[HBw]").
+        { iSplit; [by iPureIntro|]. iFrame "Hsw2". iApply "HBw". }
         iIntros (v2' s2 c2) "[HB' Hreal2]". wp_pures.
         iApply ("HΨ" $! (v1', v2')%V (prod_ser_str s1 s2) (c1 + c2)%nat).
         iSplitL "HA' HB'".
@@ -168,34 +170,10 @@ Section authenticatable.
         iExists v1', v2', s1, s2. iSplit; [done|]. iFrame.
       + (* tsum: v0 is a pair — contradiction *)
         destruct Hunsusp as [(?&?&Hx&_)|(?&?&Hx&_)]; simplify_eq.
-      + (* tstring: un_v = v0 *)
-        subst un_v. wp_pures.
-        wp_apply ("HspbA" $! tstring w1 w1 with "[HAw]").
-        { iSplit; [by iPureIntro|]. iApply "HAw". }
-        iIntros (v1' s1 c1) "[HA' Hreal1]". wp_pures.
-        wp_apply ("HspbB" $! tstring w2 w2 with "[HBw]").
-        { iSplit; [by iPureIntro|]. iApply "HBw". }
-        iIntros (v2' s2 c2) "[HB' Hreal2]". wp_pures.
-        iApply ("HΨ" $! (v1', v2')%V (prod_ser_str s1 s2) (c1 + c2)%nat).
-        iSplitL "HA' HB'".
-        { iExists v1', v2'. iModIntro. iSplit; [done|].
-          iSplitL "HA'"; [iApply "HA'"|iApply "HB'"]. }
-        simpl. iExists c1, c2. iModIntro. iSplit; [done|].
-        iExists v1', v2', s1, s2. iSplit; [done|]. iFrame.
-      + (* tint: un_v = v0 *)
-        subst un_v. wp_pures.
-        wp_apply ("HspbA" $! tint w1 w1 with "[HAw]").
-        { iSplit; [by iPureIntro|]. iApply "HAw". }
-        iIntros (v1' s1 c1) "[HA' Hreal1]". wp_pures.
-        wp_apply ("HspbB" $! tint w2 w2 with "[HBw]").
-        { iSplit; [by iPureIntro|]. iApply "HBw". }
-        iIntros (v2' s2 c2) "[HB' Hreal2]". wp_pures.
-        iApply ("HΨ" $! (v1', v2')%V (prod_ser_str s1 s2) (c1 + c2)%nat).
-        iSplitL "HA' HB'".
-        { iExists v1', v2'. iModIntro. iSplit; [done|].
-          iSplitL "HA'"; [iApply "HA'"|iApply "HB'"]. }
-        simpl. iExists c1, c2. iModIntro. iSplit; [done|].
-        iExists v1', v2', s1, s2. iSplit; [done|]. iFrame.
+      + (* tstring: witness forces a tstring-shaped value — contradiction with a pair *)
+        iDestruct "Hsw" as %(? & Heqv & _). simplify_eq.
+      + (* tint: witness forces a tint-shaped value — contradiction with a pair *)
+        iDestruct "Hsw" as %(? & Heqv & _). simplify_eq.
       + (* tauth: v0 is a Box — contradiction *)
         destruct Hunsusp as (?&?&?&?&?&Hx&_). simplify_eq.
     - (* unsuspend_spec_bin *)
