@@ -678,10 +678,12 @@ Section proof.
               (((p_finish, s_real, size γl) :: combine (combine bufl ps1) lpn) = 
                 combine (combine (p_finish :: bufl) (s_real :: ps1)) (size γl :: lpn))
               as -> by done.
-            iFrame "Hbuf". admit. }
-          
+            iFrame "Hbuf".
+            iPureIntro. exists prf1, v, (definitions.sum_list (size γl :: lpn)).
+            simpl. split_and!; try done; lia. }
+
           iLeft. iExists ps2. iFrame "HA' Hv Hid Hstok Hst Hpenc".
-          simpl. iSplit. { admit. }
+          simpl. iSplit. { iPureIntro. by rewrite reverse_cons -assoc. }
           
           iPureIntro.
           eexists _. split; eauto.
