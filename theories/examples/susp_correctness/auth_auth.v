@@ -8,26 +8,12 @@ From auth.examples.susp_correctness Require Import base_correctness.
 Section authenticatable.
   Context `{!authG Σ, !seqG Σ, !correctnessG Σ}.
 
-  Lemma refines_Auth_auth Θ (Δ : ctxO Σ Θ) (R : kindO Σ (⋆ ⇒ ⋆)) :
-    ⊢ ⟦ ∀: ⋆, var1 (var3 var0) ⟧
-      (auth_ctx Δ R) p_Auth_auth v_Auth_auth i_Auth_auth.
+  (** Bullets 1 and 2 of [refines_Auth_auth], hoisted so both the
+      ternary and the unary evidence (and, later, the suspend/deser
+      leaves) can reuse them. *)
+  Lemma auth_unsusp_p_ser :
+    ⊢ unsusp_p_ser_spec authenticatable_base_susp.auth_unsusp_ser_p tauth.
   Proof.
-    iSplit; interp_unfold!; last first.
-    { (* unary  *) admit. }
-    (* ternary *)
-    iIntros (A v1 v2 v3) "!# _"; rewrite -/interp.
-    iIntros (????) "Hv Hi Htok".
-    rewrite /p_Auth_auth /v_Auth_auth /i_Auth_auth.
-    v_pures; i_pures; wp_pures.
-    iModIntro. iFrame.
-    (* Final 3-way split: prove only the ternary [lrel_tern_evidence]. *)
-    iSplit; interp_unfold!; last first.
-    { (* final unary  *) admit. }
-    (* Ternary evidence for the auth. *)
-    iExists tauth, _, _, _, _, _, _, _.
-    iSplit; [done|]. iSplit; [done|].
-    iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]].
-    - (* 1. unsusp_p_ser_spec *)
       iIntros (v s Ψ) "!# Hser HΨ".
       iDestruct "Hser" as %(a & h & [-> ->]).
       rewrite /authenticatable_base_susp.auth_unsusp_ser_p.
@@ -40,7 +26,11 @@ Section authenticatable.
       iDestruct "Hser" as %(s0 & Heqw & ->). injection Heqw as <-.
       rewrite /filled_string /simple_string.
       by iApply "HΨ".
-    - (* 2. susp_p_ser_spec *)
+  Qed.
+
+  Lemma auth_susp_p_ser :
+    ⊢ susp_p_ser_spec authenticatable_base_susp.auth_susp_ser_p tauth.
+  Proof.
       iIntros (E a1 s c q HE Ψ) "!# (Hser & Htok & Hintr) HΨ".
       iEval (rewrite /susp_ser_p_real /=) in "Hser".
       iDestruct "Hser" as "[[Hfill ->] | [Hemp ->]]".
@@ -202,6 +192,177 @@ Section authenticatable.
           iFrame "Hpen". rewrite big_sepS_singleton. iFrame "Hvrd".
           iExists lb. iFrame "Hlbfrag''". iPureIntro.
           eexists p, lb, lr, a, h. done.
+  Qed.
+
+  (** Unary (prover-only) evidence for the authenticated type. *)
+  Lemma refines_un_Auth_auth (A : kindO Σ ⋆) :
+    ⊢ lrel_tern_un (lrel_evidence (lrel_auth A))
+        (authenticatable_base_susp.auth_susp_ser_p,
+         authenticatable_base_susp.auth_unsusp_ser_p,
+         auth_suspend_p, auth_unsuspend_p)%V.
+  Proof.
+    iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=).
+    iExists tauth, _, _, _, _, #(), #(), #().
+    iSplit; [done|]. iSplit; [|iSplit; [|iSplit]].
+    - iApply auth_unsusp_p_ser.
+    - iApply auth_susp_p_ser.
+    - (* suspend_spec_bin *)
+      rewrite /suspend_spec_bin.
+      iIntros (t' v0 un_v s_def Ψ) "!# (%Hunsusp & #Hsw & HA) HΨ".
+      rewrite /authenticatable_base_susp.auth_suspend_p.
+      wp_pure _. (* strips ▷ on HA *)
+      iEval (rewrite /lrel_auth /lrel_auth' /=) in "HA".
+      iEval (cbv [lrel_auth_un lrel_un_car]) in "HA".
+      iDestruct "HA" as (t0 a1 un_a1 s0) "(%Hu0 & #Hsw0 & HA1 & Hap)".
+      iDestruct "Hap" as (lb0 lr0 ps0) "[%Hv0eq _]". subst v0.
+      destruct t'; simpl in Hunsusp.
+      + destruct Hunsusp as (?&?&?&?&Hx&_). simplify_eq.
+      + destruct Hunsusp as [(?&?&Hx&_)|(?&?&Hx&_)]; simplify_eq.
+      + iDestruct "Hsw" as %(? & Hx & _). simplify_eq.
+      + iDestruct "Hsw" as %(? & Hx & _). simplify_eq.
+      + (* tauth *)
+        destruct Hunsusp as (lb1&lr1&a1'&h1&p1&Heqb&->).
+        injection Heqb as <- <- <- <- <-.
+        wp_pures.
+        wp_apply wp_new_proph; [done|].
+        iIntros (us p) "Hp".
+        wp_alloc lr as "Hlr".
+        wp_alloc lb as "Hlb".
+        wp_pures.
+        destruct (longest_valid_prefix_bool (map snd us)) as [|[] bs'] eqn:Hbs.
+        * (* [] — fill route (c = 0): [auth_susp_ser_p_fill] demands
+             [lg_mapg_p_unalloc lb], which cannot be minted here:
+             [suspend_spec_bin] carries no [lg_p_auth], and the fragment
+             is a ◯ of the fixed-gname lg map. Needs either ghost
+             threading through the unary evidence or a meta-token-based
+             lg map. Same blocker as the [false ::] branch below. *)
+          admit.
+        * (* true :: — emp route (c = 1): allocate the unfill invariant. *)
+          iMod (na_inv_alloc seqG_name ⊤
+                  (prover_susp_n (BoxV (#lb, #lr, un_a1, #(hash s0), #p)%V))
+                  (susp_p_unfill_inv p lb lr) with "[Hlb Hlr Hp]") as "#Hinv".
+          { iNext. iLeft. iExists (true :: bs'). iFrame "Hlb Hlr".
+            iSplit; [iExists us; by iFrame|by eauto]. }
+          iApply ("HΨ" $! _ suspended_string 1).
+          iSplitL "HA1".
+          { iExists t0, a1, un_a1, s0. iModIntro.
+            iSplit; [by iPureIntro|]. iFrame "Hsw0 HA1".
+            iExists lb, lr, p. iSplit; [done|]. by iRight. }
+          simpl. iRight. iModIntro. iSplit; [|done].
+          iExists p, lb, lr, un_a1, (hash s0), false.
+          iSplit; [done|]. iFrame "Hinv".
+        * (* false :: — fill route: same [lg_mapg_p_unalloc] blocker. *)
+          admit.
+    - (* unsuspend_spec_bin *)
+      rewrite /unsuspend_spec_bin.
+      iIntros (E a1 HE Ψ) "!# (HA & Htok) HΨ".
+      rewrite /authenticatable_base_susp.auth_unsuspend_p.
+      wp_pure _. (* strips ▷ on HA *)
+      iEval (rewrite /lrel_auth /lrel_auth' /=) in "HA".
+      iEval (cbv [lrel_auth_un lrel_un_car]) in "HA".
+      iDestruct "HA" as (t_in a1_in un_a1_in s_in) "(%Hu_in & _ & _ & Hap)".
+      iDestruct "Hap" as (lb lr ps) "[%Ha1_eq [#Hinv | #Hinv]]".
+      + (* Fill invariant — close as Disj 2 after the store. *)
+        rewrite Ha1_eq. wp_pures.
+        wp_bind (ResolveProph _ _)%E.
+        iMod (na_inv_acc with "Hinv Htok") as "(Hinvo & Htok & Hclose)";
+          [solve_ndisj|solve_ndisj|].
+        iDestruct "Hinvo" as "(>Hlb & Hrest)".
+        iDestruct "Hrest" as "[Hd1 | [Hd2 | [Hd3 | Hd4]]]".
+        * (* Disj 1: lr↦#false, fill_proph_bs ps bs (bs = false::bs') — consistent. *)
+          iDestruct "Hd1" as (bs) "(>Hlr & >(Hpfl & %Hbs))".
+          destruct Hbs as [bs' ->].
+          iDestruct "Hpfl" as (us) "[Hp %Heqbs]".
+          wp_apply (wp_resolve_proph with "Hp"). iIntros (pvs') "[%Heq Hp]".
+          subst us.
+          wp_pures. wp_store.
+          iMod ("Hclose" with "[$Htok Hlb Hlr Hp]") as "Htok".
+          { iNext. iFrame "Hlb". iRight. iLeft.
+            iExists (longest_valid_prefix_bool (map snd pvs')).
+            iFrame "Hlr". iExists pvs'. by iFrame. }
+          wp_pures. iApply "HΨ". iModIntro. iFrame "Htok".
+          iPureIntro. simpl. by eexists lb, lr, _, (hash s_in), ps.
+        * (* Disj 2: lr↦#true, proph_bs ps bs *)
+          iDestruct "Hd2" as (bs) "(>Hlr & >Hpb)".
+          iDestruct "Hpb" as (us) "[Hp %Heqbs]".
+          wp_apply (wp_resolve_proph with "Hp"). iIntros (pvs') "[%Heq Hp]".
+          subst us.
+          wp_pures. wp_store.
+          iMod ("Hclose" with "[$Htok Hlb Hlr Hp]") as "Htok".
+          { iNext. iFrame "Hlb". iRight. iLeft.
+            iExists (longest_valid_prefix_bool (map snd pvs')).
+            iFrame "Hlr". iExists pvs'. by iFrame. }
+          wp_pures. iApply "HΨ". iModIntro. iFrame "Htok".
+          iPureIntro. simpl. by eexists lb, lr, _, (hash s_in), ps.
+        * (* Disj 3: lr↦#false, empty_proph_bs ps — resolves contradict empty. *)
+          iDestruct "Hd3" as "(>Hlr & >Hpb)".
+          iDestruct "Hpb" as (us) "[Hp %Heqbs]".
+          wp_apply (wp_resolve_proph with "Hp"). iIntros (pvs') "[%Heq Hp]".
+          subst us. simpl in Heqbs. discriminate.
+        * (* Disj 4: lr↦#b, proph_bs ps bs, intransit q' *)
+          iDestruct "Hd4" as (bs q' b) "(>Hlr & >Hpb & >Hintr')".
+          iDestruct "Hpb" as (us) "[Hp %Heqbs]".
+          wp_apply (wp_resolve_proph with "Hp"). iIntros (pvs') "[%Heq Hp]".
+          subst us.
+          wp_pures. wp_store.
+          iMod ("Hclose" with "[$Htok Hlb Hlr Hp Hintr']") as "Htok".
+          { iNext. iFrame "Hlb". iRight. iRight. iRight.
+            iExists (longest_valid_prefix_bool (map snd pvs')), q', true.
+            iFrame "Hlr Hintr'". iExists pvs'. by iFrame. }
+          wp_pures. iApply "HΨ". iModIntro. iFrame "Htok".
+          iPureIntro. simpl. by eexists lb, lr, _, (hash s_in), ps.
+      + (* Unfill invariant *)
+        rewrite Ha1_eq. wp_pures.
+        wp_bind (ResolveProph _ _)%E.
+        iMod (na_inv_acc with "Hinv Htok") as "(Hinvo & Htok & Hclose)";
+          [solve_ndisj|solve_ndisj|].
+        iDestruct "Hinvo" as "[>Hd1 | >Hd2]".
+        * (* Disj 1: lb↦false, lr↦false, unfill_proph_bs ps bs (bs = true::bs') —
+             resolve to SOMEV #false would need head false but bs head is true. *)
+          iDestruct "Hd1" as (bs) "(Hlb & Hlr & Hpfl & %Heqbs)".
+          destruct Heqbs as [bs' ->].
+          iDestruct "Hpfl" as (us) "[Hp %Heqbs2]".
+          wp_apply (wp_resolve_proph with "Hp"). iIntros (pvs') "[%Heq Hp]".
+          subst us. simpl in Heqbs2. discriminate.
+        * (* Disj 2: lb↦true, lr↦r, proph_bs ps bs *)
+          iDestruct "Hd2" as (r bs n γ) "(Hlb & Hlr & Hpb & #Hlbfrag & #Htrans)".
+          iDestruct "Hpb" as (us) "[Hp %Heqbs]".
+          wp_apply (wp_resolve_proph with "Hp"). iIntros (pvs') "[%Heq Hp]".
+          subst us.
+          wp_pures. wp_store.
+          iMod ("Hclose" with "[$Htok Hlb Hlr Hp]") as "Htok".
+          { iNext. iRight. iExists true, (longest_valid_prefix_bool (map snd pvs')), n, γ.
+            iFrame "Hlb Hlr Hlbfrag Htrans". iExists pvs'. by iFrame. }
+          wp_pures. iApply "HΨ". iModIntro. iFrame "Htok".
+          iPureIntro. simpl. by eexists lb, lr, _, (hash s_in), ps.
+  Admitted.
+
+  Lemma refines_Auth_auth Θ (Δ : ctxO Σ Θ) (R : kindO Σ (⋆ ⇒ ⋆)) :
+    ⊢ ⟦ ∀: ⋆, var1 (var3 var0) ⟧
+      (auth_ctx Δ R) p_Auth_auth v_Auth_auth i_Auth_auth.
+  Proof.
+    iSplit; interp_unfold!; last first.
+    { (* unary  *)
+      iIntros (A' v) "!# _ Htok". rewrite /p_Auth_auth. wp_pures.
+      iModIntro. iFrame "Htok". interp_unfold!.
+      iApply refines_un_Auth_auth. }
+    (* ternary *)
+    iIntros (A v1 v2 v3) "!# _"; rewrite -/interp.
+    iIntros (????) "Hv Hi Htok".
+    rewrite /p_Auth_auth /v_Auth_auth /i_Auth_auth.
+    v_pures; i_pures; wp_pures.
+    iModIntro. iFrame.
+    (* Final 3-way split: prove only the ternary [lrel_tern_evidence]. *)
+    iSplit; interp_unfold!; last first.
+    { (* final unary  *) iApply refines_un_Auth_auth. }
+    (* Ternary evidence for the auth. *)
+    iExists tauth, _, _, _, _, _, _, _.
+    iSplit; [done|]. iSplit; [done|].
+    iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit; [|iSplit]]]]].
+    - (* 1. unsusp_p_ser_spec *)
+      iApply auth_unsusp_p_ser.
+    - (* 2. susp_p_ser_spec *)
+      iApply auth_susp_p_ser.
     - (* 3. suspend_v_deser_spec (combined) *)
       iIntros "!#" (K tᵥ3 id) "Hv".
       rewrite /authenticatable_base_susp.auth_deser_v. v_pures.

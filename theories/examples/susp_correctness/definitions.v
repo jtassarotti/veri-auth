@@ -567,9 +567,14 @@ Section authenticatable_definitions.
             (* if o is Some v then ∃ s, unsusp_ser_p t v s (* ∗ s_is_ser_p_proph t a1 s'*)
             else ⌜invalid_value t a1⌝ ∨ (∃ s, unsusp_ser_p t a1 s) }}}. *)
 
+  (** [susp_ser_p t' v s_def] ties [t'] to [v]'s shape — without it the
+      spec is unprovable at the tauth leaf ([auth_suspend_p] destructs a
+      pair, so e.g. [t' = tstring] with [v] a Box would leave the code
+      stuck with no refutation available). Mirrors how
+      [suspend_v_deser_spec]'s precondition carries the witness. *)
   Definition suspend_spec_bin (suspend : val) (A : lrel_un Σ) (t : evi_type) : iProp Σ :=
-    ∀ t' (v un_v : val),
-      {{{ ⌜unsusp t' v un_v⌝ ∗ ▷ A v }}}
+    ∀ t' (v un_v : val) (s_def : string),
+      {{{ ⌜unsusp t' v un_v⌝ ∗ susp_ser_p t' v s_def ∗ ▷ A v }}}
         suspend un_v
       {{{ v' s c, RET v'; A v' ∗ susp_ser_p_real t c v' s }}}.
 
