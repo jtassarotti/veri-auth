@@ -522,7 +522,7 @@ Section authenticatable_definitions.
               serpred_frag id s_def ∗
               ((⌜s_pred = s_real ∧ t_real = t⌝ ∗ ∃ γl mlg_p' a2',
                 lg_p_auth mlg_p' ∗
-                ⌜size γl = c⌝ ∗ penset_frag γl ∗ A a1' a2' a3 ∗
+                ⌜size γl = c⌝ ∗ penset_frag γl ∗
                 susp_ser_p t a1' s_def ∗
                 spec_verifier tᵥ' (fill K' (SOMEV a2')) ∗
                 ([∗ set] γ ∈ γl,
@@ -530,9 +530,29 @@ Section authenticatable_definitions.
                     lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a1' #lb⌝) ∗
                   ∃ susp,
                     lg_mapg_frag susp γ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
-                sub_susp_count_frags t a2' c id c ∗
-                ser_v_proph t id a2' s_def ∗ pencount_frag (c + pn) ∗
-                visited_map_update_pending vm mp γl pn ctr) ∨
+                pencount_frag (c + pn) ∗
+                visited_map_update_pending vm mp γl pn ctr ∗
+                (* Decoration wand — fired by the caller right after
+                   [visited_deser_commit_*], whose products are exactly its
+                   inputs. Everything with commit-dependent tauth leaves is
+                   assembled here: the fresh suspenders' [auth_susp_v_inv]
+                   invariants inside [A], the mapg/cap pieces and
+                   [pval_snapshot]s inside [sub_susp_count_frags]; the raw
+                   points-to halves, [unfilled] tokens, prophecies and
+                   [vmeta_token]s are captured in the wand's closure. The □
+                   premise is the caller's obligation to mint apartness
+                   witnesses ([pval_snapshot]) for freshly allocated
+                   verifier locs at the just-committed id. *)
+                (cap_frag id c -∗
+                 (match c with
+                  | 0%nat => emp
+                  | _ => mapg_frag id 1 a2'
+                  end) -∗
+                 □(∀ susp : loc, vmeta_token susp ={⊤}=∗
+                     vmeta_token susp ∗ pval_snapshot susp id) ={⊤}=∗
+                   A a1' a2' a3 ∗
+                   sub_susp_count_frags t a2' c id c ∗
+                   ser_v_proph t id a2' s_def)) ∨
               (⌜s_pred ≠ s_real⌝ ∗ (lrel_tern_un A) a1')) }}})).
 
   Definition unsuspend_spec (unsuspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
