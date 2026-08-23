@@ -586,12 +586,12 @@ Section authenticatable.
         injection HeqBu as <- <- <- <-.
         iDestruct "HAc" as "[_ HAcun]".
         wp_apply ("HspbAu" $! t1' _ _ with "[HAcun]").
-        { iSplit; [done|]. iApply "HAcun". }
+        { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
         iIntros (a1A' sA cA) "[HAun' #HrealA']".
         wp_pures. wp_bind (p_spB _).
         iDestruct "HBc" as "[_ HBcun]".
         wp_apply ("HspbBu" $! t2' _ _ with "[HBcun]").
-        { iSplit; [done|]. iApply "HBcun". }
+        { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
         iIntros (a1B' sB cB) "[HBun' #HrealB']".
         wp_pures.
         iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str sA sB) (cA + cB)
@@ -632,12 +632,12 @@ Section authenticatable.
         injection HeqBu as <- <- <- <-.
         iDestruct "HAc" as "[_ HAcun]".
         wp_apply ("HspbAu" $! t1' _ _ with "[HAcun]").
-        { iSplit; [done|]. iApply "HAcun". }
+        { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
         iIntros (a1A' sA cA) "[HAun' #HrealA']".
         wp_pures. wp_bind (p_spB _).
         iDestruct "HBc" as "[_ HBcun]".
         wp_apply ("HspbBu" $! t2' _ _ with "[HBcun]").
-        { iSplit; [done|]. iApply "HBcun". }
+        { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
         iIntros (a1B' sB cB) "[HBun' #HrealB']".
         wp_pures.
         iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str sA sB) (cA + cB)
@@ -688,12 +688,12 @@ Section authenticatable.
         injection HeqBu as <- <- <- <-.
         iDestruct "HAc" as "[_ HAcun]".
         wp_apply ("HspbAu" $! t1' _ _ with "[HAcun]").
-        { iSplit; [done|]. iApply "HAcun". }
+        { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
         iIntros (a1A' sA cA) "[HAun' #HrealA']".
         wp_pures. wp_bind (p_spB _).
         iDestruct "HBc" as "[_ HBcun]".
         wp_apply ("HspbBu" $! t2' _ _ with "[HBcun]").
-        { iSplit; [done|]. iApply "HBcun". }
+        { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
         iIntros (a1B' sB cB) "[HBun' #HrealB']".
         wp_pures.
         iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str sA sB) (cA + cB)
@@ -742,12 +742,12 @@ Section authenticatable.
         injection HeqBu as <- <- <- <-.
         iDestruct "HAc" as "[_ HAcun]".
         wp_apply ("HspbAu" $! t1' _ _ with "[HAcun]").
-        { iSplit; [done|]. iApply "HAcun". }
+        { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
         iIntros (a1A' sA cA) "[HAun' #HrealA']".
         wp_pures. wp_bind (p_spB _).
         iDestruct "HBc" as "[_ HBcun]".
         wp_apply ("HspbBu" $! t2' _ _ with "[HBcun]").
-        { iSplit; [done|]. iApply "HBcun". }
+        { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
         iIntros (a1B' sB cB) "[HBun' #HrealB']".
         wp_pures.
         iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str sA sB) (cA + cB)
@@ -790,12 +790,12 @@ Section authenticatable.
         injection HeqBu as <- <- <- <-.
         iDestruct "HAc" as "[_ HAcun]".
         wp_apply ("HspbAu" $! t1' _ _ with "[HAcun]").
-        { iSplit; [done|]. iApply "HAcun". }
+        { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
         iIntros (a1A' sA cA) "[HAun' #HrealA']".
         wp_pures. wp_bind (p_spB _).
         iDestruct "HBc" as "[_ HBcun]".
         wp_apply ("HspbBu" $! t2' _ _ with "[HBcun]").
-        { iSplit; [done|]. iApply "HBcun". }
+        { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
         iIntros (a1B' sB cB) "[HBun' #HrealB']".
         wp_pures.
         iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str sA sB) (cA + cB)
@@ -840,7 +840,7 @@ Section authenticatable.
         injection HeqBu as <- <- <- <-.
         iDestruct "HBc" as "[_ HBcun]".
         wp_apply ("HspbBu" $! t2' _ _ with "[HBcun]").
-        { iSplit; [done|]. iApply "HBcun". }
+        { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
         iIntros (a1B' sB cB) "[HBun' #HrealB']".
         wp_pures.
         iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_realA sB) (cA + cB)

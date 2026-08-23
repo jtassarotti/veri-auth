@@ -424,7 +424,7 @@ Section authenticatable.
              injection HeqAu as <- <- <- <-.
              iDestruct "HAc" as "[_ HAcun]".
              wp_apply ("HspbAu" $! t1' w un_x with "[HAcun]").
-             { iSplit; [done|]. iApply "HAcun". }
+             { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
              iIntros (a1A' sA cA) "[HAun' #HrealA']".
              wp_pures.
              iApply ("HΨ" $! (InjLV a1A') (inl_ser_str sA) cA (tsum tAu tB)).
@@ -463,7 +463,7 @@ Section authenticatable.
              injection HeqAu as <- <- <- <-.
              iDestruct "HAc" as "[_ HAcun]".
              wp_apply ("HspbAu" $! t1' w un_x with "[HAcun]").
-             { iSplit; [done|]. iApply "HAcun". }
+             { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
              iIntros (a1A' sA cA) "[HAun' #HrealA']".
              wp_pures.
              iApply ("HΨ" $! (InjLV a1A') (inl_ser_str sA) cA (tsum tAu tB)).
@@ -514,7 +514,7 @@ Section authenticatable.
              injection HeqBu as <- <- <- <-.
              iDestruct "HBc" as "[_ HBcun]".
              wp_apply ("HspbBu" $! t2' w un_y with "[HBcun]").
-             { iSplit; [done|]. iApply "HBcun". }
+             { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
              iIntros (a1B' sB cB) "[HBun' #HrealB']".
              wp_pures.
              iApply ("HΨ" $! (InjRV a1B') (inr_ser_str sB) cB (tsum tA tBu)).
@@ -656,7 +656,7 @@ Section authenticatable.
              injection HeqBu as <- <- <- <-.
              iDestruct "HBc" as "[_ HBcun]".
              wp_apply ("HspbBu" $! t2' w un_y with "[HBcun]").
-             { iSplit; [done|]. iApply "HBcun". }
+             { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
              iIntros (a1B' sB cB) "[HBun' #HrealB']".
              wp_pures.
              iApply ("HΨ" $! (InjRV a1B') (inr_ser_str sB) cB (tsum tA tBu)).
