@@ -292,7 +292,67 @@ Section authenticatable.
         iIntros (γl) "Hg Hpen %Hsz Hbig".
         iDestruct (susp_ser_p_real_sum_γl_empty_r with "Hser1 Hbig") as %->.
         iFrame "Hg Hpen". by rewrite !big_sepS_empty.
-    - (* 3. suspend_v_deser_spec (combined) *) admit.
+    - (* 3. suspend_v_deser_spec (combined) *)
+      rewrite /suspend_v_deser_spec.
+      iIntros "!#" (K tᵥ3 pid) "Hv".
+      v_pures.
+      v_bind (v_dB _).
+      iMod ("HsuspvdeserB" with "Hv") as (v_parB) "(Hv & #HinnerB) /=".
+      v_bind (v_dA _).
+      iMod ("HsuspvdeserA" with "Hv") as (v_parA) "(Hv & #HinnerA) /=".
+      rewrite /sum_deser. v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      wp_pure _.
+      iPoseProof "HA" as "HA'".
+      iEval (rewrite interp_sum_combined) in "HA'".
+      iDestruct "HA'" as (w1 w2 w3) "[(-> & -> & -> & HAc) | (-> & -> & -> & HBc)]".
+      + (* prover value is InjL w1 *)
+        destruct t'; simpl in Hunsusp.
+        { destruct Hunsusp as (?&?&?&?&Heq&_). simplify_eq. }
+        2:{ iDestruct "Hser" as %(s' & Heq & _). simplify_eq. }
+        2:{ iDestruct "Hser" as %(z & Heq & _). simplify_eq. }
+        2:{ destruct Hunsusp as (?&?&?&?&?&Heq&_). simplify_eq. }
+        destruct Hunsusp as [(x & un_x & Heq & -> & Hunx)|(? & ? & Heq & _)];
+          simplify_eq.
+        (* [Hser] pins the components' defined serializations *)
+        iDestruct "Hser" as (w s1_def) "[[#HserA' [%HeqL %Hsdef]] | [_ [%HeqR _]]]";
+          simplify_eq.
+        wp_pures. wp_bind (p_spA _).
+        interp_unfold! in "HAc".
+        v_pures; try solve_vals_compare_safe.
+        case_bool_decide as HtagL; v_pures; try solve_vals_compare_safe.
+        * (* verifier parses an L-tag: couple with the A component *)
+          v_bind (v_parA _).
+          admit.
+        * case_bool_decide as HtagR; v_pures.
+          -- (* verifier parses an R-tag while the prover is InjL *)
+             admit.
+          -- (* no tag parses *)
+             admit.
+      + (* prover value is InjR w1 *)
+        destruct t'; simpl in Hunsusp.
+        { destruct Hunsusp as (?&?&?&?&Heq&_). simplify_eq. }
+        2:{ iDestruct "Hser" as %(s' & Heq & _). simplify_eq. }
+        2:{ iDestruct "Hser" as %(z & Heq & _). simplify_eq. }
+        2:{ destruct Hunsusp as (?&?&?&?&?&Heq&_). simplify_eq. }
+        destruct Hunsusp as [(? & ? & Heq & _)|(y & un_y & Heq & -> & Huny)];
+          simplify_eq.
+        iDestruct "Hser" as (w s1_def) "[[_ [%HeqL _]] | [#HserB' [%HeqR %Hsdef]]]";
+          simplify_eq.
+        wp_pures. wp_bind (p_spB _).
+        interp_unfold! in "HBc".
+        v_pures; try solve_vals_compare_safe.
+        case_bool_decide as HtagL; v_pures; try solve_vals_compare_safe.
+        * (* L-tag while the prover is InjR *)
+          admit.
+        * case_bool_decide as HtagR; v_pures.
+          -- (* R-tag: couple with the B component *)
+             v_bind (v_parB _).
+             admit.
+          -- (* no tag parses *)
+             admit.
     - (* 4. unsuspend_spec *)
       rewrite /unsuspend_spec.
       iIntros (E a1 a2 a3 HE Ψ) "!# (HA & Htok & Hintr) HΨ".
