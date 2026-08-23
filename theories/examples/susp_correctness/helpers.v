@@ -316,17 +316,17 @@ Section authentikit_helpers.
       pval_frag id susp -∗
       lg_mapg_frag susp γ -∗
       susp ↦ᵥ{#1/2} InjLV (#pid, #p) -∗
-      sub_susp_count_frags t v c pid Nc
+      sub_susp_count t v c pid Nc v
       ==∗
         intransit 1 ∗
         visit_reached_done γ ∗
         visited_map_update_done m γ pn ctr ∗
-        sub_susp_count_frags t v c pid Nc ∗
+        sub_susp_count t v c pid Nc v ∗
         susp ↦ᵥ{#1/2} InjLV (#pid, #p) ∗
         pval_snapshot susp pid.
   Proof.
     iIntros (t t' v c pid Nc susp p γ m pn ctr Hid Hsub)
-      "Hauth Htok Hintr #Hpvf #Hlg Hsusp (#Hcap & %Hle & Hinner & Hagg)".
+      "Hauth Htok Hintr #Hpvf #Hlg Hsusp Hinner".
     iAssert (∀ v_outer (tind : evi_type) (vind : val) (cind : nat) (tind' : evi_type),
                ⌜v_sub_obj tind' vind #susp⌝ -∗
                visited_mapg_auth m pn ctr -∗
@@ -343,7 +343,7 @@ Section authentikit_helpers.
                susp ↦ᵥ{#1/2} InjLV (#pid, #p) ∗
                pval_snapshot susp pid)%I
       with "[]" as "Hlem".
-    { iClear "Hcap Hpvf Hlg".
+    { iClear "Hpvf Hlg".
       iIntros (v_outer t0).
       iInduction t0 as [t1 t2 | t1 t2 | | | ] "IH".
       all: iIntros (vind cind tind') "%Hsubind Hauth Htok Hintr #Hpvf #Hlg Hsusp Hinner".
@@ -417,7 +417,7 @@ Section authentikit_helpers.
             iModIntro. iFrame. iFrame "#". }
     iMod ("Hlem" $! v t v c t' Hsub with "Hauth Htok Hintr Hpvf Hlg Hsusp Hinner")
       as "(#Hreached & Hintr & Hauth' & Hinner & Hsusp & #Hsnap)".
-    iModIntro. iFrame "Hreached Hintr Hauth' Hsusp Hcap Hinner Hagg Hsnap". done.
+    iModIntro. iFrame "Hreached Hintr Hauth' Hsusp Hinner Hsnap".
   Qed.
 
   (* [same_ser_for_fill] implies [v_sub_obj], since the predicate is

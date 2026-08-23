@@ -1698,6 +1698,9 @@ Section map_res.
   Definition mapg_auth (m : mapg_type) : iProp Σ :=
     own mapG_name (● m).
 
+  Definition mapg_auth_update_dead (pid : nat) (m : mapg_type) : iProp Σ :=
+    own mapG_name (● (<[ pid := Cinr (to_agree ()) ]> m)).
+
   Definition mapg_insert_def (m : mapg_type) k v : mapg_type :=
     <[ k := Cinl (to_frac_agree 1 v) ]> m.
 
