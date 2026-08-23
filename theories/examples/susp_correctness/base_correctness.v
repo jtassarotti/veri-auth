@@ -165,6 +165,45 @@ Section authenticatable.
         iPureIntro. simpl. right. by exists w, un_w.
   Qed.
 
+  (** [susp_p_ser_spec_at] from the general serializer spec plus the
+      shape witness. *)
+  Local Lemma susp_p_ser_spec_at_intro ser t c a s :
+    susp_ser_p_real t c a s -∗ susp_p_ser_spec ser t -∗
+    susp_p_ser_spec_at ser t c a s.
+  Proof.
+    iIntros "#Hreal #Hspec".
+    rewrite /susp_p_ser_spec_at /susp_p_ser_spec.
+    iIntros (E q HE Ψ) "!# (Htok & Hintr) HΨ".
+    wp_apply ("Hspec" $! E _ _ c q with "[//] [$Hreal $Htok $Hintr]").
+    iIntros "(Htok & Hintr & Hreach)". iApply "HΨ". iFrame.
+  Qed.
+
+  (** At [c = 0] the count structure never mentions [v_outer] (only the
+      tauth suspender leaf does, and it forces [c = 1]) — so the outer
+      value can be re-pinned freely. *)
+  Local Lemma sub_susp_count_c0_vout t v id N vo vo' :
+    sub_susp_count t v 0 id N vo -∗ sub_susp_count t v 0 id N vo'.
+  Proof.
+    iIntros "Hc". iInduction t as [t1 t2|t1 t2| | |] "IH" forall (v); simpl.
+    - iDestruct "Hc" as (c1 c2 v1 v2 [-> Hc]) "[Hc1 Hc2]".
+      assert (c1 = 0) as -> by lia. assert (c2 = 0) as -> by lia.
+      iExists 0, 0, v1, v2. iSplit; [done|].
+      iSplitL "Hc1"; [by iApply "IH"|by iApply "IH1"].
+    - iDestruct "Hc" as "[(%v1 & -> & Hc)|(%v2 & -> & Hc)]".
+      + iLeft. iExists v1. iSplit; [done|]. by iApply "IH".
+      + iRight. iExists v2. iSplit; [done|]. by iApply "IH1".
+    - done.
+    - done.
+    - iDestruct "Hc" as (v1) "[%Heqv Hbr]".
+      iExists v1. iSplit; [done|].
+      iDestruct "Hbr" as "[%Hl | (%susp & %Heqr & Hpts)]".
+      + by iLeft.
+      + iRight. iExists susp. iSplit; [done|].
+        iDestruct "Hpts" as "[Hfill | Hleaf]".
+        * iLeft. iFrame "Hfill".
+        * iDestruct "Hleaf" as (p γ) "(_ & _ & %Hc1 & _)". simplify_eq.
+  Qed.
+
   Lemma refines_Auth_sum Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → var2 var0 → var2 (var1 + var0) ⟧
       (ext Δ (lrel_evidence)) p_Auth_sum v_Auth_sum i_Auth_sum.
@@ -325,7 +364,79 @@ Section authenticatable.
         case_bool_decide as HtagL; v_pures; try solve_vals_compare_safe.
         * (* verifier parses an L-tag: couple with the A component *)
           v_bind (v_parA _).
-          admit.
+          wp_apply ("HinnerA" with "[$HAc $HserA' $Hserpred $Hvm $Hlgp $Hpenc $Hv]").
+          { done. }
+          iIntros (a1A' s_realA cA t_realA)
+            "(#HspecatA & #HrealA & _ & HpostA)".
+          wp_pures.
+          iDestruct "HpostA" as "[HmatchA | [%HnmA #HunA]]".
+          ** (* component match *)
+             iDestruct "HmatchA" as "([%HspA %HtA] & %γl & %mlg' & %a2A' &
+                 Hlgp' & %Hsz & Hpens & #HpserpA' & Hv & Hbig & Hpenc' & Hvm' & Hwand)".
+             iSimpl in "Hv". v_pures.
+             subst t_realA.
+             (* reconstruct s_pred = inl_ser_str s_realA *)
+             injection HtagL as HtagL'.
+             replace (Z.to_nat 0) with 0 in HtagL' by done.
+             replace (Z.to_nat 2) with 2 in HtagL' by done.
+             replace (Z.to_nat 2) with 2 in HspA by done.
+             replace (Z.to_nat (String.length s_pred - 2))
+               with (String.length s_pred - 2)%nat in HspA by lia.
+             assert (2 ≤ String.length s_pred)%nat as Hlen2.
+             { replace 2 with (String.length "L_") at 1; [|done].
+               rewrite -HtagL'. apply length_substring_le. }
+             assert (s_pred = inl_ser_str s_realA) as ->.
+             { rewrite {1}(substring_split_from_O s_pred 2) //.
+               by rewrite /inl_ser_str HtagL' HspA. }
+             destruct cA as [|cA'']; last first.
+             { (* cA > 0: suspensions under a sum are unreachable by design
+                  (v_sub_obj's tsum clause pins the injected value), so the
+                  sum-level per-γ payload cannot be assembled. Standing
+                  design exclusion. *)
+               admit. }
+             apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+             iApply ("HΨ" $! (InjLV a1A') (inl_ser_str s_realA) 0 (tsum tA tB)).
+             iModIntro.
+             iSplitR.
+             { (* the sum serializer spec at InjL, closure via γl = ∅ *)
+               rewrite /susp_p_ser_spec_at.
+               iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+               wp_pures.
+               wp_apply ("HspecatA" $! E q with "[//] [$Htok $Hintr]").
+               iIntros "(Htok & Hintr & Hreach)". wp_pures.
+               unfold inl_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
+               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
+               iDestruct (susp_ser_p_real_sum_γl_empty_l with "HrealA Hbig'") as %->.
+               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+             iSplitR.
+             { iExists a1A', s_realA. iLeft. iSplit; [iApply "HrealA"|done]. }
+             iFrame "Hserpred".
+             iLeft. iSplit; [done|].
+             iExists ∅, mlg', (InjLV a2A').
+             iFrame "Hlgp' Hpens Hv".
+             iSplit; [by rewrite size_empty|].
+             iSplit.
+             { iExists a1A', s1_def. iLeft. iSplit; [iApply "HpserpA'"|done]. }
+             iSplit. { by rewrite big_sepS_empty. }
+             iSplitL "Hpenc'"; [by iFrame "Hpenc'"|].
+             iFrame "Hvm'".
+             (* the sum-level decoration wand, composing the component's *)
+             iIntros "Hcap _ #Hmint".
+             iMod ("Hwand" with "Hcap [//] Hmint") as "(HAf & Hcnt & Hserv)".
+             iModIntro.
+             iSplitL "HAf".
+             { iEval (rewrite interp_sum_combined).
+               iExists a1A', a2A', w3. iLeft.
+               do 3 (iSplit; [done|]). interp_unfold!. iApply "HAf". }
+             iDestruct "Hcnt" as "(#Hcap' & _ & Hc & Hagg)".
+             iSplitL "Hc".
+             { iFrame "Hcap'". iSplit; [done|]. iSplitL "Hc".
+               - iLeft. iExists a2A'. iSplit; [done|].
+                 by iApply sub_susp_count_c0_vout.
+               - by iLeft. }
+             iExists a2A', s1_def. iLeft. iSplit; [iExact "Hserv"|done].
+          ** (* component mismatch *)
+             admit.
         * case_bool_decide as HtagR; v_pures.
           -- (* verifier parses an R-tag while the prover is InjL *)
              admit.
