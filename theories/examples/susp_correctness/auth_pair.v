@@ -10,6 +10,51 @@ Section authenticatable.
   Local Typeclasses Opaque susp_p_ser_spec unsusp_p_ser_spec suspend_v_deser_spec
         unsuspend_spec v_ser_spec auth_ser_spec v_count_spec.
 
+  (** Pure parse facts about [prod_ser_str], mirroring
+      [prod_deser'_sound]/[_complete]. *)
+  Local Lemma prod_ser_str_index s1 s2 :
+    String.index 0 "_" (prod_ser_str s1 s2)
+    = Some (String.length (StringOfZ (String.length s1))).
+  Proof.
+    rewrite /prod_ser_str.
+    eapply index_0_append_char; [done|apply valid_tag_stringOfZ].
+  Qed.
+
+  Local Lemma prod_ser_str_prefix s1 s2 :
+    String.substring 0 (String.length (StringOfZ (String.length s1)))
+      (prod_ser_str s1 s2)
+    = StringOfZ (String.length s1).
+  Proof. rewrite /prod_ser_str substring_0_length_append //. Qed.
+
+  Local Lemma prod_ser_str_length s1 s2 :
+    String.length (prod_ser_str s1 s2)
+    = (String.length (StringOfZ (String.length s1)) + 1
+       + String.length s1 + String.length s2)%nat.
+  Proof. rewrite /prod_ser_str !strings.length_app /=. lia. Qed.
+
+  Local Lemma prod_ser_str_sub1 s1 s2 :
+    String.substring (String.length (StringOfZ (String.length s1)) + 1)
+      (String.length s1) (prod_ser_str s1 s2) = s1.
+  Proof.
+    rewrite /prod_ser_str substring_add_length_app /=.
+    apply substring_0_length_append.
+  Qed.
+
+  Local Lemma prod_ser_str_sub2 s1 s2 :
+    String.substring
+      (String.length (StringOfZ (String.length s1)) + 1 + String.length s1)
+      (String.length s2) (prod_ser_str s1 s2) = s2.
+  Proof.
+    rewrite /prod_ser_str.
+    replace (String.length (StringOfZ (String.length s1)) + 1
+             + String.length s1)%nat
+      with (String.length (StringOfZ (String.length s1))
+            + (1 + String.length s1))%nat by lia.
+    rewrite substring_add_length_app /=.
+    rewrite -{1}(Nat.add_0_r (String.length s1)) substring_add_length_app.
+    apply substring_0_length.
+  Qed.
+
   (** Pair-level [susp_p_ser_spec_at] from the components': runs the two
       component serializations and splits the reachability closure's
       pending set by the partition argument (as in the evidence lemmas'
@@ -584,7 +629,9 @@ Section authenticatable.
           iSplitR; [iApply "HrealA'"|iApply "HrealB'"]. }
         iFrame "Hserpred".
         iRight. iSplit.
-        { admit. (* mismatch pure: no separator in s_pred vs Hidx=None on the prod format *) }
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. done. }
         rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
         iSplitL "HAun'".
         - interp_unfold!. iApply "HAun'".
@@ -628,7 +675,13 @@ Section authenticatable.
           iSplitR; [iApply "HrealA'"|iApply "HrealB'"]. }
         iFrame "Hserpred".
         iRight. iSplit.
-        { admit. (* mismatch pure: length prefix unparseable, HAlen=None *) }
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. injection Hidx as <-.
+          replace (Z.to_nat 0) with 0%nat in HAlen by done.
+          rewrite Nat2Z.id in HAlen.
+          rewrite prod_ser_str_prefix in HAlen.
+          rewrite ZOfString_inv in HAlen. done. }
         rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
         iSplitL "HAun'".
         - interp_unfold!. iApply "HAun'".
@@ -678,7 +731,15 @@ Section authenticatable.
           iSplitR; [iApply "HrealA'"|iApply "HrealB'"]. }
         iFrame "Hserpred".
         iRight. iSplit.
-        { admit. (* mismatch pure: echo check fails, Hecho *) }
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. injection Hidx as <-.
+          replace (Z.to_nat 0) with 0%nat in HAlen by done.
+          rewrite Nat2Z.id in HAlen.
+          rewrite prod_ser_str_prefix in HAlen.
+          rewrite ZOfString_inv in HAlen. injection HAlen as <-.
+          replace (Z.to_nat 0) with 0%nat in Hecho by done.
+          apply Hecho. rewrite Nat2Z.id prod_ser_str_prefix. done. }
         rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
         iSplitL "HAun'".
         - interp_unfold!. iApply "HAun'".
@@ -724,7 +785,14 @@ Section authenticatable.
           iSplitR; [iApply "HrealA'"|iApply "HrealB'"]. }
         iFrame "Hserpred".
         iRight. iSplit.
-        { admit. (* mismatch pure: negative length, Hsign *) }
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. injection Hidx as <-.
+          replace (Z.to_nat 0) with 0%nat in HAlen by done.
+          rewrite Nat2Z.id in HAlen.
+          rewrite prod_ser_str_prefix in HAlen.
+          rewrite ZOfString_inv in HAlen. injection HAlen as <-.
+          lia. }
         rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
         iSplitL "HAun'".
         - interp_unfold!. iApply "HAun'".
@@ -765,7 +833,14 @@ Section authenticatable.
           iSplitR; [iApply "HrealA'"|iApply "HrealB'"]. }
         iFrame "Hserpred".
         iRight. iSplit.
-        { admit. (* mismatch pure: length bound fails, Hbound *) }
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. injection Hidx as <-.
+          replace (Z.to_nat 0) with 0%nat in HAlen by done.
+          rewrite Nat2Z.id in HAlen.
+          rewrite prod_ser_str_prefix in HAlen.
+          rewrite ZOfString_inv in HAlen. injection HAlen as <-.
+          rewrite prod_ser_str_length in Hbound. lia. }
         rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
         iSplitL "HAun'".
         - interp_unfold!. iApply "HAun'".
@@ -802,7 +877,16 @@ Section authenticatable.
           iSplitR; [iApply "HrealA"|iApply "HrealB'"]. }
         iFrame "Hserpred".
         iRight. iSplit.
-        { admit. (* mismatch pure: the s1 slice differs (HnmA). *) }
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. injection Hidx as <-.
+          replace (Z.to_nat 0) with 0%nat in HAlen by done.
+          rewrite Nat2Z.id in HAlen.
+          rewrite prod_ser_str_prefix in HAlen.
+          rewrite ZOfString_inv in HAlen. injection HAlen as <-.
+          apply HnmA.
+          etrans; [|apply (prod_ser_str_sub1 s_realA sB)].
+          f_equal; lia. }
         rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
         iSplitR.
         - interp_unfold!. iDestruct "HunA" as "HunAc". iApply "HunAc".
@@ -836,7 +920,17 @@ Section authenticatable.
           iSplitR; [iApply "HrealA"|iApply "HrealB"]. }
         iFrame "Hserpred".
         iRight. iSplit.
-        { admit. (* mismatch pure: the s2 slice differs (HnmB). *) }
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. injection Hidx as <-.
+          replace (Z.to_nat 0) with 0%nat in HAlen by done.
+          rewrite Nat2Z.id in HAlen.
+          rewrite prod_ser_str_prefix in HAlen.
+          rewrite ZOfString_inv in HAlen. injection HAlen as <-.
+          apply HnmB.
+          etrans; [|apply (prod_ser_str_sub2 s_realA s_realB)].
+          rewrite prod_ser_str_length.
+          f_equal; lia. }
         rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
         iSplitR.
         - interp_unfold!. iDestruct "HunA1'" as "HunA1c". iApply "HunA1c".
@@ -861,8 +955,33 @@ Section authenticatable.
         iSplitR; [iApply "HrealA"|iApply "HrealB"]. }
       iFrame "Hserpred".
       iLeft. iSplit.
-      { admit. (* s_pred = prod_ser_str s_realA s_realB — string-format pure
-                  from Hidx/HAlen/Hecho/Hsign/Hbound + HspA/HspB; isolated. *) }
+      { iPureIntro. split; last done.
+        replace (Z.to_nat 0) with 0%nat in Hidx by done.
+        apply Znot_lt_ge in Hsign.
+        apply Znot_lt_ge in Hbound.
+        replace (Z.to_nat 0) with 0%nat in Hecho by done.
+        rewrite Nat2Z.id in Hecho.
+        assert (String.length
+                  (String.substring (Z.to_nat (i + 1)) (Z.to_nat Alen) s_pred)
+                = Z.to_nat Alen) as HlenA.
+        { apply length_substring. lia. }
+        rewrite -HspA -HspB /prod_ser_str HlenA.
+        replace (Z.of_nat (Z.to_nat Alen)) with Alen by lia.
+        rewrite Hecho.
+        pose proof (String.index_correct1 _ _ _ _ Hidx) as Hus.
+        simpl in Hus. rewrite -Hus.
+        replace (Z.to_nat (i + 1)) with (i + 1)%nat by lia.
+        replace (Z.to_nat (i + 1 + Alen)) with (i + 1 + Z.to_nat Alen)%nat
+          by lia.
+        replace (Z.to_nat (String.length s_pred - (i + 1 + Alen)))
+          with (String.length s_pred - (i + 1) - Z.to_nat Alen)%nat by lia.
+        rewrite -(substring_split (Z.to_nat Alen) s_pred
+                    (String.length s_pred - (i + 1)) (i + 1)); [|lia].
+        replace (String.length s_pred - (i + 1))%nat
+          with (String.length s_pred - i - 1)%nat by lia.
+        rewrite -(substring_split 1 s_pred (String.length s_pred - i) i);
+          [|lia].
+        apply substring_split_from_O. lia. }
       iSplitR.
       { rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
         iSplitR.
