@@ -138,8 +138,8 @@ Section authenticatable_definitions.
     | tprod t1 t2 =>
         ∃ v1 v2, v = (v1, v2)%V ∧ (sv = v1 ∨ sv = v2 ∨ p_sub_obj t1 v1 sv ∨ p_sub_obj t2 v2 sv)
     | tsum t1 t2 =>
-        ∃ v', ((v = InjLV v' ∧ p_sub_obj t1 v' sv ∧ sv = v') ∨
-                 (v = InjRV v' ∧ p_sub_obj t2 v' sv ∧ sv = v'))
+        ∃ v', ((v = InjLV v' ∧ p_sub_obj t1 v' sv) ∨
+                 (v = InjRV v' ∧ p_sub_obj t2 v' sv))
     | tstring => False
     | tint => False
     | tauth =>
@@ -152,8 +152,8 @@ Section authenticatable_definitions.
     | tprod t1 t2 =>
         ∃ v1 v2, v = (v1, v2)%V ∧ (sv = v1 ∨ sv = v2 ∨ v_sub_obj t1 v1 sv ∨ v_sub_obj t2 v2 sv)
     | tsum t1 t2 =>
-        ∃ v', ((v = InjLV v' ∧ v_sub_obj t1 v' sv ∧ v = v') ∨
-                 (v = InjRV v' ∧ v_sub_obj t2 v' sv ∧ v = v'))
+        ∃ v', ((v = InjLV v' ∧ v_sub_obj t1 v' sv) ∨
+                 (v = InjRV v' ∧ v_sub_obj t2 v' sv))
     | tstring => False
     | tint => False
     | tauth =>
@@ -180,9 +180,9 @@ Section authenticatable_definitions.
           (same_ser_for_fill t1 v1 s1 susp h ∨ same_ser_for_fill t2 v2 s2 susp h)
     | tsum t1 t2 =>
         ∃ v',
-          (v = InjLV v' ∧ v = v' ∧
+          (v = InjLV v' ∧
             ∃ s', s = inl_ser_str s' ∧ same_ser_for_fill t1 v' s' susp h) ∨
-          (v = InjRV v' ∧ v = v' ∧
+          (v = InjRV v' ∧
             ∃ s', s = inr_ser_str s' ∧ same_ser_for_fill t2 v' s' susp h)
     | tauth =>
         v = SOMEV (InjRV #susp) ∧ s = filled_string h

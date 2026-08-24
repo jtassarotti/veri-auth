@@ -135,6 +135,44 @@ Section authentikit_helpers.
     injection H as H. by apply IHv.
   Qed.
 
+  (** [v_sub_obj] bottoms out at literals: a bare literal (and hence an
+      injection of one) contains no susp position, at any type. Replaces
+      the pin-based refutations after [v_sub_obj]'s tsum clause became
+      structural. *)
+  Lemma v_sub_obj_litv t (bl : base_lit) sv : ¬ v_sub_obj t (LitV bl) sv.
+  Proof.
+    revert sv; induction t => sv; simpl; intros Hv.
+    - destruct Hv as (?&?&Heq&_); discriminate.
+    - destruct Hv as (v' & [(Heq&_)|(Heq&_)]); discriminate.
+    - destruct Hv.
+    - destruct Hv.
+    - destruct Hv as (?&[Heq|Heq]&_); discriminate.
+  Qed.
+
+  Lemma v_sub_obj_injL_litv t (bl : base_lit) sv :
+    ¬ v_sub_obj t (InjLV (LitV bl)) sv.
+  Proof.
+    revert sv; induction t => sv; simpl; intros Hv.
+    - destruct Hv as (?&?&Heq&_); discriminate.
+    - destruct Hv as (v' & [(Heq&Hs)|(Heq&_)]); last discriminate.
+      injection Heq as <-. by eapply v_sub_obj_litv.
+    - destruct Hv.
+    - destruct Hv.
+    - destruct Hv as (?&[Heq|Heq]&_); discriminate.
+  Qed.
+
+  Lemma v_sub_obj_injR_litv t (bl : base_lit) sv :
+    ¬ v_sub_obj t (InjRV (LitV bl)) sv.
+  Proof.
+    revert sv; induction t => sv; simpl; intros Hv.
+    - destruct Hv as (?&?&Heq&_); discriminate.
+    - destruct Hv as (v' & [(Heq&_)|(Heq&Hs)]); first discriminate.
+      injection Heq as <-. by eapply v_sub_obj_litv.
+    - destruct Hv.
+    - destruct Hv.
+    - destruct Hv as (?&[Heq|Heq]&_); injection Heq as Heq; discriminate.
+  Qed.
+
   Lemma no_fix_InjRV (v : val) : v = InjRV v → False.
   Proof.
     induction v; intros H; try discriminate.
@@ -362,23 +400,33 @@ Section authentikit_helpers.
               as "(#Hreached & Hintr & Hauth' & Hc2' & Hsusp' & #Hsnap)".
             iModIntro. iFrame "Hreached Hintr Hauth' Hsusp' Hsnap".
             iExists c1, c2, v1, v2. by iFrame.
-        + destruct Hsubind as (? & [(Heq & _ & _) | (Heq & _ & _)]); discriminate.
+        + destruct Hsubind as (? & [(Heq & _) | (Heq & _)]); discriminate.
         + destruct Hsubind as (? & [Heq|Heq] & _); discriminate.
-      - (* tsum *)
+      - (* tsum — structural: recurse into the injected component *)
         simpl. iDestruct "Hinner" as "[Hl|Hr]".
         + iDestruct "Hl" as (v1') "[-> Hc]".
           destruct tind' as [t1' t2' | t1' t2' | | | ]; simpl in Hsubind; try done.
           * destruct Hsubind as (? & ? & Heq & _); discriminate.
-          * destruct Hsubind as (v'' & [(Heq1 & _ & Heq3) | (Heq1 & _ & _)]).
-            -- subst v''. injection Heq1 as Heq. by apply no_fix_InjLV in Heq.
-            -- discriminate.
+          * destruct Hsubind as (v'' & [(Heq1 & Hsub1) | (Heq1 & _)]);
+              last discriminate.
+            injection Heq1 as <-.
+            iMod ("IH" $! v1' cind t1' Hsub1
+                    with "Hauth Htok Hintr Hpvf Hlg Hsusp Hc")
+              as "(#Hreached & Hintr & Hauth' & Hc' & Hsusp' & #Hsnap)".
+            iModIntro. iFrame "Hreached Hintr Hauth' Hsusp' Hsnap".
+            iLeft. iExists v1'. by iFrame.
           * destruct Hsubind as (? & [Heq|Heq] & _); discriminate.
         + iDestruct "Hr" as (v2') "[-> Hc]".
           destruct tind' as [t1' t2' | t1' t2' | | | ]; simpl in Hsubind; try done.
           * destruct Hsubind as (? & ? & Heq & _); discriminate.
-          * destruct Hsubind as (v'' & [(Heq1 & _ & _) | (Heq1 & _ & Heq3)]).
-            -- discriminate.
-            -- subst v''. injection Heq1 as Heq. by apply no_fix_InjRV in Heq.
+          * destruct Hsubind as (v'' & [(Heq1 & _) | (Heq1 & Hsub2)]);
+              first discriminate.
+            injection Heq1 as <-.
+            iMod ("IH1" $! v2' cind t2' Hsub2
+                    with "Hauth Htok Hintr Hpvf Hlg Hsusp Hc")
+              as "(#Hreached & Hintr & Hauth' & Hc' & Hsusp' & #Hsnap)".
+            iModIntro. iFrame "Hreached Hintr Hauth' Hsusp' Hsnap".
+            iRight. iExists v2'. by iFrame.
           * destruct Hsubind as (v'' & [Heq|Heq] & Heqsv).
             -- subst v''. injection Heq as ->.
                by iDestruct (sub_susp_count_ne_injL_susp with "Hc") as %[].
@@ -400,10 +448,15 @@ Section authentikit_helpers.
         destruct tind'; simpl in Hsubind; try done.
         + iDestruct "Hinner" as (v1) "[-> _]".
           destruct Hsubind as (? & ? & Heq & _); discriminate.
-        + iDestruct "Hinner" as (v1) "[-> _]".
-          destruct Hsubind as (? & [(Heq & _ & _) | (Heq & _ & Heq2)]).
-          * discriminate.
-          * subst. injection Heq as Heq. by apply no_fix_InjRV in Heq.
+        + iDestruct "Hinner" as (v1) "[-> Hcases]".
+          destruct Hsubind as (v'' & [(Heq & _) | (Heq & Hsub2)]);
+            first discriminate.
+          injection Heq as <-.
+          iDestruct "Hcases" as "[H|H]".
+          * iDestruct "H" as (hL) "%Hp". destruct Hp as [-> _].
+            by apply v_sub_obj_injL_litv in Hsub2.
+          * iDestruct "H" as (suspR) "[%Heq' _]". subst v1.
+            by apply v_sub_obj_injR_litv in Hsub2.
         + destruct Hsubind as (? & [Heq|Heq] & ->).
           * iDestruct "Hinner" as (v1) "[-> Hcases]".
             injection Heq as ->.
@@ -429,9 +482,9 @@ Section authentikit_helpers.
     - destruct Hssf as (v1 & v2 & s1 & s2 & -> & _ & [Hssf1 | Hssf2]).
       + apply IHt1 in Hssf1. exists v1, v2. split; [done|]. right. right. left. exact Hssf1.
       + apply IHt2 in Hssf2. exists v1, v2. split; [done|]. right. right. right. exact Hssf2.
-    - destruct Hssf as (v' & [(-> & Heq & _) | (-> & Heq & _)]).
-      + symmetry in Heq. by apply no_fix_InjLV in Heq.
-      + symmetry in Heq. by apply no_fix_InjRV in Heq.
+    - destruct Hssf as (v' & [(-> & s' & -> & Hssf1) | (-> & s' & -> & Hssf2)]).
+      + apply IHt1 in Hssf1. exists v'. left. by split.
+      + apply IHt2 in Hssf2. exists v'. right. by split.
     - done.
     - done.
     - destruct Hssf as [-> _]. exists #susp. split; [|done]. right. done.
@@ -606,23 +659,55 @@ Section authentikit_helpers.
                { iExists v1, v2, s1, s2. iFrame "Hser1 Hser2'". by iSplit. }
                iExists c1, (c2 - 1), v1, v2.
                iSplit; [iPureIntro; split; [done|lia]|]. iFrame.
-        + destruct Hsubind as (v'' & [(Heq & _ & _) | (Heq & _ & _)]); discriminate.
+        + destruct Hsubind as (v'' & [(Heq & _) | (Heq & _)]); discriminate.
         + destruct Hsubind as (v'' & [Heq|Heq] & _); discriminate.
-      - (* tind = tsum *)
+      - (* tind = tsum — structural: recurse into the injected component *)
         simpl. iDestruct "Hinner'" as "[Hl|Hr]".
         + iDestruct "Hl" as (v1) "[-> Hc]".
-          destruct tind'; simpl in Hsubind; try done.
+          destruct tind' as [t1' t2'|t1' t2'| | |];
+            simpl in Hsubind, Hssf_ind; try done.
           * destruct Hsubind as (? & ? & Heq & _); discriminate.
-          * destruct Hsubind as (v'' & [(Heq1 & _ & Heq2) | (Heq1 & _ & _)]).
-            -- subst v''. injection Heq1 as Heq. by apply no_fix_InjLV in Heq.
-            -- discriminate.
+          * destruct Hsubind as (v'' & [(Heq1 & Hsub1) | (Heq1 & _)]);
+              last discriminate.
+            injection Heq1 as <-.
+            destruct Hssf_ind as (v'' & [(Heq2 & s1 & -> & Hssf1) | (Heq2 & _)]);
+              last discriminate.
+            injection Heq2 as <-.
+            iDestruct "Hser'" as (w s1') "[[Hser1 [%HeqL %HeqsL]]|[_ [%HeqR _]]]";
+              last discriminate.
+            injection HeqL as <-.
+            apply (inj inl_ser_str) in HeqsL as <-.
+            iMod ("IH" $! v1 cind t1' s1 Hsub1 Hssf1
+                    with "Hser1 Hc Hsusp' Hunfill' Hspec'")
+              as "(%Hc1 & Hintr & Hser1' & Hc1' & Hsusp'' & Hspec'' & Hnew & #Hfilled)".
+            iModIntro. iSplit; [iPureIntro; lia|].
+            iFrame "Hintr Hsusp'' Hspec'' Hnew Hfilled".
+            iSplitL "Hser1'".
+            { iExists v1, s1. iLeft. iSplit; [iExact "Hser1'"|by iPureIntro]. }
+            iLeft. iExists v1. by iFrame.
           * destruct Hsubind as (v'' & [Heq|Heq] & _); discriminate.
         + iDestruct "Hr" as (v2) "[-> Hc]".
-          destruct tind'; simpl in Hsubind; try done.
+          destruct tind' as [t1' t2'|t1' t2'| | |];
+            simpl in Hsubind, Hssf_ind; try done.
           * destruct Hsubind as (? & ? & Heq & _); discriminate.
-          * destruct Hsubind as (v'' & [(Heq1 & _ & _) | (Heq1 & _ & Heq2)]).
-            -- discriminate.
-            -- subst v''. injection Heq1 as Heq. by apply no_fix_InjRV in Heq.
+          * destruct Hsubind as (v'' & [(Heq1 & _) | (Heq1 & Hsub2)]);
+              first discriminate.
+            injection Heq1 as <-.
+            destruct Hssf_ind as (v'' & [(Heq2 & _) | (Heq2 & s2 & -> & Hssf2)]);
+              first discriminate.
+            injection Heq2 as <-.
+            iDestruct "Hser'" as (w s2') "[[_ [%HeqL _]]|[Hser2 [%HeqR %HeqsR]]]";
+              first discriminate.
+            injection HeqR as <-.
+            apply (inj inr_ser_str) in HeqsR as <-.
+            iMod ("IH1" $! v2 cind t2' s2 Hsub2 Hssf2
+                    with "Hser2 Hc Hsusp' Hunfill' Hspec'")
+              as "(%Hc1 & Hintr & Hser2' & Hc2' & Hsusp'' & Hspec'' & Hnew & #Hfilled)".
+            iModIntro. iSplit; [iPureIntro; lia|].
+            iFrame "Hintr Hsusp'' Hspec'' Hnew Hfilled".
+            iSplitL "Hser2'".
+            { iExists v2, s2. iRight. iSplit; [iExact "Hser2'"|by iPureIntro]. }
+            iRight. iExists v2. by iFrame.
           * destruct Hsubind as (v'' & [Heq|Heq] & Heqsv).
             -- subst v''. injection Heq as ->.
                by iDestruct (sub_susp_count_ne_injL_susp with "Hc") as %[].
@@ -644,10 +729,15 @@ Section authentikit_helpers.
         destruct tind'; simpl in Hsubind; try done.
         + iDestruct "Hinner'" as (v1) "[-> _]".
           destruct Hsubind as (? & ? & Heq & _); discriminate.
-        + iDestruct "Hinner'" as (v1) "[-> _]".
-          destruct Hsubind as (v'' & [(Heq & _ & _) | (Heq & _ & Heq2)]).
-          * discriminate.
-          * subst v''. injection Heq as Heq. by apply no_fix_InjRV in Heq.
+        + iDestruct "Hinner'" as (v1) "[-> Hcases]".
+          destruct Hsubind as (v'' & [(Heq & _) | (Heq & Hsub2)]);
+            first discriminate.
+          injection Heq as <-.
+          iDestruct "Hcases" as "[H|H]".
+          * iDestruct "H" as (hL) "%Hp". destruct Hp as [-> _].
+            by apply v_sub_obj_injL_litv in Hsub2.
+          * iDestruct "H" as (suspR) "[%Heq' _]". subst v1.
+            by apply v_sub_obj_injR_litv in Hsub2.
         + destruct Hsubind as (v'' & [Heq|Heq] & ->).
           * iDestruct "Hinner'" as (v1) "[-> Hcases]".
             injection Heq as ->.
@@ -831,23 +921,31 @@ Section authentikit_helpers.
               as "(#Hfin & Hintr & Hauth' & Hc2' & Hsusp')".
             iModIntro. iFrame "Hfin Hintr Hauth' Hsusp'".
             iExists c1, c2, v1, v2. by iFrame.
-        + destruct Hsubind as (? & [(Heq & _ & _) | (Heq & _ & _)]); discriminate.
+        + destruct Hsubind as (? & [(Heq & _) | (Heq & _)]); discriminate.
         + destruct Hsubind as (? & [Heq|Heq] & _); discriminate.
-      - (* tsum *)
+      - (* tsum — structural: recurse into the injected component *)
         simpl. iDestruct "Hinner" as "[Hl|Hr]".
         + iDestruct "Hl" as (v1') "[-> Hc]".
           destruct tind' as [t1' t2' | t1' t2' | | | ]; simpl in Hsubind; try done.
           * destruct Hsubind as (? & ? & Heq & _); discriminate.
-          * destruct Hsubind as (v'' & [(Heq1 & _ & Heq3) | (Heq1 & _ & _)]).
-            -- subst v''. injection Heq1 as Heq. by apply no_fix_InjLV in Heq.
-            -- discriminate.
+          * destruct Hsubind as (v'' & [(Heq1 & Hsub1) | (Heq1 & _)]);
+              last discriminate.
+            injection Heq1 as <-.
+            iMod ("IH" $! v1' cind t1' Hsub1 with "Hauth Hintr Hlg Hsusp Hc")
+              as "(#Hfin & Hintr & Hauth' & Hc' & Hsusp')".
+            iModIntro. iFrame "Hfin Hintr Hauth' Hsusp'".
+            iLeft. iExists v1'. by iFrame.
           * destruct Hsubind as (? & [Heq|Heq] & _); discriminate.
         + iDestruct "Hr" as (v2') "[-> Hc]".
           destruct tind' as [t1' t2' | t1' t2' | | | ]; simpl in Hsubind; try done.
           * destruct Hsubind as (? & ? & Heq & _); discriminate.
-          * destruct Hsubind as (v'' & [(Heq1 & _ & _) | (Heq1 & _ & Heq3)]).
-            -- discriminate.
-            -- subst v''. injection Heq1 as Heq. by apply no_fix_InjRV in Heq.
+          * destruct Hsubind as (v'' & [(Heq1 & _) | (Heq1 & Hsub2)]);
+              first discriminate.
+            injection Heq1 as <-.
+            iMod ("IH1" $! v2' cind t2' Hsub2 with "Hauth Hintr Hlg Hsusp Hc")
+              as "(#Hfin & Hintr & Hauth' & Hc' & Hsusp')".
+            iModIntro. iFrame "Hfin Hintr Hauth' Hsusp'".
+            iRight. iExists v2'. by iFrame.
           * destruct Hsubind as (v'' & [Heq|Heq] & Heqsv).
             -- subst v''. injection Heq as ->.
                by iDestruct (sub_susp_count_ne_injL_susp with "Hc") as %[].
@@ -869,10 +967,15 @@ Section authentikit_helpers.
         destruct tind'; simpl in Hsubind; try done.
         + iDestruct "Hinner" as (v1) "[-> _]".
           destruct Hsubind as (? & ? & Heq & _); discriminate.
-        + iDestruct "Hinner" as (v1) "[-> _]".
-          destruct Hsubind as (? & [(Heq & _ & _) | (Heq & _ & Heq2)]).
-          * discriminate.
-          * subst. injection Heq as Heq. by apply no_fix_InjRV in Heq.
+        + iDestruct "Hinner" as (v1) "[-> Hcases]".
+          destruct Hsubind as (v'' & [(Heq & _) | (Heq & Hsub2)]);
+            first discriminate.
+          injection Heq as <-.
+          iDestruct "Hcases" as "[H|H]".
+          * iDestruct "H" as (hL) "%Hp". destruct Hp as [-> _].
+            by apply v_sub_obj_injL_litv in Hsub2.
+          * iDestruct "H" as (suspR) "[%Heq' _]". subst v1.
+            by apply v_sub_obj_injR_litv in Hsub2.
         + destruct Hsubind as (? & [Heq|Heq] & ->).
           * iDestruct "Hinner" as (v1) "[-> Hcases]".
             injection Heq as ->.
@@ -987,70 +1090,31 @@ Section authentikit_helpers.
       iDestruct ("" $! v1 s1 c1 γs1 with "Hser1 H1") as %Hsz1.
       iDestruct ("1" $! v2 s2 c2 γs2 with "Hser2 H2") as %Hsz2.
       iPureIntro. rewrite Hsplit size_union; [|done]. lia.
-    - (* tsum: p_sub_obj forces v = InjLV/InjRV #lb, so the inner
-         susp_ser_p_real holds at #lb — but no [t] makes #lb a serializable
-         leaf, so γs must be empty. *)
+    - (* tsum — structural: every γ's witness descends into the injected
+         component; recurse with the component's real witness (same c). *)
       simpl. iDestruct "Hser" as (w s') "[H | H]".
       + iDestruct "H" as "[#Hser1 %Heq]". destruct Heq as [-> ->].
-        iAssert (⌜∀ lb : loc, w ≠ #lb⌝)%I as %Hw_not_loc.
-        { iIntros (lb).
-          destruct t1; simpl.
-          - iDestruct "Hser1" as (??) "[_ Hser']".
-            iDestruct "Hser'" as (????) "[%Hp _]".
-            iPureIntro. intros Heq. by destruct Hp as [-> _].
-          - iDestruct "Hser1" as (??) "[H|H]".
-            + iDestruct "H" as "[_ %Hp]".
-              iPureIntro. intros Heq. by destruct Hp as [-> _].
-            + iDestruct "H" as "[_ %Hp]".
-              iPureIntro. intros Heq. by destruct Hp as [-> _].
-          - iDestruct "Hser1" as "[%Hp _]".
-            iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
-          - iDestruct "Hser1" as "[%Hp _]".
-            iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
-          - iDestruct "Hser1" as "[[Hf _]|[He _]]".
-            + iDestruct "Hf" as (??????) "[%Hp _]".
-              iPureIntro. intros Heq. by destruct Hp as [-> _].
-            + iDestruct "He" as (??????) "[%Hp _]".
-              iPureIntro. intros Heq. by destruct Hp as [-> _]. }
-        iAssert (⌜γs = ∅⌝)%I as %->.
-        { destruct (decide (γs = ∅)) as [-> | Hne]; [done|].
-          apply set_choose_L in Hne as [γ Hin].
-          iDestruct (big_sepS_elem_of with "HbigL") as (lb) "[_ %Hsub]"; [exact Hin|].
-          simpl in Hsub. destruct Hsub as (v' & [(He1 & _ & He2)|(He1 & _ & _)]).
-          - subst v'. injection He1 as ->.
-            iPureIntro. exfalso. by apply (Hw_not_loc lb).
-          - discriminate. }
-        rewrite size_empty. iPureIntro. lia.
+        iAssert ([∗ set] γ ∈ γs,
+                   ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t1 w #lb⌝)%I
+          with "[HbigL]" as "HbigL'".
+        { iApply (big_sepS_mono with "HbigL").
+          iIntros (γ ?) "(%lb & Hf & %Hsub)". iExists lb. iFrame "Hf".
+          iPureIntro. simpl in Hsub.
+          destruct Hsub as (v' & [(He & Hp)|(He & _)]); last discriminate.
+          injection He as <-. exact Hp. }
+        iDestruct ("" $! w s' c γs with "Hser1 HbigL'") as %Hle.
+        by iPureIntro.
       + iDestruct "H" as "[#Hser2 %Heq]". destruct Heq as [-> ->].
-        iAssert (⌜∀ lb : loc, w ≠ #lb⌝)%I as %Hw_not_loc.
-        { iIntros (lb).
-          destruct t2; simpl.
-          - iDestruct "Hser2" as (??) "[_ Hser']".
-            iDestruct "Hser'" as (????) "[%Hp _]".
-            iPureIntro. intros Heq. by destruct Hp as [-> _].
-          - iDestruct "Hser2" as (??) "[H|H]".
-            + iDestruct "H" as "[_ %Hp]".
-              iPureIntro. intros Heq. by destruct Hp as [-> _].
-            + iDestruct "H" as "[_ %Hp]".
-              iPureIntro. intros Heq. by destruct Hp as [-> _].
-          - iDestruct "Hser2" as "[%Hp _]".
-            iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
-          - iDestruct "Hser2" as "[%Hp _]".
-            iPureIntro. intros Heq. by destruct Hp as (? & -> & _).
-          - iDestruct "Hser2" as "[[Hf _]|[He _]]".
-            + iDestruct "Hf" as (??????) "[%Hp _]".
-              iPureIntro. intros Heq. by destruct Hp as [-> _].
-            + iDestruct "He" as (??????) "[%Hp _]".
-              iPureIntro. intros Heq. by destruct Hp as [-> _]. }
-        iAssert (⌜γs = ∅⌝)%I as %->.
-        { destruct (decide (γs = ∅)) as [-> | Hne]; [done|].
-          apply set_choose_L in Hne as [γ Hin].
-          iDestruct (big_sepS_elem_of with "HbigL") as (lb) "[_ %Hsub]"; [exact Hin|].
-          simpl in Hsub. destruct Hsub as (v' & [(He1 & _ & _)|(He1 & _ & He2)]).
-          - discriminate.
-          - subst v'. injection He1 as ->.
-            iPureIntro. exfalso. by apply (Hw_not_loc lb). }
-        rewrite size_empty. iPureIntro. lia.
+        iAssert ([∗ set] γ ∈ γs,
+                   ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t2 w #lb⌝)%I
+          with "[HbigL]" as "HbigL'".
+        { iApply (big_sepS_mono with "HbigL").
+          iIntros (γ ?) "(%lb & Hf & %Hsub)". iExists lb. iFrame "Hf".
+          iPureIntro. simpl in Hsub.
+          destruct Hsub as (v' & [(He & _)|(He & Hp)]); first discriminate.
+          injection He as <-. exact Hp. }
+        iDestruct ("1" $! w s' c γs with "Hser2 HbigL'") as %Hle.
+        by iPureIntro.
     - (* tstring *)
       simpl. iDestruct "Hser" as "[_ %Hc0]". subst c.
       iAssert (⌜γs = ∅⌝)%I as %->.
@@ -1168,41 +1232,50 @@ Section authentikit_helpers.
         iPureIntro. intros Heq. by destruct Hp as [-> _].
   Qed.
 
-  (** Under a [tsum], [p_sub_obj]'s [sv = v'] conjunct forces the label to
-      BE the injected value, which [susp_ser_p_real_not_loc] refutes — so
-      the caller's γ-set is empty. One lemma per injection side. *)
-  Lemma susp_ser_p_real_sum_γl_empty_l (t1 t2 : evi_type) (c : nat) (w : val)
-      (s : string) (γl : gset gname) :
-    susp_ser_p_real t1 c w s -∗
-    ([∗ set] γ ∈ γl,
-       ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj (tsum t1 t2) (InjLV w) #lb⌝) -∗
-    ⌜γl = ∅⌝.
+  (** The reachability post-closure of [susp_p_ser_spec], packaged so
+      the sum serializer's closure can be built by LIFTING the
+      component's (every γ's witness descends into the injected
+      component now that [p_sub_obj]'s tsum clause is structural). *)
+  Definition reach_closure (t : evi_type) (a : val) (c : nat) : iProp Σ :=
+    (∀ γl : pending_setg_type,
+       tern_state -∗ penset_frag γl -∗ ⌜size γl = c⌝ -∗
+       ([∗ set] γ ∈ γl, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) -∗
+       tern_state ∗ penset_frag γl ∗
+       ([∗ set] γ ∈ γl, visit_reached_done γ ∗
+          ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝))%I.
+
+  Lemma reach_closure_sum_l t1 t2 (a : val) (c : nat) :
+    reach_closure t1 a c -∗ reach_closure (tsum t1 t2) (InjLV a) c.
   Proof.
-    iIntros "Hser Hbig".
-    iDestruct (susp_ser_p_real_not_loc with "Hser") as %Hnl.
-    destruct (decide (γl = ∅)) as [-> | Hne]; [done|].
-    apply set_choose_L in Hne as [γ Hin].
-    iDestruct (big_sepS_elem_of with "Hbig") as (lb) "[_ %Hsub]"; [exact Hin|].
-    simpl in Hsub.
-    destruct Hsub as (v' & [(He1 & _ & He2)|(He1 & _ & _)]); last discriminate.
-    subst v'. injection He1 as ->. iPureIntro. exfalso. by apply (Hnl lb).
+    rewrite /reach_closure.
+    iIntros "Hr" (γl) "Hg Hpen %Hsz Hbig".
+    iDestruct ("Hr" $! γl with "Hg Hpen [//] [Hbig]") as "(Hg & Hpen & Hbig')".
+    { iApply (big_sepS_mono with "Hbig").
+      iIntros (γ ?) "(%lb & Hf & %Hp)". iExists lb. iFrame "Hf".
+      iPureIntro. destruct Hp as (v' & [(He & Hp)|(He & _)]);
+        last discriminate.
+      by injection He as <-. }
+    iFrame "Hg Hpen".
+    iApply (big_sepS_mono with "Hbig'").
+    iIntros (γ ?) "[Hrd (%lb & Hf & %Hp)]". iFrame "Hrd".
+    iExists lb. iFrame "Hf". iPureIntro. exists a. left. by split.
   Qed.
 
-  Lemma susp_ser_p_real_sum_γl_empty_r (t1 t2 : evi_type) (c : nat) (w : val)
-      (s : string) (γl : gset gname) :
-    susp_ser_p_real t2 c w s -∗
-    ([∗ set] γ ∈ γl,
-       ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj (tsum t1 t2) (InjRV w) #lb⌝) -∗
-    ⌜γl = ∅⌝.
+  Lemma reach_closure_sum_r t1 t2 (a : val) (c : nat) :
+    reach_closure t2 a c -∗ reach_closure (tsum t1 t2) (InjRV a) c.
   Proof.
-    iIntros "Hser Hbig".
-    iDestruct (susp_ser_p_real_not_loc with "Hser") as %Hnl.
-    destruct (decide (γl = ∅)) as [-> | Hne]; [done|].
-    apply set_choose_L in Hne as [γ Hin].
-    iDestruct (big_sepS_elem_of with "Hbig") as (lb) "[_ %Hsub]"; [exact Hin|].
-    simpl in Hsub.
-    destruct Hsub as (v' & [(He1 & _ & _)|(He1 & _ & He2)]); first discriminate.
-    subst v'. injection He1 as ->. iPureIntro. exfalso. by apply (Hnl lb).
+    rewrite /reach_closure.
+    iIntros "Hr" (γl) "Hg Hpen %Hsz Hbig".
+    iDestruct ("Hr" $! γl with "Hg Hpen [//] [Hbig]") as "(Hg & Hpen & Hbig')".
+    { iApply (big_sepS_mono with "Hbig").
+      iIntros (γ ?) "(%lb & Hf & %Hp)". iExists lb. iFrame "Hf".
+      iPureIntro. destruct Hp as (v' & [(He & _)|(He & Hp)]);
+        first discriminate.
+      by injection He as <-. }
+    iFrame "Hg Hpen".
+    iApply (big_sepS_mono with "Hbig'").
+    iIntros (γ ?) "[Hrd (%lb & Hf & %Hp)]". iFrame "Hrd".
+    iExists lb. iFrame "Hf". iPureIntro. exists a. right. by split.
   Qed.
 
   (** [γl] uniqueness for [susp_ser_p_real]:
