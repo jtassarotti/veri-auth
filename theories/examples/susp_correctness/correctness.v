@@ -778,13 +778,15 @@ Section proof.
             
             iApply ("HΨ"). iFrame "Htabtok Htok Hi Hintr Hpr".
 
-            iModIntro. 
+            iModIntro.
             assert (
               ((p_finish, s_real, c') :: combine (combine bufl ps1) lpn) =
                 combine (combine (p_finish :: bufl) (s_real :: ps1)) (c' :: lpn))
               as -> by eauto.
-            iSplitL "Hbuf". 
-            { iFrame "∗ %". admit. }
+            iSplitL "Hbuf".
+            { iFrame "∗ %".
+              iPureIntro. exists (definitions.sum_list (c' :: lpn)).
+              simpl. split_and!; try done; lia. }
 
             do 2 iRight. iFrame "#".
             admit. }
@@ -1176,13 +1178,15 @@ Section proof.
             
             iApply ("HΨ"). iFrame "Htabtok Htok Hi Hintr Hpr".
 
-            iModIntro. 
+            iModIntro.
             assert (
               ((p_finish, s_real, c') :: combine (combine bufl ps1) lpn) =
                 combine (combine (p_finish :: bufl) (s_real :: ps1)) (c' :: lpn))
               as -> by eauto.
-            iSplitL "Hbuf". 
-            { iFrame "∗ %". admit. }
+            iSplitL "Hbuf".
+            { iFrame "∗ %".
+              iPureIntro. exists (definitions.sum_list (c' :: lpn)).
+              simpl. split_and!; try done; lia. }
 
             do 2 iRight. iFrame "#".
             admit. }
@@ -1586,13 +1590,15 @@ Section proof.
             
             iApply ("HΨ"). iFrame "Htabtok Htok Hi Hintr Hpr".
 
-            iModIntro. 
+            iModIntro.
             assert (
               ((p_finish, s_real, c') :: combine (combine bufl ps1) lpn) =
                 combine (combine (p_finish :: bufl) (s_real :: ps1)) (c' :: lpn))
               as -> by eauto.
-            iSplitL "Hbuf". 
-            { iFrame "∗ %". admit. }
+            iSplitL "Hbuf".
+            { iFrame "∗ %".
+              iPureIntro. exists (definitions.sum_list (c' :: lpn)).
+              simpl. split_and!; try done; lia. }
 
             do 2 iRight. iFrame "#".
             admit. }
