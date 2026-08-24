@@ -129,13 +129,13 @@ Section proof.
                 iIntros (?) "(% & % & Hv & Hi & #HmB & Htok) /=".
                 
                 iDestruct "HmB" as "(HmB & _)".
-                wp_apply ("HmB" with "[$Htok $Hv $Hi $Hpw $Hvw $Hpr]"); first admit.
+                wp_apply ("HmB" with "[$Htok $Hv $Hi $Hpw $Hvw $Hpr]"); first done.
                 iIntros (ps1'' w1'' a1' a3') "(Htok & Hi & Hpr & Hv)".
                 iDestruct "Hv" as 
                 "[(%&%&%&% &% &#HB & Hpw & Hv & Hvw)|
                   (#HAb & Hpw)]".
                 { iApply "HΨ". iFrame "∗ #".
-                  iLeft. iFrame. admit. }
+                  iLeft. iFrame. done. }
                 { iApply "HΨ". iFrame "∗ #". } }
 
               { iDestruct "HAmB" as "(_ & HAmBb & HAmBu)".
@@ -144,7 +144,7 @@ Section proof.
                 wp_apply (wp_wand with "HAmBb").
                 iIntros (?) "(% & Hi & #HmBb & Htok) /=".
 
-                wp_apply ("HmBb" with "[$Htok $Hi $Hpw $Hpr]"); first admit.
+                wp_apply ("HmBb" with "[$Htok $Hi $Hpw $Hpr]"); first done.
                 iIntros (ps1'' ? w1'' a1' a3') "(Hpr & %& Htok & Hpw & Hi & #HBb) /=".
                 iApply "HΨ". iFrame.
                 iRight. iFrame "∗ #". } }
@@ -678,10 +678,12 @@ Section proof.
               (((p_finish, s_real, size γl) :: combine (combine bufl ps1) lpn) = 
                 combine (combine (p_finish :: bufl) (s_real :: ps1)) (size γl :: lpn))
               as -> by done.
-            iFrame "Hbuf". admit. }
-          
+            iFrame "Hbuf".
+            iPureIntro. exists prf1, v, (definitions.sum_list (size γl :: lpn)).
+            simpl. split_and!; try done; lia. }
+
           iLeft. iExists ps2. iFrame "HA' Hv Hid Hstok Hst Hpenc".
-          simpl. iSplit. { admit. }
+          simpl. iSplit. { iPureIntro. by rewrite reverse_cons -assoc. }
           
           iPureIntro.
           eexists _. split; eauto.
@@ -994,7 +996,8 @@ Section proof.
 
             iMod ("Hvfinish" $! ⊤ with "[] Htabtok Hlc Hvser Hvserspec Hc
                     Htauthv Hst Hv") as "(Hv & Htabtok & Htok & Hst & Hintr) /=".
-            { iModIntro. iIntros (???) "_ _ _ _". admit. }
+            { iModIntro. iIntros (pid' psusp pγ) "%Hlt Hpv Hlg Hvis".
+              iApply ("Hnmspc'" $! pid' psusp pγ with "[//] Hpv Hlg Hvis"). }
 
             v_pures. v_bind (list_tail _).
             iMod (gwp_list_tail ⊤ _ (s_real :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
