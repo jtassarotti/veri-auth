@@ -730,7 +730,7 @@ Section authenticatable.
         iExists vB, s'. iRight. iFrame "Hser1". done.
     - (* 6. auth_ser_spec *)
       rewrite /auth_ser_spec.
-      iIntros (K tᵥ3 a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & Htok & Hv) HΨ".
+      iIntros (K tᵥ3 a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & #Hfw & Htok & Hv) HΨ".
       rewrite /sum_ser''. v_pures.
       interp_unfold! in "HA".
       iDestruct "HA" as (v1' v2' v3') "[(>-> & >-> & >-> & HrA) | (>-> & >-> & >-> & HrB)]".
@@ -741,10 +741,13 @@ Section authenticatable.
         iDestruct "Hser" as (w s') "[[#Hser1 [%Hequ %Heqs]] | [_ [%Hequ _]]]";
           last by inversion Hequ.
         injection Hequ as <-. subst s.
+        iDestruct "Hfw" as "[Hfwc|Hfwc]";
+          iDestruct "Hfwc" as (vx) "[%Heqx #Hfwc]"; last by simplify_eq.
+        injection Heqx as <-.
         wp_pures.
         v_pures. v_bind (v_sA _).
         wp_apply ("HvauthserA" with "[HrA Htok Hv]").
-        { by iFrame "HrA Hser1 Htok Hv". }
+        { by iFrame "HrA Hser1 Hfwc Htok Hv". }
         iIntros "(Htok & Hsv & Hv) /=".
         v_pures. wp_pures.
         iApply "HΨ". iModIntro.
@@ -757,10 +760,13 @@ Section authenticatable.
         iDestruct "Hser" as (w s') "[[_ [%Hequ _]] | [#Hser1 [%Hequ %Heqs]]]";
           first by inversion Hequ.
         injection Hequ as <-. subst s.
+        iDestruct "Hfw" as "[Hfwc|Hfwc]";
+          iDestruct "Hfwc" as (vx) "[%Heqx #Hfwc]"; first by simplify_eq.
+        injection Heqx as <-.
         wp_pures.
         v_pures. v_bind (v_sB _).
         wp_apply ("HvauthserB" with "[HrB Htok Hv]").
-        { by iFrame "HrB Hser1 Htok Hv". }
+        { by iFrame "HrB Hser1 Hfwc Htok Hv". }
         iIntros "(Htok & Hsv & Hv) /=".
         v_pures. wp_pures.
         iApply "HΨ". iModIntro.
@@ -939,7 +945,7 @@ Section authenticatable.
       iModIntro. iExists s'. done.
     - (* 6. auth_ser_spec *)
       rewrite /auth_ser_spec.
-      iIntros (K tᵥ a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & Htok & Hv) HΨ".
+      iIntros (K tᵥ a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & #Hfw & Htok & Hv) HΨ".
       simpl in Hunsusp. subst un_a1.
       iEval (rewrite /lrel_tern_tern /lrel_string /=) in "HA".
       iDestruct "HA" as ">%H". destruct H as (s' & -> & -> & ->).
@@ -1107,7 +1113,7 @@ Section authenticatable.
       iModIntro. iExists z'. done.
     - (* 6. auth_ser_spec *)
       rewrite /auth_ser_spec.
-      iIntros (K tᵥ a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & Htok & Hv) HΨ".
+      iIntros (K tᵥ a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & #Hfw & Htok & Hv) HΨ".
       simpl in Hunsusp. subst un_a1.
       iEval (rewrite /lrel_tern_tern /lrel_int /=) in "HA".
       iDestruct "HA" as ">%H". destruct H as (z' & -> & -> & ->).
@@ -1327,14 +1333,14 @@ Section authenticatable.
     - (* 6. auth_ser_spec — the prover's [rec_fold] step mints the later
          credit that pays for the [interp_rec_star_tern_unfold] ▷. *)
       rewrite /auth_ser_spec.
-      iIntros (K tᵥ1 a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & Htok & Hv) HΨ".
+      iIntros (K tᵥ1 a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & #Hfw & Htok & Hv) HΨ".
       v_pures.
       rewrite /rec_fold. wp_pure credit:"Hlc". wp_pures.
       iEval (rewrite interp_rec_star_tern_unfold) in "HA".
       iMod (lc_fupd_elim_later with "Hlc HA") as "HA".
       interp_unfold! in "HA".
       wp_apply ("HvauthserA" with "[HA Htok Hv]").
-      { by iFrame "HA Hser Htok Hv". }
+      { by iFrame "HA Hser Hfw Htok Hv". }
       iIntros "(Htok & Hsv & Hv)".
       iApply "HΨ". by iFrame.
     - (* 7. v_count_spec *)

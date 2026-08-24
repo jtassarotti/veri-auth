@@ -1542,7 +1542,7 @@ Section authenticatable.
          an intransit/visit_finished-style exclusion in the pre or a
          NONEV escape in the spec (design decision). *)
       iIntros (K tᵥ6 a1 un_a1 a2 a3 s Ψ)
-        "!# (%Hunsusp & HAt & #Hser & Htok & Hv) HΨ".
+        "!# (%Hunsusp & HAt & #Hser & #Hfw & Htok & Hv) HΨ".
       destruct Hunsusp as (lb & lr & a & h & p & -> & ->).
       iDestruct "Hser" as %(a' & h' & Heq & ->).
       injection Heq as <- <-.
@@ -1588,11 +1588,15 @@ Section authenticatable.
         iMod (na_inv_acc with "Hinv_v Htok") as "(>Hinvo & Htok & Hclose)";
           [solve_ndisj|solve_ndisj|].
         iDestruct "Hinvo" as "[Hfill_v | Hemp_v]"; last first.
-        { (* unfilled suspender: [auth_ser_v] would return NONEV — the
-             post's [SOMEV #s] is unreachable. Needs a pre-side
-             exclusion (intransit / visit_finished) or a NONEV escape
-             in the spec. *)
-          admit. }
+        { (* unfilled suspender: excluded by the pre's [ser_v_filled]
+             witness — the caller only serializes after the fill. *)
+          iDestruct "Hfw" as (v1x) "[%Heqx Hfw_br]".
+          iDestruct "Hfw_br" as "[(%hx & %Habs)|(%suspx & %Heqsx & #Hfilled_w)]";
+            simplify_eq.
+          iDestruct "Hemp_v" as (hE suspE pE pvE ptE psE NE)
+            "([%HsE %HvE] & _ & HunfE & _)".
+          simplify_eq.
+          by iDestruct (unfilled_filled_excl with "HunfE Hfilled_w") as %[]. }
         iDestruct "Hfill_v" as (h2 susp2 γ2)
           "([%Hs2 %Hv2] & Hpts & #Hfilled & #Hlbf2 & #Hfin2)".
         assert (susp2 = susp_pv) as -> by (by simplify_eq).
@@ -1643,6 +1647,6 @@ Section authenticatable.
           v_load. v_pures. iModIntro. iFrame.
           iExists (InjRV #susp). iSplit; [done|]. iRight. iExists susp.
           iSplit; [done|]. iRight. iExists p, γ. by iFrame.
-  Admitted.
+  Qed.
 
 End authenticatable.

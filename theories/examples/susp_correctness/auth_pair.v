@@ -1040,7 +1040,7 @@ Section authenticatable.
       iExists _, _, s1, s2. iFrame "Hser1 Hser2". iPureIntro. done.
     - (* 6. auth_ser_spec *)
       rewrite /auth_ser_spec.
-      iIntros (K tᵥ3 a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & Htok & Hv) HΨ".
+      iIntros (K tᵥ3 a1 un_a1 a2 a3 s Ψ) "!# (%Hunsusp & HA & #Hser & #Hfw & Htok & Hv) HΨ".
       destruct Hunsusp as (x1 & x2 & un1 & un2 & -> & -> & Hun1 & Hun2).
       iDestruct "Hser" as (w1 w2 s1 s2 [Heq ->]) "[#Hser1 #Hser2]".
       injection Heq as <- <-.
@@ -1048,15 +1048,17 @@ Section authenticatable.
       interp_unfold! in "HA".
       iDestruct "HA" as (xa1 xa2 xb1 xb2 xc1 xc2) "(>%Heqa & >-> & >-> & Ha & Hb)".
       injection Heqa as <- <-.
+      iDestruct "Hfw" as (vx1 vx2) "(%Heqx & #HfwA & #HfwB)".
+      injection Heqx as <- <-.
       rewrite /prod_ser. wp_pures.
       v_pures. v_bind (v_sA _).
       wp_apply ("HvauthserA" with "[Ha Htok Hv]").
-      { by iFrame "Ha Hser1 Htok Hv". }
+      { by iFrame "Ha Hser1 HfwA Htok Hv". }
       iIntros "(Htok & Hsva & Hv) /=".
       v_pures. v_bind (v_sB _).
       wp_pures.
       wp_apply ("HvauthserB" with "[Hb Htok Hv]").
-      { by iFrame "Hb Hser2 Htok Hv". }
+      { by iFrame "Hb Hser2 HfwB Htok Hv". }
       iIntros "(Htok & Hsvb & Hv) /=".
       v_pures. wp_pures.
       iApply "HΨ". iModIntro.

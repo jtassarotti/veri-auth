@@ -652,11 +652,36 @@ Section authenticatable_definitions.
       cannot (and a fixed [£ n] precondition would not scale to nested
       recursion). The post returns the SAME string on both sides, so
       hash agreement in [refines_auth_auth] is by construction. *)
+  (** Persistent witness that every susp position under the verifier
+      value has been FILLED. Available at the p_auth/v_auth hashing
+      site: the fill precedes serialization, and [filled] (persistent)
+      comes out of [count_update]. Excludes [auth_susp_emp_v] when
+      [auth_ser_spec]'s tauth case opens the ver-susp invariant, so
+      [auth_ser_v] never returns NONEV. *)
+  Fixpoint ser_v_filled (t : evi_type) (v : val) : iProp Σ :=
+    match t with
+    | tprod t1 t2 =>
+        ∃ v1 v2, ⌜v = (v1, v2)%V⌝ ∗ ser_v_filled t1 v1 ∗ ser_v_filled t2 v2
+    | tsum t1 t2 =>
+        (∃ v1, ⌜v = InjLV v1⌝ ∗ ser_v_filled t1 v1) ∨
+        (∃ v2, ⌜v = InjRV v2⌝ ∗ ser_v_filled t2 v2)
+    | tstring | tint => True
+    | tauth =>
+        ∃ v1, ⌜v = SOMEV v1⌝ ∗
+          ((∃ h : string, ⌜v1 = InjLV #h⌝) ∨
+           (∃ susp : loc, ⌜v1 = InjRV #susp⌝ ∗ filled susp))
+    end.
+
+  #[global] Instance ser_v_filled_persistent t v :
+    Persistent (ser_v_filled t v).
+  Proof. revert v. induction t => v; simpl; apply _. Qed.
+
   Definition auth_ser_spec (p_ser v_ser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
     ∀ K tᵥ (a1 un_a1 a2 a3 : val) (s : string),
       {{{ ⌜unsusp t a1 un_a1⌝ ∗
           ▷ (lrel_tern_tern A) a1 a2 a3 ∗
           unsusp_ser_p t un_a1 s ∗
+          ser_v_filled t a2 ∗
           seq_tok ⊤ ∗
           spec_verifier tᵥ (fill K (v_ser a2)) }}}
         p_ser un_a1
