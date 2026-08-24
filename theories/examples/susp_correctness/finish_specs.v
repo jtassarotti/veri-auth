@@ -155,15 +155,15 @@ Section finish_specs.
         v_pures. v_bind (_ <- _)%E.
 
         iDestruct (visited_mapg_acc with "Hvmauth") as "[Hmauth Hvmclose]".
-          iPoseProof (mapg_auth_alive with "Hmauth Hmfrag") as (y) "%Hin".
-          iDestruct ("Hvmclose" with "[//] Hmauth") as "Hvmauth".
-        destruct Hin as [(? & Hin & ?)%Some_equiv_eq ?].
+        iPoseProof (mapg_auth_alive with "Hmauth Hmfrag") as (y) "%Hin".
+        iDestruct ("Hvmclose" with "[//] Hmauth") as "Hvmauth".
+        destruct Hin as [(? & Hin & Hxequiv)%Some_equiv_eq Hyequiv].
         edestruct (mapg_alive_lookup_Cinl _ _ _ y Hin) as (y' & Halive & Hyy'); first done.
         clear Hin. rename Halive into Hin.
 
         iDestruct (big_sepM_delete _ (mapg_alive m') pid _ Hin with "Hbigsep") as "[Hms Hbigsep]".
 
-        iDestruct "Hms" as (ctr ????????[Hcgt [Hin' ?]])
+        iDestruct "Hms" as (ctr ????????[Hcgt [Hin' Hyequiv']])
             "(Hlc & Hxser & #Hserpred_big & Hxserspec & Hxauth & Hxc & Hxfin)".
 
         (* iDestruct (pval_frag_agree with "Hxfrag Hpvfrag") as "<-". *)
@@ -181,8 +181,8 @@ Section finish_specs.
         iDestruct (serpred_agree with "Hserpred_emp Hserpred_big") as %->.
 
         assert (x1 = pv) as ->.
-        { rewrite Hyy' in H3. rewrite H3 in H2. simpl in H2.
-          fold_leibniz. by apply (inj to_agree) in H2. }
+        { rewrite Hyy' in Hyequiv'. rewrite Hyequiv' in Hyequiv. simpl in Hyequiv.
+          fold_leibniz. by apply (inj to_agree) in Hyequiv. }
 
         iMod (count_update with "[//] [//] Hlbfrag Hmfrag Hvisfin Hxser Hxc Hsusp Hunfill Hv") as "(Hintr' & Hxc & Hxser & Hsusp & Hv & Hfill) /=".
         (* iEval (rewrite visited_map_update_finished_rewrite) in "Hvmauth". *)
@@ -542,9 +542,9 @@ Section finish_specs.
             - iPureIntro.
               rewrite map_size_insert_Some; last by exists (#ctr, finish)%V.
               done.
-            - iPureIntro. intros ??.
+            - iPureIntro. intros ctr' Hge.
               destruct (decide (pid = ctr')); simplify_eq.
-              + specialize (Hidinv ctr' H5).
+              + specialize (Hidinv ctr' ltac:(lia)).
                 simplify_eq.
               + rewrite lookup_insert_ne; eauto.
                 intros ?. simplify_eq.
