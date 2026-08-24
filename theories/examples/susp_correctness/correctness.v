@@ -559,7 +559,9 @@ Section proof.
         iEval (rewrite visited_map_update_pending_rewrite) in "Hvmauth".
         iMod (visited_deser_commit _ _ _ _ _ a2' c' with "Hvmauth Hid")
           as "(Hvmauth & Hid & Hidtok & Hpvfrag & Hcapf & Hmapf)".
-        iMod ("Hdecorate" with "Hcapf Hmapf []") as "(#HA' & Hc & Hvser)".
+        iMod ("Hdecorate" $! tA a2' s with "[] Hcapf Hmapf []")
+            as "(#HA' & Hc & Hvser)".
+          { iPureIntro. apply sub_pos_refl. }
         { by destruct c'. }
 
         (* iPoseProof (big_sepM_mono
@@ -628,7 +630,7 @@ Section proof.
           { destruct (size γl); [lia|eauto]. }
           iEval (rewrite Hszpos /=) in "Hvmauth".
 
-          iAssert (sub_susp_count_frags tA a2' (size γl) cntr (size γl))%I
+          iAssert (sub_susp_count_frags tA a2' (size γl) cntr (size γl) a2')%I
             with "[$Hcap $Hc $Hagg //]" as "Hc".
         
           v_load. v_pures. v_bind (map.map_insert _ _ _).
@@ -834,7 +836,7 @@ Section proof.
               as "(Hintr & #Hvisdone & Hvmauth & Hxc & Hsusp & Hpvuneq')";
               [ done | done | ].
 
-            iAssert (sub_susp_count_frags t pv ctr pid Nc) with "[$Hxcap $Hxc $Hxagg //]" as "Hxc".
+            iAssert (sub_susp_count_frags t pv ctr pid Nc pv) with "[$Hxcap $Hxc $Hxagg //]" as "Hxc".
 
             iPoseProof (big_sepM_insert _ _ pid _ 
               with "[$Hbigsep $Hxfin $Hxser $Hxserspec $Hxc $Hlc $Hxauth]") as "Hbigsep".

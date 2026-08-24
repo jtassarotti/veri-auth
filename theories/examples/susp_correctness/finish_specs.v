@@ -170,7 +170,7 @@ Section finish_specs.
 
         iDestruct "Hxc" as "(Hcap' & % & Hxc & Hxagg)".
         iDestruct (cap_frag_agree with "Hcap Hcap'") as "->".
-        iAssert (sub_susp_count_frags t0 x1 ctr pid Nc0) with "[$Hcap $Hxc $Hxagg //]" as "Hxc".
+        iAssert (sub_susp_count_frags t0 x1 ctr pid Nc0 x1) with "[$Hcap $Hxc $Hxagg //]" as "Hxc".
 
         iDestruct (visit_reached_done_lookup with "Hvmauth Hvisdone") as "(%Hvmγ_old & Hvmauth)".
 

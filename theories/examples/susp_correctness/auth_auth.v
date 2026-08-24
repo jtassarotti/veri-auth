@@ -591,7 +591,7 @@ Section authenticatable.
                Nat.add_0_r.
              iFrame "Hvm".
              (* the decoration wand — everything pure/persistent at c = 0 *)
-             iIntros "#Hcap _ _". iModIntro.
+             iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _". iModIntro.
              iSplit.
              { iEval (rewrite /lrel_auth /=). iSplit.
                - iEval (cbv [lrel_auth_tern lrel_car]).
@@ -726,7 +726,7 @@ Section authenticatable.
              rewrite /visited_map_update_pending.
              iFrame "Hvm".
              (* the decoration wand at c = 1 *)
-             iIntros "#Hcap Hmapf %Hsregdef".
+             iIntros (t_out v_out s_out) "%Hsubpos #Hcap Hmapf %Hsregdef".
              iEval (rewrite -(Qp.div_2 1)) in "Hmapf".
              iDestruct (mapg_frag_split with "Hmapf") as "[HmapfI HmapfC]".
              iMod (na_inv_alloc seqG_name ⊤ (ver_susp_n susp_new)
@@ -734,8 +734,8 @@ Section authenticatable.
                         (filled_string (hash s_in)))
                      with "[Hunfilled HmapfI Hpts2]") as "#Hinv_v".
              { iNext. iRight.
-               iExists (hash s_in), susp_new, p_v, (SOMEV (InjRV #susp_new)),
-                 tauth, s_reg, 1.
+               iExists (hash s_in), susp_new, p_v, v_out,
+                 t_out, s_reg, 1.
                iSplit; [done|].
                iSplitR; [iExact "Hcap"|].
                iFrame "Hunfilled".
@@ -743,9 +743,12 @@ Section authenticatable.
                  last by rewrite Qp.mul_1_r.
                iFrame "HmapfI".
                iSplit.
-               { iPureIntro. exists #susp_new. split; [by right|done]. }
+               { iPureIntro. eapply sub_pos_v_sub_obj; [exact Hsubpos|].
+                 simpl. exists #susp_new. split; [by right|done]. }
                iSplit.
-               { iPureIntro. simpl. split; [done|exact Hsregdef]. }
+               { iPureIntro. rewrite Hsregdef.
+                 eapply sub_pos_same_ser; [exact Hsubpos|].
+                 simpl. by split. }
                iFrame "Hserpred Hpts2". }
              iModIntro.
              iSplit.
@@ -877,7 +880,7 @@ Section authenticatable.
                Nat.add_0_r.
              iFrame "Hvm".
              (* the decoration wand — everything pure/persistent at c = 0 *)
-             iIntros "#Hcap _ _". iModIntro.
+             iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _". iModIntro.
              iSplit.
              { iEval (rewrite /lrel_auth /=). iSplit.
                - iEval (cbv [lrel_auth_tern lrel_car]).
@@ -1048,7 +1051,7 @@ Section authenticatable.
                Nat.add_0_r.
              iFrame "Hvm".
              (* the decoration wand — everything pure/persistent at c = 0 *)
-             iIntros "#Hcap _ _". iModIntro.
+             iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _". iModIntro.
              iSplit.
              { iEval (rewrite /lrel_auth /=). iSplit.
                - iEval (cbv [lrel_auth_tern lrel_car]).
@@ -1183,7 +1186,7 @@ Section authenticatable.
              rewrite /visited_map_update_pending.
              iFrame "Hvm".
              (* the decoration wand at c = 1 *)
-             iIntros "#Hcap Hmapf %Hsregdef".
+             iIntros (t_out v_out s_out) "%Hsubpos #Hcap Hmapf %Hsregdef".
              iEval (rewrite -(Qp.div_2 1)) in "Hmapf".
              iDestruct (mapg_frag_split with "Hmapf") as "[HmapfI HmapfC]".
              iMod (na_inv_alloc seqG_name ⊤ (ver_susp_n susp_new)
@@ -1191,8 +1194,8 @@ Section authenticatable.
                         (filled_string (hash s_in)))
                      with "[Hunfilled HmapfI Hpts2]") as "#Hinv_v".
              { iNext. iRight.
-               iExists (hash s_in), susp_new, p_v, (SOMEV (InjRV #susp_new)),
-                 tauth, s_reg, 1.
+               iExists (hash s_in), susp_new, p_v, v_out,
+                 t_out, s_reg, 1.
                iSplit; [done|].
                iSplitR; [iExact "Hcap"|].
                iFrame "Hunfilled".
@@ -1200,9 +1203,12 @@ Section authenticatable.
                  last by rewrite Qp.mul_1_r.
                iFrame "HmapfI".
                iSplit.
-               { iPureIntro. exists #susp_new. split; [by right|done]. }
+               { iPureIntro. eapply sub_pos_v_sub_obj; [exact Hsubpos|].
+                 simpl. exists #susp_new. split; [by right|done]. }
                iSplit.
-               { iPureIntro. simpl. split; [done|exact Hsregdef]. }
+               { iPureIntro. rewrite Hsregdef.
+                 eapply sub_pos_same_ser; [exact Hsubpos|].
+                 simpl. by split. }
                iFrame "Hserpred Hpts2". }
              iModIntro.
              iSplit.
@@ -1334,7 +1340,7 @@ Section authenticatable.
                Nat.add_0_r.
              iFrame "Hvm".
              (* the decoration wand — everything pure/persistent at c = 0 *)
-             iIntros "#Hcap _ _". iModIntro.
+             iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _". iModIntro.
              iSplit.
              { iEval (rewrite /lrel_auth /=). iSplit.
                - iEval (cbv [lrel_auth_tern lrel_car]).

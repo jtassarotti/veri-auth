@@ -72,7 +72,7 @@ Section authentikit_helpers.
       mapg_auth m -∗
       sub_susp_count t v c id Nc v ==∗
         mapg_auth (mapg_insert_def m id v) ∗
-        sub_susp_count_frags t v c id Nc.
+        sub_susp_count_frags t v c id Nc v.
   Proof.
     iIntros (t v c id Nc m Hnone) "%Hc Hmauth Hcnt".
     iAssert (∀ (v_outer : val) (tind : evi_type) (vind : val) (cind : nat),
@@ -110,7 +110,7 @@ Section authentikit_helpers.
   Lemma mapg_remove_count_0 :
     ∀ t v id Nc m,
       Nc ≠ 0 →
-      sub_susp_count_frags t v 0 id Nc -∗
+      sub_susp_count_frags t v 0 id Nc v -∗
       mapg_auth m
       ==∗
         sub_susp_count t v 0 id Nc v ∗
@@ -243,8 +243,8 @@ Section authentikit_helpers.
     - iDestruct "H" as (v1) "[%Heq _]". discriminate.
   Qed.
 
-  Lemma sub_susp_count_frags_N_agree t v c id Nc Nc' :
-    sub_susp_count_frags t v c id Nc -∗ cap_frag id Nc' -∗ ⌜Nc = Nc'⌝.
+  Lemma sub_susp_count_frags_N_agree t v c id Nc Nc' vo :
+    sub_susp_count_frags t v c id Nc vo -∗ cap_frag id Nc' -∗ ⌜Nc = Nc'⌝.
   Proof.
     iIntros "(Hcap & _) Hcap'".
     iApply (cap_frag_agree with "Hcap Hcap'").
@@ -571,13 +571,13 @@ Section authentikit_helpers.
       mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat Nc)))%Qp v -∗
       visit_finished γ -∗
       ser_v_proph t pid v s -∗
-      sub_susp_count_frags t v c pid Nc -∗
+      sub_susp_count_frags t v c pid Nc v -∗
       susp ↦ᵥ{#(1/2)} InjLV (#pid, v') -∗
       unfilled susp -∗
       spec_verifier tᵥ (fill K (#susp <- InjRV #h))
       ={⊤}=∗
         intransit (1/2) ∗
-        sub_susp_count_frags t v (c-1) pid Nc ∗
+        sub_susp_count_frags t v (c-1) pid Nc v ∗
         ser_v_proph t pid v s ∗
         susp ↦ᵥ{#(1/2)} InjRV #h ∗
         spec_verifier tᵥ (fill K (#())) ∗
@@ -879,12 +879,12 @@ Section authentikit_helpers.
       intransit 1 -∗
       lg_mapg_frag susp γ -∗
       susp ↦ᵥ{#1/2} InjLV (#pid, #p) -∗
-      sub_susp_count_frags t v c pid Nc
+      sub_susp_count_frags t v c pid Nc v
       ==∗
         visit_finished γ ∗
         intransit (1/2) ∗
         visited_map_update_finished vm mp γ pn ctr ∗
-        sub_susp_count_frags t v c pid Nc ∗
+        sub_susp_count_frags t v c pid Nc v ∗
         susp ↦ᵥ{#1/2} InjLV (#pid, #p).
   Proof.
     iIntros (t t' v c pid Nc susp p γ m mp pn ctr Hsub)
@@ -1325,7 +1325,7 @@ Section authentikit_helpers.
     ∀ m vm mp (id ctr ctr' Nc pn : nat) t x (q : Qp),
       ⌜ctr > 0⌝ -∗ ⌜(1/2 < q)%Qp⌝ -∗ vm_big_sep m vm -∗
       intransit q -∗ pencount_frag pn -∗
-      sub_susp_count_frags t x ctr id Nc -∗
+      sub_susp_count_frags t x ctr id Nc x -∗
       visited_mapg_auth vm mp pn ctr' -∗
       (⌜pn > 0 ∨ (∃ id' v', id' > id ∧ m !! #id' = Some v')⌝).
   Proof.

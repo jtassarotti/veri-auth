@@ -226,7 +226,9 @@ Section unauth_step.
           iEval (rewrite visited_map_update_pending_rewrite) in "Hvmauth".
           iMod (visited_deser_commit _ _ _ _ susp a2' c' with "Hvmauth Hid")
             as "(Hvmauth & Hid & Hidtok & #Hvfrag & Hcapf & Hmapf)".
-          iMod ("Hdecorate" with "Hcapf Hmapf []") as "(#HA' & Hc & Hvser)".
+          iMod ("Hdecorate" $! tA a2' s with "[] Hcapf Hmapf []")
+            as "(#HA' & Hc & Hvser)".
+          { iPureIntro. apply sub_pos_refl. }
           { by destruct c'. }
 
           iSimpl in "Hv". v_pures. v_bind (v_count _).
@@ -521,7 +523,7 @@ Section unauth_step.
                   as "(Hintr & Hvisdone & Hvmauth & Hxc & Hsusp & Hpvuneq')";
                   [ done | done | ].
 
-                iAssert (sub_susp_count_frags t pv ctr pid Nc) with "[$Hxcap $Hxc $Hxagg //]" as "Hxc".
+                iAssert (sub_susp_count_frags t pv ctr pid Nc pv) with "[$Hxcap $Hxc $Hxagg //]" as "Hxc".
 
                 iPoseProof (big_sepM_insert _ _ pid _ 
                   with "[$Hbigsep $Hxfin $Hxser $Hxserspec $Hxc $Hlc $Hxauth]") as "Hbigsep".

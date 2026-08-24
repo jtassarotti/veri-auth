@@ -189,6 +189,119 @@ Section authenticatable_definitions.
     | _ => False
     end.
 
+  (** [sub_pos t_out v_out s_out t v s]: the typed position [(t, v, s)]
+      occurs inside [(t_out, v_out, s_out)] — reflexively, or through a
+      product component / sum injection, with the serialization
+      decomposing accordingly. The decoration wand is generalized over
+      the outer position via this relation so that a leaf's
+      commit-dependent payload (keyed to the REGISTERED top-level value)
+      composes through compounds. *)
+  Fixpoint sub_pos (t_out : evi_type) (v_out : val) (s_out : string)
+      (t : evi_type) (v : val) (s : string) : Prop :=
+    (t_out = t ∧ v_out = v ∧ s_out = s) ∨
+    match t_out with
+    | tprod t1 t2 =>
+        ∃ v1 v2 s1 s2, v_out = (v1, v2)%V ∧ s_out = prod_ser_str s1 s2 ∧
+          (sub_pos t1 v1 s1 t v s ∨ sub_pos t2 v2 s2 t v s)
+    | tsum t1 t2 =>
+        ∃ v',
+          (v_out = InjLV v' ∧ ∃ s', s_out = inl_ser_str s' ∧
+             sub_pos t1 v' s' t v s) ∨
+          (v_out = InjRV v' ∧ ∃ s', s_out = inr_ser_str s' ∧
+             sub_pos t2 v' s' t v s)
+    | _ => False
+    end.
+
+  Lemma sub_pos_refl t v s : sub_pos t v s t v s.
+  Proof. destruct t; by left. Qed.
+
+  Lemma sub_pos_inl t1 t2 v' s' t v s :
+    sub_pos t1 v' s' t v s →
+    sub_pos (tsum t1 t2) (InjLV v') (inl_ser_str s') t v s.
+  Proof. intros H. right. exists v'. left. split; [done|]. by exists s'. Qed.
+
+  Lemma sub_pos_inr t1 t2 v' s' t v s :
+    sub_pos t2 v' s' t v s →
+    sub_pos (tsum t1 t2) (InjRV v') (inr_ser_str s') t v s.
+  Proof. intros H. right. exists v'. right. split; [done|]. by exists s'. Qed.
+
+  Lemma sub_pos_prodl t1 t2 v1 v2 s1 s2 t v s :
+    sub_pos t1 v1 s1 t v s →
+    sub_pos (tprod t1 t2) (v1, v2)%V (prod_ser_str s1 s2) t v s.
+  Proof. intros H. right. exists v1, v2, s1, s2. by auto. Qed.
+
+  Lemma sub_pos_prodr t1 t2 v1 v2 s1 s2 t v s :
+    sub_pos t2 v2 s2 t v s →
+    sub_pos (tprod t1 t2) (v1, v2)%V (prod_ser_str s1 s2) t v s.
+  Proof. intros H. right. exists v1, v2, s1, s2. by auto. Qed.
+
+  Lemma sub_pos_trans t_o v_o s_o t_m v_m s_m t v s :
+    sub_pos t_o v_o s_o t_m v_m s_m →
+    sub_pos t_m v_m s_m t v s →
+    sub_pos t_o v_o s_o t v s.
+  Proof.
+    revert v_o s_o. induction t_o => v_o s_o H1 H2; simpl in H1.
+    - destruct H1 as [(<-&<-&<-)|(v1&v2&s1&s2&->&->&[H|H])]; [exact H2| |].
+      + right. exists v1, v2, s1, s2. split_and!; try done. left.
+        by eapply IHt_o1.
+      + right. exists v1, v2, s1, s2. split_and!; try done. right.
+        by eapply IHt_o2.
+    - destruct H1 as [(<-&<-&<-)|(v'&[(->&s'&->&H)|(->&s'&->&H)])];
+        [exact H2| |].
+      + right. exists v'. left. split; [done|]. exists s'. split; [done|].
+        by eapply IHt_o1.
+      + right. exists v'. right. split; [done|]. exists s'. split; [done|].
+        by eapply IHt_o2.
+    - destruct H1 as [(<-&<-&<-)|[]]. exact H2.
+    - destruct H1 as [(<-&<-&<-)|[]]. exact H2.
+    - destruct H1 as [(<-&<-&<-)|[]]. exact H2.
+  Qed.
+
+  Lemma sub_pos_v_sub_obj t_out v_out s_out t v s (susp : loc) :
+    sub_pos t_out v_out s_out t v s →
+    v_sub_obj t v #susp → v_sub_obj t_out v_out #susp.
+  Proof.
+    revert v_out s_out. induction t_out => v_out s_out Hpos Hv;
+      simpl in Hpos.
+    - destruct Hpos as [(<- & <- & <-)|(v1&v2&s1&s2&->&->&[H|H])];
+        [exact Hv| |].
+      + exists v1, v2. split; [done|]. right. right. left.
+        by eapply IHt_out1.
+      + exists v1, v2. split; [done|]. right. right. right.
+        by eapply IHt_out2.
+    - destruct Hpos as [(<- & <- & <-)|(v'&[(->&s'&->&H)|(->&s'&->&H)])];
+        [exact Hv| |].
+      + exists v'. left. split; [done|]. by eapply IHt_out1.
+      + exists v'. right. split; [done|]. by eapply IHt_out2.
+    - destruct Hpos as [(<- & <- & <-)|[]]. exact Hv.
+    - destruct Hpos as [(<- & <- & <-)|[]]. exact Hv.
+    - destruct Hpos as [(<- & <- & <-)|[]]. exact Hv.
+  Qed.
+
+  Lemma sub_pos_same_ser t_out v_out s_out t v s (susp : loc) (h : string) :
+    sub_pos t_out v_out s_out t v s →
+    same_ser_for_fill t v s susp h →
+    same_ser_for_fill t_out v_out s_out susp h.
+  Proof.
+    revert v_out s_out. induction t_out => v_out s_out Hpos Hssf;
+      simpl in Hpos.
+    - destruct Hpos as [(<- & <- & <-)|(v1&v2&s1&s2&->&->&[H|H])];
+        [exact Hssf| |].
+      + exists v1, v2, s1, s2. split_and!; try done. left.
+        by eapply IHt_out1.
+      + exists v1, v2, s1, s2. split_and!; try done. right.
+        by eapply IHt_out2.
+    - destruct Hpos as [(<- & <- & <-)|(v'&[(->&s'&->&H)|(->&s'&->&H)])];
+        [exact Hssf| |].
+      + exists v'. left. split; [done|]. exists s'. split; [done|].
+        by eapply IHt_out1.
+      + exists v'. right. split; [done|]. exists s'. split; [done|].
+        by eapply IHt_out2.
+    - destruct Hpos as [(<- & <- & <-)|[]]. exact Hssf.
+    - destruct Hpos as [(<- & <- & <-)|[]]. exact Hssf.
+    - destruct Hpos as [(<- & <- & <-)|[]]. exact Hssf.
+  Qed.
+
   Definition empty_proph_bs (p : proph_id) : iProp Σ :=
     proph_bs p [].
 
@@ -464,10 +577,10 @@ Section authenticatable_definitions.
       mapg_frag id q v).
 
   Definition sub_susp_count_frags
-      (t : evi_type) (v : val) (c id N : nat) : iProp Σ :=
+      (t : evi_type) (v : val) (c id N : nat) (v_out : val) : iProp Σ :=
     cap_frag id N ∗ ⌜c ≤ N⌝ ∗
-    sub_susp_count t v c id N v ∗
-    count_aggregator c id N v.
+    sub_susp_count t v c id N v_out ∗
+    count_aggregator c id N v_out.
 
   Definition susp_p_ser_spec (ser : val) (t : evi_type) : iProp Σ :=
     ∀ (E : coPset) (a1 : val) (s : string) (c : nat) (q : Qp),
@@ -565,10 +678,12 @@ Section authenticatable_definitions.
                    premise is the caller's obligation to mint apartness
                    witnesses ([pval_snapshot]) for freshly allocated
                    verifier locs at the just-committed id. *)
-                (cap_frag id c -∗
+                (∀ (t_out : evi_type) (v_out : val) (s_out : string),
+                 ⌜sub_pos t_out v_out s_out t a2' s_def⌝ -∗
+                 cap_frag id c -∗
                  (match c with
                   | 0%nat => emp
-                  | _ => mapg_frag id 1 a2'
+                  | _ => mapg_frag id 1 v_out
                   end) -∗
                  (* The registered prediction coincides with the defined
                     serialization — needed only where a suspension was
@@ -577,10 +692,10 @@ Section authenticatable_definitions.
                     trivially. *)
                  (match c with
                   | 0%nat => emp
-                  | _ => ⌜s_reg = s_def⌝
+                  | _ => ⌜s_reg = s_out⌝
                   end) ={⊤}=∗
                    A a1' a2' a3 ∗
-                   sub_susp_count_frags t a2' c id c ∗
+                   sub_susp_count_frags t a2' c id c v_out ∗
                    ser_v_proph t id a2' s_def)) ∨
               (⌜s_pred ≠ s_real⌝ ∗ (lrel_tern_un A) a1')) }}})).
 
@@ -858,7 +973,7 @@ Section authentikit_definitions.
       (⌜ctr > 0 ∧ m !! #id = Some (#ctr, finish)%V ∧ agv ≡ to_frac_agree q x⌝ ∗
       £ 1 ∗ ser_v_proph t id x s ∗ serpred_frag id s ∗
       v_ser_spec ser t ∗ auth_v id a s ∗
-      sub_susp_count_frags t x ctr id Nc ∗ v_finish_spec' finish x a ser)%I.
+      sub_susp_count_frags t x ctr id Nc x ∗ v_finish_spec' finish x a ser)%I.
 
   Definition v_susp_big_sep (m : gmap val val) (m' : mapg_type) : iProp Σ :=
     [∗ map] id ↦ agv ∈ mapg_alive m', v_susp_big_sep_lam m id agv.

@@ -980,9 +980,15 @@ Section authenticatable.
       iFrame "HvmB".
       (* the pair wand: compose both component wands; the shared cap_frag is
          persistent, and at c = 0 both frag inputs are emp *)
-      iIntros "#Hcap _ _".
-      iMod ("HwandA" with "Hcap [//] [//]") as "(HAf & HcntA & HservA)".
-      iMod ("HwandB" with "Hcap [//] [//]") as "(HBf & HcntB & HservB)".
+      iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _".
+      iMod ("HwandA" $! t_out v_out s_out with "[] Hcap [//] [//]")
+        as "(HAf & HcntA & HservA)".
+      { iPureIntro. eapply sub_pos_trans; [exact Hsubpos|].
+        by apply sub_pos_prodl, sub_pos_refl. }
+      iMod ("HwandB" $! t_out v_out s_out with "[] Hcap [//] [//]")
+        as "(HBf & HcntB & HservB)".
+      { iPureIntro. eapply sub_pos_trans; [exact Hsubpos|].
+        by apply sub_pos_prodr, sub_pos_refl. }
       iModIntro.
       iSplitL "HAf HBf".
       { iEval (rewrite interp_prod_combined).

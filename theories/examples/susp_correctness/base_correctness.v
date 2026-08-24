@@ -356,8 +356,11 @@ Section authenticatable.
              iSplitL "Hpenc'"; [by iFrame "Hpenc'"|].
              iFrame "Hvm'".
              (* the sum-level decoration wand, composing the component's *)
-             iIntros "Hcap _ _".
-             iMod ("Hwand" with "Hcap [//] [//]") as "(HAf & Hcnt & Hserv)".
+             iIntros (t_out v_out s_out) "%Hsubpos Hcap _ _".
+             iMod ("Hwand" $! t_out v_out s_out with "[] Hcap [//] [//]")
+               as "(HAf & Hcnt & Hserv)".
+             { iPureIntro. eapply sub_pos_trans; [exact Hsubpos|].
+               by apply sub_pos_inl, sub_pos_refl. }
              iModIntro.
              iSplitL "HAf".
              { iEval (rewrite interp_sum_combined).
@@ -578,8 +581,11 @@ Section authenticatable.
                 iSplit. { by rewrite big_sepS_empty. }
                 iSplitL "Hpenc'"; [by iFrame "Hpenc'"|].
                 iFrame "Hvm'".
-                iIntros "Hcap _ _".
-                iMod ("Hwand" with "Hcap [//] [//]") as "(HBf & Hcnt & Hserv)".
+                iIntros (t_out v_out s_out) "%Hsubpos Hcap _ _".
+                iMod ("Hwand" $! t_out v_out s_out with "[] Hcap [//] [//]")
+                  as "(HBf & Hcnt & Hserv)".
+                { iPureIntro. eapply sub_pos_trans; [exact Hsubpos|].
+                  by apply sub_pos_inr, sub_pos_refl. }
                 iModIntro.
                 iSplitL "HBf".
                 { iEval (rewrite interp_sum_combined).
@@ -880,7 +886,7 @@ Section authenticatable.
         rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
         iFrame "Hvm".
         (* the decoration wand: everything is pure at c = 0 *)
-        iIntros "#Hcap _ _". iModIntro.
+        iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _". iModIntro.
         iSplit. { iSplit; [by iExists sv|]. iApply "HAun". }
         iSplit.
         { iFrame "Hcap". iSplit; [done|]. iSplit.
@@ -1054,7 +1060,7 @@ Section authenticatable.
         iSplitL "Hpenc"; [by iFrame "Hpenc"|].
         rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
         iFrame "Hvm".
-        iIntros "#Hcap _ _". iModIntro.
+        iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _". iModIntro.
         iSplit. { iSplit; [by iExists zv|]. iApply "HAun". }
         iSplit.
         { iFrame "Hcap". iSplit; [done|]. iSplit.
@@ -1272,8 +1278,9 @@ Section authenticatable.
         iExists γl, mlg', a2'.
         iFrame "Hlgp' Hpens Hpserp' Hv Hbig Hpenc' Hvm'".
         iSplit; [done|].
-        iIntros "Hcap Hmap Hsr".
-        iMod ("Hwand" with "Hcap [Hmap] [Hsr]") as "(HAf & Hcnt & Hserv)".
+        iIntros (t_out v_out s_out) "%Hsubpos Hcap Hmap Hsr".
+        iMod ("Hwand" $! t_out v_out s_out with "[//] Hcap [Hmap] [Hsr]")
+          as "(HAf & Hcnt & Hserv)".
         { subst t_real. iExact "Hmap". }
         { subst t_real. iExact "Hsr". }
         iModIntro.
