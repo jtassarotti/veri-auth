@@ -942,7 +942,7 @@ Section authentikit_definitions.
           spec_ideal t3 (fill K3 (v3 #())) ∗ pencount_frag (sum_list lpn) ∗
           p_proof_state w1 ps1 ps_fix lpn ∗ v_proof_state w2 ps2 ∗
           proph_proof p ps ∗ ⌜ps = reverse ps2 ++ ps1⌝ ∗
-          intransit 1%Qp ∗ tern_state ∗ stok_unset
+          intransit 1%Qp ∗ tern_state
       }}}
         v1 w1
       {{{ ps1' lpn' (w1' a1 a3 : val), RET (w1', a1)%V;
@@ -951,7 +951,7 @@ Section authentikit_definitions.
           p_proof_state w1' ps1' ps_fix lpn' ∗
           
           ((∃ ps2' (w2' a2 : val),
-            pencount_frag (sum_list lpn') ∗ stok_unset ∗
+            pencount_frag (sum_list lpn') ∗
             ⌜ps = reverse ps2' ++ ps1'⌝ ∗ A a1 a2 a3 ∗ 
             spec_verifier t2 (fill K2 (SOMEV (w2', a2)%V)) ∗
             v_proof_state w2' ps2' ∗ tern_state) ∨
