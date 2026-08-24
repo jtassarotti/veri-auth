@@ -73,16 +73,12 @@ Section authenticatable.
         wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser1 $Htok $Hintr]").
         iIntros "(Htok & Hintr & HreachA)". wp_pures.
         unfold inl_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
-        iIntros (γl) "Hg Hpen %Hsz Hbig".
-        iDestruct (susp_ser_p_real_sum_γl_empty_l with "Hser1 Hbig") as %->.
-        iFrame "Hg Hpen". by rewrite !big_sepS_empty.
+        iApply (reach_closure_sum_l with "HreachA").
       + wp_pures.
         wp_apply ("HsserB" $! _ _ _ c q with "[//] [$Hser1 $Htok $Hintr]").
         iIntros "(Htok & Hintr & HreachB)". wp_pures.
         unfold inr_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
-        iIntros (γl) "Hg Hpen %Hsz Hbig".
-        iDestruct (susp_ser_p_real_sum_γl_empty_r with "Hser1 Hbig") as %->.
-        iFrame "Hg Hpen". by rewrite !big_sepS_empty.
+        iApply (reach_closure_sum_r with "HreachB").
     - (* suspend_spec_bin *)
       rewrite /suspend_spec_bin.
       iIntros (t' v0 un_v s_def Ψ) "!# (%Hunsusp & #Hsw & HA) HΨ".
@@ -261,19 +257,13 @@ Section authenticatable.
         wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser1 $Htok $Hintr]").
         iIntros "(Htok & Hintr & HreachA)". wp_pures.
         unfold inl_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
-        iIntros (γl) "Hg Hpen %Hsz Hbig".
-        (* p_sub_obj's [sv = v'] conjunct makes suspensions under a sum
-           unreachable, so γl is empty and the closure is trivial. *)
-        iDestruct (susp_ser_p_real_sum_γl_empty_l with "Hser1 Hbig") as %->.
-        iFrame "Hg Hpen". by rewrite !big_sepS_empty.
+        iApply (reach_closure_sum_l with "HreachA").
       + (* InjR: B serializer runs *)
         rewrite /sum_ser''. wp_pures. rewrite /sum_ser. wp_pures.
         wp_apply ("HsserB" $! _ _ _ c q with "[//] [$Hser1 $Htok $Hintr]").
         iIntros "(Htok & Hintr & HreachB)". wp_pures.
         unfold inr_ser_str. iApply "HΨ". iModIntro. iFrame "Htok Hintr".
-        iIntros (γl) "Hg Hpen %Hsz Hbig".
-        iDestruct (susp_ser_p_real_sum_γl_empty_r with "Hser1 Hbig") as %->.
-        iFrame "Hg Hpen". by rewrite !big_sepS_empty.
+        iApply (reach_closure_sum_r with "HreachB").
     - (* 3. suspend_v_deser_spec (combined) *)
       rewrite /suspend_v_deser_spec.
       iIntros "!#" (K tᵥ3 pid) "Hv".
@@ -348,9 +338,7 @@ Section authenticatable.
                wp_apply ("HspecatA" $! E q with "[//] [$Htok $Hintr]").
                iIntros "(Htok & Hintr & Hreach)". wp_pures.
                unfold inl_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
-               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
-               iDestruct (susp_ser_p_real_sum_γl_empty_l with "HrealA Hbig'") as %->.
-               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+               iApply (reach_closure_sum_l with "Hreach"). }
              iSplitR.
              { iExists a1A', s_realA. iLeft. iSplit; [iApply "HrealA"|done]. }
              iFrame "Hserpred".
@@ -399,9 +387,7 @@ Section authenticatable.
                wp_apply ("HspecatA" $! E q with "[//] [$Htok $Hintr]").
                iIntros "(Htok & Hintr & Hreach)". wp_pures.
                unfold inl_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
-               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
-               iDestruct (susp_ser_p_real_sum_γl_empty_l with "HrealA Hbig'") as %->.
-               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+               iApply (reach_closure_sum_l with "Hreach"). }
              iSplitR.
              { iExists a1A', s_realA. iLeft. iSplit; [iApply "HrealA"|done]. }
              iFrame "Hserpred".
@@ -438,10 +424,7 @@ Section authenticatable.
                wp_apply ("HatA" $! E q with "[//] [$Htok $Hintr]").
                iIntros "(Htok & Hintr & Hreach)". wp_pures.
                unfold inl_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
-               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
-               iDestruct (susp_ser_p_real_sum_γl_empty_l with "HrealA' Hbig'")
-                 as %->.
-               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+               iApply (reach_closure_sum_l with "Hreach"). }
              iSplitR.
              { iExists a1A', sA. iLeft. iSplit; [iApply "HrealA'"|done]. }
              iFrame "Hserpred".
@@ -477,10 +460,7 @@ Section authenticatable.
                wp_apply ("HatA" $! E q with "[//] [$Htok $Hintr]").
                iIntros "(Htok & Hintr & Hreach)". wp_pures.
                unfold inl_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
-               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
-               iDestruct (susp_ser_p_real_sum_γl_empty_l with "HrealA' Hbig'")
-                 as %->.
-               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+               iApply (reach_closure_sum_l with "Hreach"). }
              iSplitR.
              { iExists a1A', sA. iLeft. iSplit; [iApply "HrealA'"|done]. }
              iFrame "Hserpred".
@@ -528,10 +508,7 @@ Section authenticatable.
                wp_apply ("HatB" $! E q with "[//] [$Htok $Hintr]").
                iIntros "(Htok & Hintr & Hreach)". wp_pures.
                unfold inr_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
-               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
-               iDestruct (susp_ser_p_real_sum_γl_empty_r with "HrealB' Hbig'")
-                 as %->.
-               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+               iApply (reach_closure_sum_r with "Hreach"). }
              iSplitR.
              { iExists a1B', sB. iRight. iSplit; [iApply "HrealB'"|done]. }
              iFrame "Hserpred".
@@ -584,9 +561,7 @@ Section authenticatable.
                   wp_apply ("HspecatB" $! E q with "[//] [$Htok $Hintr]").
                   iIntros "(Htok & Hintr & Hreach)". wp_pures.
                   unfold inr_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
-                  iIntros (γl') "Hg Hpen %Hsz' Hbig'".
-                  iDestruct (susp_ser_p_real_sum_γl_empty_r with "HrealB Hbig'") as %->.
-                  iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+                  iApply (reach_closure_sum_r with "Hreach"). }
                 iSplitR.
                 { iExists a1B', s_realB. iRight. iSplit; [iApply "HrealB"|done]. }
                 iFrame "Hserpred".
@@ -634,9 +609,7 @@ Section authenticatable.
                   wp_apply ("HspecatB" $! E q with "[//] [$Htok $Hintr]").
                   iIntros "(Htok & Hintr & Hreach)". wp_pures.
                   unfold inr_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
-                  iIntros (γl') "Hg Hpen %Hsz' Hbig'".
-                  iDestruct (susp_ser_p_real_sum_γl_empty_r with "HrealB Hbig'") as %->.
-                  iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+                  iApply (reach_closure_sum_r with "Hreach"). }
                 iSplitR.
                 { iExists a1B', s_realB. iRight. iSplit; [iApply "HrealB"|done]. }
                 iFrame "Hserpred".
@@ -670,10 +643,7 @@ Section authenticatable.
                wp_apply ("HatB" $! E q with "[//] [$Htok $Hintr]").
                iIntros "(Htok & Hintr & Hreach)". wp_pures.
                unfold inr_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
-               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
-               iDestruct (susp_ser_p_real_sum_γl_empty_r with "HrealB' Hbig'")
-                 as %->.
-               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+               iApply (reach_closure_sum_r with "Hreach"). }
              iSplitR.
              { iExists a1B', sB. iRight. iSplit; [iApply "HrealB'"|done]. }
              iFrame "Hserpred".
