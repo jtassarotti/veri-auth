@@ -1356,11 +1356,11 @@ Section proof.
                 + iDestruct "Hinv_1" as "(%&%&%&%Hpure & Hsusp & #Hfilled & #Hlbvfrag'' & #Hvisfin)".
                   destruct! Hpure. simplify_eq.
 
-                  iModIntro. iExists (⊤ ∖ ↑ver_susp_n susp0). iSplit; eauto.
+                  iModIntro. iExists (⊤ ∖ ↑ver_susp_n susp0). iSplit; first done.
                   iSplitR.
                   { iModIntro. iIntros (pid' psusp pγ Hpidlt) "H1 H2 H3".
                     admit. }
-                  iAssert (⌜γ0 = γ⌝)%I as "->". { admit. }
+                  iDestruct (lg_mapg_agree with "Hlbvfrag Hlbvfrag''") as "(<- & _ & _)".
                   iSplitR "Hvmauth"; last admit.
                   iRight.
                   iFrame "Hvfrag Hpvuneq Hlbvfrag Hvisit Hinv_authv Hgetidtok".
