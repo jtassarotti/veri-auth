@@ -801,9 +801,13 @@ Section proof.
               iModIntro. iIntros "$". }
 
             iModIntro. iFrame "Htok Hintr Hc".
+            iAssert (⌜cntr > pid⌝)%I as %Hcntrgt.
+            { destruct (le_gt_dec cntr pid) as [Hle|]; last by iPureIntro.
+              iDestruct (pval_snapshot_neq _ _ _ _ Hle with "Hpvuneq Hvfrag") as %?.
+              done. }
             iSplitR "Hvmauth".
             { iRight. iFrame "#".
-              repeat (iSplit; eauto). admit. }
+              repeat (iSplit; eauto). }
             admit.
 
           - iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%Hxp& #Hcap & Hunfill & Hmfrag & %Hmsub & %Hsamser & #Hserpred & Hsusp)".
