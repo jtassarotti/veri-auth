@@ -1290,7 +1290,7 @@ Section authentikit_helpers.
           * iDestruct "Hp" as (p γ) "(_ & _ & _ & _ & _ & _ & Hdisj)".
             iExists γ. iExact "Hdisj". }
     iDestruct ("Hext" $! x t x ctr with "[%//] Hcount") as (γ) "[Hpend|[Hdone|Hfin]]".
-    - iDestruct "Hauth" as "(%dm & %ps & %gm & %pvm & %m_v & %rs & %mcap & Hms & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & %Hpcoh)".
+    - iDestruct "Hauth" as "(%dm & %ps & %gm & %pvm & %m_v & %rs & %mcap & %sfm & Hms & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & _ & %Hpcoh & _)".
       iDestruct (own_valid_2 with "Hms Hpend") as %Hvm.
       apply auth_both_valid_discrete in Hvm as [Hincl Hvalid].
       apply (singleton_included_exclusive_l vm γ pending_val) in Hincl;

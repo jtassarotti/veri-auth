@@ -552,7 +552,7 @@ Section authenticatable.
       rewrite /prod_deser. v_pures.
       iModIntro. iExists _. iFrame "Hv".
       iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
-      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & #Hmint & Hvm & Hlgp & Hpenc & Hv) HΨ".
       wp_pure _.
       iPoseProof "HA" as "HA'".
       iEval (rewrite interp_prod_combined) in "HA'".
@@ -825,7 +825,7 @@ Section authenticatable.
         - interp_unfold!. iApply "HBun'". }
       (* coupled path: verifier at deserA s1 *)
       v_bind (v_parA _).
-      wp_apply ("HinnerA" with "[$HAc $HserA' $Hserpred $Hvm $Hlgp $Hpenc $Hv]").
+      wp_apply ("HinnerA" with "[$HAc $HserA' $Hserpred $Hmint $Hvm $Hlgp $Hpenc $Hv]").
       { done. }
       iIntros (a1A' s_realA cA t_realA) "(#HspecatA & #HrealA & _ & HpostA)".
       iDestruct "HpostA" as "[HmatchA | [%HnmA #HunA]]"; last first.
@@ -880,7 +880,7 @@ Section authenticatable.
                Nat.add_0_r) in "HvmA".
       iSimpl in "Hv". v_pures.
       v_bind (v_parB _).
-      wp_apply ("HinnerB" with "[$HBc $HserB' $Hserpred $HvmA $HlgpA $HpencA $Hv]").
+      wp_apply ("HinnerB" with "[$HBc $HserB' $Hserpred $Hmint $HvmA $HlgpA $HpencA $Hv]").
       { done. }
       iIntros (a1B' s_realB cB t_realB) "(#HspecatB & #HrealB & _ & HpostB)".
       iDestruct "HpostB" as "[HmatchB | [%HnmB #HunB]]"; last first.
@@ -980,9 +980,9 @@ Section authenticatable.
       iFrame "HvmB".
       (* the pair wand: compose both component wands; the shared cap_frag is
          persistent, and at c = 0 both frag inputs are emp *)
-      iIntros "#Hcap _ _ #Hmint".
-      iMod ("HwandA" with "Hcap [//] [//] Hmint") as "(HAf & HcntA & HservA)".
-      iMod ("HwandB" with "Hcap [//] [//] Hmint") as "(HBf & HcntB & HservB)".
+      iIntros "#Hcap _ _".
+      iMod ("HwandA" with "Hcap [//] [//]") as "(HAf & HcntA & HservA)".
+      iMod ("HwandB" with "Hcap [//] [//]") as "(HBf & HcntB & HservB)".
       iModIntro.
       iSplitL "HAf HBf".
       { iEval (rewrite interp_prod_combined).

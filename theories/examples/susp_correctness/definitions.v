@@ -520,6 +520,12 @@ Section authenticatable_definitions.
           {{{ ⌜unsusp t' a1 un_a1⌝ ∗
               ▷ A a1 a2 a3 ∗ susp_ser_p t' a1 s_def ∗
               serpred_frag id s_reg ∗
+              (* The caller's apartness-mint obligation, available at LEAF
+                 time (a fresh suspension must mint its [pval_snapshot]
+                 BEFORE [visited_susp_register] absorbs the loc's
+                 [vmeta_token] into the freshness accumulator). *)
+              □(∀ susp : loc, vmeta_token susp ={⊤}=∗
+                  vmeta_token susp ∗ pval_snapshot susp id) ∗
               visited_mapg_auth vm mp pn ctr ∗
               lg_p_auth mlg_p ∗
               pencount_frag pn ∗
@@ -566,9 +572,7 @@ Section authenticatable_definitions.
                  (match c with
                   | 0%nat => emp
                   | _ => ⌜s_reg = s_def⌝
-                  end) -∗
-                 □(∀ susp : loc, vmeta_token susp ={⊤}=∗
-                     vmeta_token susp ∗ pval_snapshot susp id) ={⊤}=∗
+                  end) ={⊤}=∗
                    A a1' a2' a3 ∗
                    sub_susp_count_frags t a2' c id c ∗
                    ser_v_proph t id a2' s_def)) ∨

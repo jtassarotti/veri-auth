@@ -368,7 +368,7 @@ Section authenticatable.
       rewrite /authenticatable_base_susp.auth_deser_v. v_pures.
       iModIntro. iExists _. iFrame "Hv".
       iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ3' Ψ).
-      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred &
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & #Hmint &
                    Hvm & Hlgp & Hpenc & Hv) HΨ".
       (* Project HA = (lrel_auth A) a1 a2 a3 into its tern / un parts. *)
       iDestruct "HA" as "[HAtern #HAun]".
@@ -569,7 +569,7 @@ Section authenticatable.
                Nat.add_0_r.
              iFrame "Hvm".
              (* the decoration wand — everything pure/persistent at c = 0 *)
-             iIntros "#Hcap _ _ #Hmint". iModIntro.
+             iIntros "#Hcap _ _". iModIntro.
              iSplit.
              { iEval (rewrite /lrel_auth /=). iSplit.
                - iEval (cbv [lrel_auth_tern lrel_car]).
@@ -741,7 +741,7 @@ Section authenticatable.
                Nat.add_0_r.
              iFrame "Hvm".
              (* the decoration wand — everything pure/persistent at c = 0 *)
-             iIntros "#Hcap _ _ #Hmint". iModIntro.
+             iIntros "#Hcap _ _". iModIntro.
              iSplit.
              { iEval (rewrite /lrel_auth /=). iSplit.
                - iEval (cbv [lrel_auth_tern lrel_car]).
@@ -913,7 +913,7 @@ Section authenticatable.
                Nat.add_0_r.
              iFrame "Hvm".
              (* the decoration wand — everything pure/persistent at c = 0 *)
-             iIntros "#Hcap _ _ #Hmint". iModIntro.
+             iIntros "#Hcap _ _". iModIntro.
              iSplit.
              { iEval (rewrite /lrel_auth /=). iSplit.
                - iEval (cbv [lrel_auth_tern lrel_car]).
@@ -1085,7 +1085,7 @@ Section authenticatable.
                Nat.add_0_r.
              iFrame "Hvm".
              (* the decoration wand — everything pure/persistent at c = 0 *)
-             iIntros "#Hcap _ _ #Hmint". iModIntro.
+             iIntros "#Hcap _ _". iModIntro.
              iSplit.
              { iEval (rewrite /lrel_auth /=). iSplit.
                - iEval (cbv [lrel_auth_tern lrel_car]).

@@ -285,7 +285,7 @@ Section authenticatable.
       rewrite /sum_deser. v_pures.
       iModIntro. iExists _. iFrame "Hv".
       iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
-      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & #Hmint & Hvm & Hlgp & Hpenc & Hv) HΨ".
       wp_pure _.
       iPoseProof "HA" as "HA'".
       iEval (rewrite interp_sum_combined) in "HA'".
@@ -307,7 +307,7 @@ Section authenticatable.
         case_bool_decide as HtagL; v_pures; try solve_vals_compare_safe.
         * (* verifier parses an L-tag: couple with the A component *)
           v_bind (v_parA _).
-          wp_apply ("HinnerA" with "[$HAc $HserA' $Hserpred $Hvm $Hlgp $Hpenc $Hv]").
+          wp_apply ("HinnerA" with "[$HAc $HserA' $Hserpred $Hmint $Hvm $Hlgp $Hpenc $Hv]").
           { done. }
           iIntros (a1A' s_realA cA t_realA)
             "(#HspecatA & #HrealA & _ & HpostA)".
@@ -368,8 +368,8 @@ Section authenticatable.
              iSplitL "Hpenc'"; [by iFrame "Hpenc'"|].
              iFrame "Hvm'".
              (* the sum-level decoration wand, composing the component's *)
-             iIntros "Hcap _ _ #Hmint".
-             iMod ("Hwand" with "Hcap [//] [//] Hmint") as "(HAf & Hcnt & Hserv)".
+             iIntros "Hcap _ _".
+             iMod ("Hwand" with "Hcap [//] [//]") as "(HAf & Hcnt & Hserv)".
              iModIntro.
              iSplitL "HAf".
              { iEval (rewrite interp_sum_combined).
@@ -547,7 +547,7 @@ Section authenticatable.
         * case_bool_decide as HtagR; v_pures.
           -- (* R-tag: couple with the B component *)
              v_bind (v_parB _).
-             wp_apply ("HinnerB" with "[$HBc $HserB' $Hserpred $Hvm $Hlgp $Hpenc $Hv]").
+             wp_apply ("HinnerB" with "[$HBc $HserB' $Hserpred $Hmint $Hvm $Hlgp $Hpenc $Hv]").
              { done. }
              iIntros (a1B' s_realB cB t_realB)
                "(#HspecatB & #HrealB & _ & HpostB)".
@@ -603,8 +603,8 @@ Section authenticatable.
                 iSplit. { by rewrite big_sepS_empty. }
                 iSplitL "Hpenc'"; [by iFrame "Hpenc'"|].
                 iFrame "Hvm'".
-                iIntros "Hcap _ _ #Hmint".
-                iMod ("Hwand" with "Hcap [//] [//] Hmint") as "(HBf & Hcnt & Hserv)".
+                iIntros "Hcap _ _".
+                iMod ("Hwand" with "Hcap [//] [//]") as "(HBf & Hcnt & Hserv)".
                 iModIntro.
                 iSplitL "HBf".
                 { iEval (rewrite interp_sum_combined).
@@ -853,7 +853,7 @@ Section authenticatable.
       v_pures.
       iModIntro. iExists _. iFrame "Hv".
       iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
-      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & #Hmint & Hvm & Hlgp & Hpenc & Hv) HΨ".
       rewrite /id. wp_pure _.
       iPoseProof "HA" as "[HAt #HAun]".
       iDestruct "HAt" as %(sv & -> & -> & ->).
@@ -904,7 +904,7 @@ Section authenticatable.
         rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
         iFrame "Hvm".
         (* the decoration wand: everything is pure at c = 0 *)
-        iIntros "#Hcap _ _ #Hmint". iModIntro.
+        iIntros "#Hcap _ _". iModIntro.
         iSplit. { iSplit; [by iExists sv|]. iApply "HAun". }
         iSplit.
         { iFrame "Hcap". iSplit; [done|]. iSplit.
@@ -1025,7 +1025,7 @@ Section authenticatable.
       v_pures.
       iModIntro. iExists _. iFrame "Hv".
       iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
-      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & #Hmint & Hvm & Hlgp & Hpenc & Hv) HΨ".
       rewrite /id. wp_pure _.
       iPoseProof "HA" as "[HAt #HAun]".
       iDestruct "HAt" as %(zv & -> & -> & ->).
@@ -1078,7 +1078,7 @@ Section authenticatable.
         iSplitL "Hpenc"; [by iFrame "Hpenc"|].
         rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
         iFrame "Hvm".
-        iIntros "#Hcap _ _ #Hmint". iModIntro.
+        iIntros "#Hcap _ _". iModIntro.
         iSplit. { iSplit; [by iExists zv|]. iApply "HAun". }
         iSplit.
         { iFrame "Hcap". iSplit; [done|]. iSplit.
@@ -1265,14 +1265,14 @@ Section authenticatable.
       v_pures.
       iModIntro. iExists _. iFrame "Hv".
       iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
-      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & #Hmint & Hvm & Hlgp & Hpenc & Hv) HΨ".
       rewrite /rec_fold. wp_pures.
       iEval (rewrite interp_rec_star_unfold) in "HA".
       interp_unfold! in "HA".
       v_pures.
       v_bind (v_dA _).
       iMod ("HsuspvdeserA" with "Hv") as (v_parA) "(Hv & #HinnerA) /=".
-      wp_apply ("HinnerA" with "[$HA $Hser $Hserpred $Hvm $Hlgp $Hpenc $Hv]").
+      wp_apply ("HinnerA" with "[$HA $Hser $Hserpred $Hmint $Hvm $Hlgp $Hpenc $Hv]").
       { done. }
       iIntros (a1' s_real c t_real) "(#Hspecat & #Hreal & _ & Hpost)".
       iAssert (∀ (ser : val), susp_p_ser_spec_at ser t_real c a1' s_real -∗
@@ -1296,8 +1296,8 @@ Section authenticatable.
         iExists γl, mlg', a2'.
         iFrame "Hlgp' Hpens Hpserp' Hv Hbig Hpenc' Hvm'".
         iSplit; [done|].
-        iIntros "Hcap Hmap Hsr #Hmint".
-        iMod ("Hwand" with "Hcap [Hmap] [Hsr] Hmint") as "(HAf & Hcnt & Hserv)".
+        iIntros "Hcap Hmap Hsr".
+        iMod ("Hwand" with "Hcap [Hmap] [Hsr]") as "(HAf & Hcnt & Hserv)".
         { subst t_real. iExact "Hmap". }
         { subst t_real. iExact "Hsr". }
         iModIntro.

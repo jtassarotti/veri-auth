@@ -557,10 +557,8 @@ Section proof.
         iEval (rewrite visited_map_update_pending_rewrite) in "Hvmauth".
         iMod (visited_deser_commit _ _ _ _ _ a2' c' with "Hvmauth Hid")
           as "(Hvmauth & Hid & Hidtok & Hpvfrag & Hcapf & Hmapf)".
-        iMod ("Hdecorate" with "Hcapf Hmapf [] []") as "(#HA' & Hc & Hvser)".
+        iMod ("Hdecorate" with "Hcapf Hmapf []") as "(#HA' & Hc & Hvser)".
         { by destruct c'. }
-        { admit. (* pval_snapshot minting for the fresh verifier locs at the
-                    just-committed id — pending the general apartness lemma. *) }
 
         (* iPoseProof (big_sepM_mono
             (vm_big_sep_lam_unset m)
@@ -810,10 +808,8 @@ Section proof.
           iEval (rewrite visited_map_update_pending_rewrite) in "Hvmauth".
           iMod (visited_deser_commit _ _ _ _ susp a2' c' with "Hvmauth Hid")
             as "(Hvmauth & Hid & Hidtok & #Hvfrag & Hcapf & Hmapf)".
-          iMod ("Hdecorate" with "Hcapf Hmapf [] []") as "(#HA' & Hc & Hvser)".
-        { by destruct c'. }
-          { admit. (* pval_snapshot minting for the fresh verifier locs at the
-                      just-committed id — pending the general apartness lemma. *) }
+          iMod ("Hdecorate" with "Hcapf Hmapf []") as "(#HA' & Hc & Hvser)".
+          { by destruct c'. }
 
           iSimpl in "Hv". v_pures. v_bind (v_count _).
           iDestruct "Hc" as "(Hcap & % & Hc & Hagg)".
@@ -1210,10 +1206,8 @@ Section proof.
           iEval (rewrite visited_map_update_pending_rewrite) in "Hvmauth".
           iMod (visited_deser_commit _ _ _ _ susp a2' c' with "Hvmauth Hid")
             as "(Hvmauth & Hid & Hidtok & #Hvfrag & Hcapf & Hmapf)".
-          iMod ("Hdecorate" with "Hcapf Hmapf [] []") as "(#HA' & Hc & Hvser)".
-        { by destruct c'. }
-          { admit. (* pval_snapshot minting for the fresh verifier locs at the
-                      just-committed id — pending the general apartness lemma. *) }
+          iMod ("Hdecorate" with "Hcapf Hmapf []") as "(#HA' & Hc & Hvser)".
+          { by destruct c'. }
 
           iSimpl in "Hv". v_pures. v_bind (v_count _).
           iDestruct "Hc" as "(Hcap & % & Hc & Hagg)".
@@ -1616,8 +1610,7 @@ Section proof.
         iMod (visited_deser_commit _ _ _ _ susp a2' c' with "Hvmauth Hid")
           as "(Hvmauth & Hid & Hidtok & #Hvfrag & Hcapf & Hmapf)".
         iMod ("Hdecorate" with "Hcapf Hmapf []") as "(#HA' & Hc & Hvser)".
-        { admit. (* pval_snapshot minting for the fresh verifier locs at the
-                    just-committed id — pending the general apartness lemma. *) }
+        { by destruct c'. }
 
         iSimpl in "Hv". v_pures. v_bind (v_count _).
         iDestruct "Hc" as "(Hcap & % & Hc & Hagg)".
