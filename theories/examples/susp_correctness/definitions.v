@@ -250,10 +250,12 @@ Section authenticatable_definitions.
   Definition auth_susp_ser_p_real (v : val) (s : string) c : iProp Σ :=
     (auth_susp_ser_p_fill v s ∧ ⌜c = 0⌝) ∨ (auth_susp_ser_p_emp v s ∧ ⌜c = 1⌝).
 
-  (* What it would serialize to without suspension *)
+  (* What it would serialize to without suspension. SOME-wrapped
+     ([filled_string]) so the prover's would-be format coincides with the
+     verifier's [auth_ser_v] format (hash-format fix, blocker #2). *)
   Definition auth_susp_ser_p (v : val) (s : string) : iProp Σ :=
     ∃ (p : proph_id) (lb lr : loc) (a : val) (h : string),
-      ⌜v = BoxV (#lb, #lr, a, #h, #p)%V ∧ s = simple_string h⌝.
+      ⌜v = BoxV (#lb, #lr, a, #h, #p)%V ∧ s = filled_string h⌝.
 
   Definition auth_fill_ser_v (v : val) (s : string) : iProp Σ :=
     ∃ (h : string), ⌜s = filled_string h ∧ v = InjLV #h⌝.

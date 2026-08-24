@@ -522,12 +522,11 @@ Section authenticatable.
                 (s_deser complete through the spec-verifier GenWp) to
                 [SOMEV (SOMEV (InjLV #(hash s_in)))]; c = 0 so the count
                 payload is pure and γl = ∅. The A-wand's [auth_pv] fill
-                disjunct is provable from [Hinv_new]. BLOCKED on
-                [ser_v_proph tauth id a2' s_def]: s_def is
-                [simple_string (hash s_in)] but both [auth_fill_ser_v]
-                and [auth_susp_ser_v] demand [filled_string _] — the
-                standing hash-format inconsistency (design blocker #2:
-                SOME-wrap fix in auth_unsusp_ser_p pending). *)
+                disjunct is provable from [Hinv_new], and — after the
+                filled_string fix to [auth_susp_ser_p] — so is
+                [ser_v_proph tauth id a2' s_def] (left disjunct,
+                [auth_fill_ser_v]). No design gap remains here; needs
+                the spec-side [s_deser] stepping work. *)
              admit.
           -- (* mismatch on the filled string *)
              iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
@@ -569,9 +568,10 @@ Section authenticatable.
                 [SOMEV (SOMEV (InjRV #susp_new))]. γl = {[γ_new]} via
                 [visited_insert]; [lg_mapg_p_frag lb_new γ_new] via
                 [lg_p_insert]. BLOCKED on three design gaps:
-                (1) the match big_sepS pairing needs [lg_mapg_frag
-                    susp_new γ_new] — the verifier-side lg map's
-                    [lg_v_auth] is held nowhere and has no insert lemma;
+                (1) [RESOLVED by lg_v_bind_fresh]: the big_sepS pairing's
+                    [lg_mapg_frag susp_new γ_new] is mintable from the
+                    fresh susp's [vmeta_token] (step_verifier_alloc)
+                    against the m_v held inside [visited_mapg_auth];
                 (2) [auth_susp_emp_v]'s [proph_v_susp p_v h] is
                     unmintable: [step_verifier_newproph] yields no
                     prophecy resource for spec-side prophecies;
@@ -621,12 +621,11 @@ Section authenticatable.
                 (s_deser complete through the spec-verifier GenWp) to
                 [SOMEV (SOMEV (InjLV #(hash s_in)))]; c = 0 so the count
                 payload is pure and γl = ∅. The A-wand's [auth_pv] fill
-                disjunct is provable from [Hinv_new]. BLOCKED on
-                [ser_v_proph tauth id a2' s_def]: s_def is
-                [simple_string (hash s_in)] but both [auth_fill_ser_v]
-                and [auth_susp_ser_v] demand [filled_string _] — the
-                standing hash-format inconsistency (design blocker #2:
-                SOME-wrap fix in auth_unsusp_ser_p pending). *)
+                disjunct is provable from [Hinv_new], and — after the
+                filled_string fix to [auth_susp_ser_p] — so is
+                [ser_v_proph tauth id a2' s_def] (left disjunct,
+                [auth_fill_ser_v]). No design gap remains here; needs
+                the spec-side [s_deser] stepping work. *)
              admit.
           -- (* mismatch on the filled string *)
              iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
@@ -725,12 +724,11 @@ Section authenticatable.
                 (s_deser complete through the spec-verifier GenWp) to
                 [SOMEV (SOMEV (InjLV #(hash s_in)))]; c = 0 so the count
                 payload is pure and γl = ∅. The A-wand's [auth_pv] fill
-                disjunct is provable from [Hinv_new]. BLOCKED on
-                [ser_v_proph tauth id a2' s_def]: s_def is
-                [simple_string (hash s_in)] but both [auth_fill_ser_v]
-                and [auth_susp_ser_v] demand [filled_string _] — the
-                standing hash-format inconsistency (design blocker #2:
-                SOME-wrap fix in auth_unsusp_ser_p pending). *)
+                disjunct is provable from [Hinv_new], and — after the
+                filled_string fix to [auth_susp_ser_p] — so is
+                [ser_v_proph tauth id a2' s_def] (left disjunct,
+                [auth_fill_ser_v]). No design gap remains here; needs
+                the spec-side [s_deser] stepping work. *)
              admit.
           -- (* mismatch on the filled string *)
              iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
@@ -772,9 +770,10 @@ Section authenticatable.
                 [SOMEV (SOMEV (InjRV #susp_new))]. γl = {[γ_new]} via
                 [visited_insert]; [lg_mapg_p_frag lb_new γ_new] via
                 [lg_p_insert]. BLOCKED on three design gaps:
-                (1) the match big_sepS pairing needs [lg_mapg_frag
-                    susp_new γ_new] — the verifier-side lg map's
-                    [lg_v_auth] is held nowhere and has no insert lemma;
+                (1) [RESOLVED by lg_v_bind_fresh]: the big_sepS pairing's
+                    [lg_mapg_frag susp_new γ_new] is mintable from the
+                    fresh susp's [vmeta_token] (step_verifier_alloc)
+                    against the m_v held inside [visited_mapg_auth];
                 (2) [auth_susp_emp_v]'s [proph_v_susp p_v h] is
                     unmintable: [step_verifier_newproph] yields no
                     prophecy resource for spec-side prophecies;
@@ -824,12 +823,11 @@ Section authenticatable.
                 (s_deser complete through the spec-verifier GenWp) to
                 [SOMEV (SOMEV (InjLV #(hash s_in)))]; c = 0 so the count
                 payload is pure and γl = ∅. The A-wand's [auth_pv] fill
-                disjunct is provable from [Hinv_new]. BLOCKED on
-                [ser_v_proph tauth id a2' s_def]: s_def is
-                [simple_string (hash s_in)] but both [auth_fill_ser_v]
-                and [auth_susp_ser_v] demand [filled_string _] — the
-                standing hash-format inconsistency (design blocker #2:
-                SOME-wrap fix in auth_unsusp_ser_p pending). *)
+                disjunct is provable from [Hinv_new], and — after the
+                filled_string fix to [auth_susp_ser_p] — so is
+                [ser_v_proph tauth id a2' s_def] (left disjunct,
+                [auth_fill_ser_v]). No design gap remains here; needs
+                the spec-side [s_deser] stepping work. *)
              admit.
           -- (* mismatch on the filled string *)
              iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)

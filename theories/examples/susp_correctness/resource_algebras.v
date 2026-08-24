@@ -1549,6 +1549,39 @@ Section lg_map.
     apply auth_update_alloc. by apply alloc_singleton_local_update.
   Qed.
 
+  (** Bind a FRESH verifier susp loc [l] to an arbitrary γ in the
+      verifier-side lg map held inside [visited_mapg_auth].
+      [id_susp_gamma_coherent] constrains only gm-BOUND ids (forward
+      direction), so a fresh-loc entry is always coherent. Freshness
+      comes from the spec-side [vmeta_token l] (consumed into the
+      [spec_meta] dom accumulator). Used by the tauth suspend/deser
+      leaf to pair the freshly allocated verifier susp with the fresh
+      pending γ from [visited_insert]. *)
+  Lemma lg_v_bind_fresh m mp pn ctr (l : loc) (γ : gname) :
+    vmeta_token l -∗ visited_mapg_auth m mp pn ctr ==∗
+      visited_mapg_auth m mp pn ctr ∗ lg_mapg_frag l γ.
+  Proof.
+    iIntros "Hvtok (%d & %ps & %gm & %pvm & %m_v & %rs & %mcap & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & Hmp & Hcap & %Hdommp & %Hdomcap & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
+    iDestruct (vmeta_combine_dom m_v l (Cinr (to_agree γ)) with "Hvtok Hsmeta")
+      as "[%Hfresh Hsmeta']".
+    apply not_elem_of_dom in Hfresh.
+    rewrite /lg_mapg_frag.
+    iMod (own_update with "Hmv") as "[Hmv' Hfrag]".
+    { apply auth_update_alloc.
+      by apply (alloc_singleton_local_update _ l (Cinr (to_agree γ))). }
+    iModIntro. iFrame "Hfrag".
+    iExists d, ps, gm, pvm, (<[l := Cinr (to_agree γ)]> m_v), rs, mcap.
+    iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv' Hsmeta' Hrs Hmp Hcap".
+    iPureIntro.
+    split_and!; try assumption.
+    intros id γ' Hgmid.
+    destruct (Hisgc id γ' Hgmid) as (susp & Hpvm_s & Hmv_s).
+    exists susp. split; [done|].
+    destruct (decide (susp = l)) as [->|Hne].
+    { rewrite Hfresh in Hmv_s. inversion Hmv_s. }
+    rewrite lookup_insert_ne //.
+  Qed.
+
   (** [bind_id_fresh_susp]: bind an existing id [from] (whose susp loc is
       [l], certified by the input [pval_frag from l]) to a fresh γ. The
       caller provides [vmeta_token l] which guarantees [l ∉ dom m_v];
