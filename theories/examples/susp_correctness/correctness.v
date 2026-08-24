@@ -524,13 +524,15 @@ Section proof.
           
           iApply ("HΨ"). iFrame "Htabtok Htok Hi Hintr Hpr".
 
-          iModIntro. 
+          iModIntro.
           assert (
             ((p_finish, s_real, c') :: combine (combine bufl ps1) lpn) =
               combine (combine (p_finish :: bufl) (s_real :: ps1)) (c' :: lpn))
             as -> by eauto.
-          iSplitL "Hbuf". 
-          { iFrame "∗ %". admit. }
+          iSplitL "Hbuf".
+          { iFrame "∗ %".
+            iPureIntro. exists (definitions.sum_list (c' :: lpn)).
+            simpl. split_and!; try done; lia. }
 
           do 2 iRight. iFrame "#".
           admit. }
@@ -588,8 +590,10 @@ Section proof.
           { iNext. iLeft. iFrame "Hvmauth". iFrame "∗ %".
             iSplit. { iPureIntro; intros ??; apply Hidinv; lia. }
 
-            admit. (* rewrite set_fold as union. get disjointness.
-                      apply big_sepM_union. *) }
+            apply size_empty_inv in Hγl0. fold_leibniz. rewrite Hγl0.
+            rewrite set_fold_empty. iFrame.
+            iPureIntro. rewrite dom_insert set_seq_S_end_union_L.
+            set_solver. }
 
           iMod ("Hvfinish" $! ⊤ with "[] Htabtok Hlc Hvser Hvserspec Hc [Htok Hidtok Hintr Hpvfrag]
                 Hst Hv") as "(Hv & Htabtok & Htok & Hst & Hintr) /=".
@@ -671,6 +675,9 @@ Section proof.
               specialize (Hidinv ctr' ltac:(lia)).
               split; eauto. intros ?. simplify_eq. lia. }
 
+            iSplit; last first.
+            { iPureIntro. rewrite dom_insert set_seq_S_end_union_L.
+              set_solver. }
             admit. }
 
           v_pures. v_bind (list_tail _).
@@ -777,13 +784,15 @@ Section proof.
             
             iApply ("HΨ"). iFrame "Htabtok Htok Hi Hintr Hpr".
 
-            iModIntro. 
+            iModIntro.
             assert (
               ((p_finish, s_real, c') :: combine (combine bufl ps1) lpn) =
                 combine (combine (p_finish :: bufl) (s_real :: ps1)) (c' :: lpn))
               as -> by eauto.
-            iSplitL "Hbuf". 
-            { iFrame "∗ %". admit. }
+            iSplitL "Hbuf".
+            { iFrame "∗ %".
+              iPureIntro. exists (definitions.sum_list (c' :: lpn)).
+              simpl. split_and!; try done; lia. }
 
             do 2 iRight. iFrame "#".
             admit. }
@@ -866,9 +875,13 @@ Section proof.
               { iNext. iLeft. iFrame "Hsusp Hfilled Hlbvfrag Hvisfin". eauto. }
 
               iModIntro. iFrame "Htok Hintr Hc".
+              iAssert (⌜cntr > pid⌝)%I as %Hcntrgt.
+              { destruct (le_gt_dec cntr pid) as [Hle|]; last by iPureIntro.
+                iDestruct (pval_snapshot_neq _ _ _ _ Hle with "Hpvuneq Hvfrag") as %?.
+                done. }
               iSplitR "Hvmauth".
               { iRight. iFrame "#".
-                repeat (iSplit; eauto). admit. }
+                repeat (iSplit; eauto). }
               admit.
 
             - iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%& #Hcap & Hunfill & Hmfrag & %Hmsub & %Hsamser & #Hserpred & Hsusp)".
@@ -1133,8 +1146,7 @@ Section proof.
           iDestruct "Htabo" as "[(%&%&%m2 &%& %idctr &%&%msp_2 & Hl & %Hm &
               Hbigsep &% & Hvmauth & %Hidinv & Hvisinv & Hst' & Hserp2 & %Hmspdom2) | Hst']";
             last first.
-          { admit. }
-            (* iPoseProof (state_agree with "Hst Hst'") as "(% & Hst & Hst')"; simplify_eq. *)
+          { by iPoseProof (tern_state_un_state_excl with "Hst Hst'") as "?". }
 
           iDestruct (id_ctr_frag_agree with "Hvmauth Hid") as "->".
           iMod (serpred_alloc msp_2 cntr s with "Hserp2") as "[Hserp2 #Hserpfrag]".
@@ -1177,13 +1189,15 @@ Section proof.
             
             iApply ("HΨ"). iFrame "Htabtok Htok Hi Hintr Hpr".
 
-            iModIntro. 
+            iModIntro.
             assert (
               ((p_finish, s_real, c') :: combine (combine bufl ps1) lpn) =
                 combine (combine (p_finish :: bufl) (s_real :: ps1)) (c' :: lpn))
               as -> by eauto.
-            iSplitL "Hbuf". 
-            { iFrame "∗ %". admit. }
+            iSplitL "Hbuf".
+            { iFrame "∗ %".
+              iPureIntro. exists (definitions.sum_list (c' :: lpn)).
+              simpl. split_and!; try done; lia. }
 
             do 2 iRight. iFrame "#".
             admit. }
@@ -1261,9 +1275,13 @@ Section proof.
               { iNext. iLeft. iFrame "Hsusp Hfilled Hlbvfrag Hvisfin". eauto. }
 
               iModIntro. iFrame "Htok Hintr Hc".
+              iAssert (⌜cntr > pid⌝)%I as %Hcntrgt.
+              { destruct (le_gt_dec cntr pid) as [Hle|]; last by iPureIntro.
+                iDestruct (pval_snapshot_neq _ _ _ _ Hle with "Hpvuneq Hvfrag") as %?.
+                done. }
               iSplitR "Hvmauth".
               { iRight. iFrame "#".
-                repeat (iSplit; eauto). admit. }
+                repeat (iSplit; eauto). }
               admit.
 
             - iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%& #Hcap & Hunfill & Hmfrag & %Hmsub & %Hsamser & #Hserpred & Hsusp)".
