@@ -1131,8 +1131,9 @@ Section proof.
       with "[Hl Hvmauth Hst2 Hserp]") as "#Htab".
     { iNext. iLeft. iExists x, ∅, ∅, ∅, 0, 0, ∅.
       iFrame "Hl Hvmauth Hst2 Hserp".
-      rewrite /v_susp_big_sep /vm_big_sep.
-      admit. (* empty big_seps + pure side conditions of the empty table *) }
+      rewrite /v_susp_big_sep /vm_big_sep /mapg_alive omap_empty.
+      rewrite !big_sepM_empty.
+      iPureIntro. split_and!; done. }
 
     iDestruct "Hc" as "(Hc & _)".
     v_bind (f2 _).
