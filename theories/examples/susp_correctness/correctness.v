@@ -1484,23 +1484,27 @@ Section proof.
 
             iApply ("HΨ"). iFrame "Htabtok Htok Hpr Hi Hintr".
             iModIntro. iSplitL "Hbuf".
-            { iPoseProof (big_sepL_cons (λ _, p_buffer_elem) with "Hbuf") as "Hbuf". 
-              assert 
-                (((p_finish, s_real, size γl) :: combine (combine bufl ps1) lpn) = 
+            { iPoseProof (big_sepL_cons (λ _, p_buffer_elem) with "Hbuf") as "Hbuf".
+              assert
+                (((p_finish, s_real, size γl) :: combine (combine bufl ps1) lpn) =
                   combine (combine (p_finish :: bufl) (s_real :: ps1)) (size γl :: lpn))
                 as -> by done.
-              iFrame "Hbuf". admit. }
+              iFrame "Hbuf".
+              iPureIntro. exists prf1, v, (definitions.sum_list (size γl :: lpn)).
+              simpl. split_and!; try done; lia. }
             iLeft. iExists ps2. iSimpl.
-            assert (pn' = size γl + definitions.sum_list lpn) as <- by admit.
+            assert (pn' = size γl + definitions.sum_list lpn) as <- by lia.
             iFrame "HA' Hv Hid Hpenc Hstok Hst".
             iSplit.
-            { iPureIntro. admit. }
+            { iPureIntro. by rewrite reverse_cons -assoc. }
 
             iPureIntro.
             eexists _. split; eauto.
             repeat f_equal. lia.
 
-      + wp_pures.
+      + wp_pures; wp_apply (wp_resolve_proph_bool with "Hbrproph").
+        iIntros (?) "[% Hbrproph]"; simplify_eq; wp_pures; wp_store.
+      wp_pures.
       
       wp_pures. wp_apply (wp_resolve_proph_bool with "Hbrproph").
 
