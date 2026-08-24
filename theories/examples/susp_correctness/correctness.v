@@ -672,6 +672,9 @@ Section proof.
               specialize (Hidinv ctr' ltac:(lia)).
               split; eauto. intros ?. simplify_eq. lia. }
 
+            iSplit; last first.
+            { iPureIntro. rewrite dom_insert set_seq_S_end_union_L.
+              set_solver. }
             admit. }
 
           v_pures. v_bind (list_tail _).
