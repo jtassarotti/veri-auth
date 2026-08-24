@@ -632,27 +632,142 @@ Section authenticatable.
           iPoseProof (susp_p_ser_spec_at_intro with "Hreal_new Hsser_auth")
             as "#Hat_new".
           destruct (decide (s_pred = suspended_string)) as [-> | Hne].
-          -- (* SUSP-MATCH: the verifier parses NONEV, allocates the fresh
-                susp ref and prophecy, and returns
-                [SOMEV (SOMEV (InjRV #susp_new))]. γl = {[γ_new]} via
-                [visited_insert]; [lg_mapg_p_frag lb_new γ_new] via
-                [lg_p_insert]. BLOCKED on three design gaps:
-                (1) [RESOLVED by lg_v_bind_fresh]: the big_sepS pairing's
-                    [lg_mapg_frag susp_new γ_new] is mintable from the
-                    fresh susp's [vmeta_token] (step_verifier_alloc)
-                    against the m_v held inside [visited_mapg_auth];
-                (2) [RESOLVED]: [proph_v_susp] dropped from
-                    [auth_susp_emp_v] — serpred plays the prophecy's
-                    role (fix 3);
-                (3) [RESOLVED]: the wand's c-scoped [⌜s_reg = s_def⌝]
-                    premise (fix 4) supplies exactly the string equality
-                    emp_v's [same_ser_for_fill] needs at c = 1.
-                No design gap remains — this arm is now provable work:
-                spec-side parse stepping, [visited_insert] +
-                [lg_p_insert] + [lg_v_bind_fresh] ghost registration,
-                emp_v/seq_inv allocation from the wand inputs, and the
-                A/count/ser_v payloads. *)
-             admit.
+          -- (* SUSP-MATCH: the verifier parses NONEV, allocates the fresh susp
+                ref, and the leaf registers it everywhere. *)
+             iDestruct "Hser" as %(pS & lbS & lrS & aS & hS & HeqboxS & ->).
+             injection HeqboxS as <- <- <- <- <-.
+             v_pures.
+             v_bind (s_deserializer _ _).
+             iMod (s_deser_complete auth_scheme ⊤ suspended_string ()
+                     (λ w, ⌜w = SOMEV NONEV⌝)%I
+                     with "[] [] [$Hv //]") as (?) "[Hv ->] /=".
+             { iApply (s_is_ser_eq auth_scheme NONEV).
+               rewrite /= /option_is_ser /option_is_ser'. iLeft. by iPureIntro. }
+             { iIntros "!>" (w) "His". iDestruct "His" as %His. iPureIntro.
+               destruct His as [[-> _]|(w' & s' & [_ Habs] & _)]; [done|].
+               by rewrite /suspended_string /some_ser_str /none_ser_str in Habs. }
+             v_pures.
+             v_bind (NewProph).
+             iMod (step_verifier_newproph with "Hv") as (p_v) "Hv /="; [done|].
+             v_pures.
+             v_bind (ref _)%E.
+             iMod (step_verifier_alloc with "Hv")
+               as (susp_new) "(Hv & Hsusp_pts & Hvmeta) /="; [done|].
+             v_pures.
+             (* the snapshot must be minted BEFORE registration absorbs the
+                vmeta_token into the freshness accumulator *)
+             iMod ("Hmint" $! susp_new with "Hvmeta") as "[Hvmeta #Hsnap]".
+             iMod (visited_insert with "[$Hvm $Hpenc]")
+               as (γ_new) "(Hvm & Hpenc & Hpend & Hpenfrag)".
+             iEval (rewrite /visited_map_update_pending) in "Hvm".
+             iMod (visited_susp_register _ _ _ _ susp_new γ_new
+                     with "Hvmeta Hvm") as "(Hvm & #Hlgv & Hunfilled)".
+             iMod (lg_p_insert _ lb_new γ_new with "Hmtok_lb Hlgp")
+               as "[Hlgp #Hlgpfrag]".
+             (* 1/2 (inv) + 1/4 (count) + 1/4 (ser_v) split *)
+             iEval (rewrite -Qp.half_half) in "Hsusp_pts".
+             iDestruct "Hsusp_pts" as "[Hpts2 Hpts4]".
+             iEval (rewrite -Qp.quarter_quarter) in "Hpts4".
+             iDestruct "Hpts4" as "[Hpts4a Hpts4b]".
+             iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
+                       suspended_string 1 tauth).
+             iModIntro.
+             iFrame "Hat_new Hreal_new Hserpred".
+             iLeft. iSplit; [done|].
+             iSplitR.
+             { iPoseProof "HAun" as "HAu2".
+               iEval (rewrite /lrel_auth /lrel_auth' /=) in "HAu2".
+               iEval (cbv [lrel_auth_un lrel_un_car]) in "HAu2".
+               iDestruct "HAu2" as (tU a1U un_a1U sU) "(%HuU & #HswU & #HA1U & #HapU)".
+               iDestruct "HapU" as (lbU lrU psU) "[%Ha1eqU _]".
+               injection Ha1eqU as <- <- <- HhU <-.
+               iEval (rewrite /lrel_auth /lrel_auth' /=).
+               iEval (cbv [lrel_auth_un lrel_un_car]).
+               iExists tU, a1U, un_a1_in, sU.
+               iSplit; [by iPureIntro|]. iFrame "HswU HA1U".
+               iExists lb_new, lr_new, p_new.
+               iSplit; [iPureIntro; rewrite -HhU; done|]. iRight. iExact "Hinv_new". }
+             iExists {[γ_new]}, _, (SOMEV (InjRV #susp_new)).
+             iFrame "Hlgp Hv".
+             iSplit; [by rewrite size_singleton|].
+             iFrame "Hpenfrag".
+             iSplit.
+             { iPureIntro. by exists p_new, lb_new, lr_new, un_a1_in, (hash s_in). }
+             iSplitR.
+             { rewrite big_sepS_singleton. iSplit.
+               - iExists lb_new. iFrame "Hlgpfrag". iPureIntro.
+                 by exists p_new, lb_new, lr_new, un_a1_in, (hash s_in).
+               - iExists susp_new. iFrame "Hlgv". iPureIntro.
+                 exists #susp_new. split; [by right|done]. }
+             iEval (rewrite Nat.add_1_r) in "Hpenc".
+             iFrame "Hpenc".
+             rewrite /visited_map_update_pending.
+             iFrame "Hvm".
+             (* the decoration wand at c = 1 *)
+             iIntros "#Hcap Hmapf %Hsregdef".
+             iEval (rewrite -(Qp.div_2 1)) in "Hmapf".
+             iDestruct (mapg_frag_split with "Hmapf") as "[HmapfI HmapfC]".
+             iMod (na_inv_alloc seqG_name ⊤ (ver_susp_n susp_new)
+                     (auth_susp_v_inv id (InjRV #susp_new)
+                        (filled_string (hash s_in)))
+                     with "[Hunfilled HmapfI Hpts2]") as "#Hinv_v".
+             { iNext. iRight.
+               iExists (hash s_in), susp_new, p_v, (SOMEV (InjRV #susp_new)),
+                 tauth, s_reg, 1.
+               iSplit; [done|].
+               iSplitR; [iExact "Hcap"|].
+               iFrame "Hunfilled".
+               replace (1 / (2 * pos_to_Qp (Pos.of_nat 1)))%Qp with (1/2)%Qp;
+                 last by rewrite Qp.mul_1_r.
+               iFrame "HmapfI".
+               iSplit.
+               { iPureIntro. exists #susp_new. split; [by right|done]. }
+               iSplit.
+               { iPureIntro. simpl. split; [done|exact Hsregdef]. }
+               iFrame "Hserpred Hpts2". }
+             iModIntro.
+             iSplit.
+             { iEval (rewrite /lrel_auth /=). iSplit.
+               - iEval (cbv [lrel_auth_tern lrel_car]).
+                 iExists t_in, (InjRV #susp_new), a1_in, a2_in, un_a1_in, s_in.
+                 iSplit; [iPureIntro; split; [done|exact Hunsusp_in]|].
+                 iFrame "Hser_in HA_in".
+                 iExists lb_new, lr_new, p_new. iSplit; [done|].
+                 iRight.
+                 iExists γ_new, (filled_string (hash s_in)), susp_new, id.
+                 iSplit; [done|].
+                 iFrame "Hlgpfrag".
+                 iSplit; [iExact "Hinv_new"|].
+                 iFrame "Hsnap Hlgv".
+                 iSplit; [done|]. iExact "Hinv_v".
+               - iPoseProof "HAun" as "HAu2".
+               iEval (rewrite /lrel_auth /lrel_auth' /=) in "HAu2".
+               iEval (cbv [lrel_auth_un lrel_un_car]) in "HAu2".
+               iDestruct "HAu2" as (tU a1U un_a1U sU) "(%HuU & #HswU & #HA1U & #HapU)".
+               iDestruct "HapU" as (lbU lrU psU) "[%Ha1eqU _]".
+               injection Ha1eqU as <- <- <- HhU <-.
+               iEval (rewrite /lrel_auth /lrel_auth' /=).
+               iEval (cbv [lrel_auth_un lrel_un_car]).
+               iExists tU, a1U, un_a1_in, sU.
+               iSplit; [by iPureIntro|]. iFrame "HswU HA1U".
+               iExists lb_new, lr_new, p_new.
+               iSplit; [iPureIntro; rewrite -HhU; done|]. iRight. iExact "Hinv_new". }
+             iSplitL "Hpend Hpts4a HmapfC".
+             { iFrame "Hcap". iSplit; [done|].
+               iSplitL.
+               - iExists (InjRV #susp_new). iSplit; [done|].
+                 iRight. iExists susp_new. iSplit; [done|].
+                 iRight. iExists p_v, γ_new.
+                 iFrame "Hlgv Hpts4a".
+                 iSplit; [done|].
+                 replace (1 / (2 * pos_to_Qp (Pos.of_nat 1)))%Qp with (1/2)%Qp;
+                   last by rewrite Qp.mul_1_r.
+                 iFrame "HmapfC Hsnap".
+                 by iLeft.
+               - by iLeft. }
+             iExists (InjRV #susp_new). iSplit; [done|].
+             iRight. iRight. iExists (hash s_in), susp_new, p_v.
+             iSplit; [done|]. iFrame "Hpts4b".
           -- (* mismatch on the suspended string *)
              iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
                        _ _ tauth).
@@ -976,27 +1091,142 @@ Section authenticatable.
           iPoseProof (susp_p_ser_spec_at_intro with "Hreal_new Hsser_auth")
             as "#Hat_new".
           destruct (decide (s_pred = suspended_string)) as [-> | Hne].
-          -- (* SUSP-MATCH: the verifier parses NONEV, allocates the fresh
-                susp ref and prophecy, and returns
-                [SOMEV (SOMEV (InjRV #susp_new))]. γl = {[γ_new]} via
-                [visited_insert]; [lg_mapg_p_frag lb_new γ_new] via
-                [lg_p_insert]. BLOCKED on three design gaps:
-                (1) [RESOLVED by lg_v_bind_fresh]: the big_sepS pairing's
-                    [lg_mapg_frag susp_new γ_new] is mintable from the
-                    fresh susp's [vmeta_token] (step_verifier_alloc)
-                    against the m_v held inside [visited_mapg_auth];
-                (2) [RESOLVED]: [proph_v_susp] dropped from
-                    [auth_susp_emp_v] — serpred plays the prophecy's
-                    role (fix 3);
-                (3) [RESOLVED]: the wand's c-scoped [⌜s_reg = s_def⌝]
-                    premise (fix 4) supplies exactly the string equality
-                    emp_v's [same_ser_for_fill] needs at c = 1.
-                No design gap remains — this arm is now provable work:
-                spec-side parse stepping, [visited_insert] +
-                [lg_p_insert] + [lg_v_bind_fresh] ghost registration,
-                emp_v/seq_inv allocation from the wand inputs, and the
-                A/count/ser_v payloads. *)
-             admit.
+          -- (* SUSP-MATCH: the verifier parses NONEV, allocates the fresh susp
+                ref, and the leaf registers it everywhere. *)
+             iDestruct "Hser" as %(pS & lbS & lrS & aS & hS & HeqboxS & ->).
+             injection HeqboxS as <- <- <- <- <-.
+             v_pures.
+             v_bind (s_deserializer _ _).
+             iMod (s_deser_complete auth_scheme ⊤ suspended_string ()
+                     (λ w, ⌜w = SOMEV NONEV⌝)%I
+                     with "[] [] [$Hv //]") as (?) "[Hv ->] /=".
+             { iApply (s_is_ser_eq auth_scheme NONEV).
+               rewrite /= /option_is_ser /option_is_ser'. iLeft. by iPureIntro. }
+             { iIntros "!>" (w) "His". iDestruct "His" as %His. iPureIntro.
+               destruct His as [[-> _]|(w' & s' & [_ Habs] & _)]; [done|].
+               by rewrite /suspended_string /some_ser_str /none_ser_str in Habs. }
+             v_pures.
+             v_bind (NewProph).
+             iMod (step_verifier_newproph with "Hv") as (p_v) "Hv /="; [done|].
+             v_pures.
+             v_bind (ref _)%E.
+             iMod (step_verifier_alloc with "Hv")
+               as (susp_new) "(Hv & Hsusp_pts & Hvmeta) /="; [done|].
+             v_pures.
+             (* the snapshot must be minted BEFORE registration absorbs the
+                vmeta_token into the freshness accumulator *)
+             iMod ("Hmint" $! susp_new with "Hvmeta") as "[Hvmeta #Hsnap]".
+             iMod (visited_insert with "[$Hvm $Hpenc]")
+               as (γ_new) "(Hvm & Hpenc & Hpend & Hpenfrag)".
+             iEval (rewrite /visited_map_update_pending) in "Hvm".
+             iMod (visited_susp_register _ _ _ _ susp_new γ_new
+                     with "Hvmeta Hvm") as "(Hvm & #Hlgv & Hunfilled)".
+             iMod (lg_p_insert _ lb_new γ_new with "Hmtok_lb Hlgp")
+               as "[Hlgp #Hlgpfrag]".
+             (* 1/2 (inv) + 1/4 (count) + 1/4 (ser_v) split *)
+             iEval (rewrite -Qp.half_half) in "Hsusp_pts".
+             iDestruct "Hsusp_pts" as "[Hpts2 Hpts4]".
+             iEval (rewrite -Qp.quarter_quarter) in "Hpts4".
+             iDestruct "Hpts4" as "[Hpts4a Hpts4b]".
+             iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
+                       suspended_string 1 tauth).
+             iModIntro.
+             iFrame "Hat_new Hreal_new Hserpred".
+             iLeft. iSplit; [done|].
+             iSplitR.
+             { iPoseProof "HAun" as "HAu2".
+               iEval (rewrite /lrel_auth /lrel_auth' /=) in "HAu2".
+               iEval (cbv [lrel_auth_un lrel_un_car]) in "HAu2".
+               iDestruct "HAu2" as (tU a1U un_a1U sU) "(%HuU & #HswU & #HA1U & #HapU)".
+               iDestruct "HapU" as (lbU lrU psU) "[%Ha1eqU _]".
+               injection Ha1eqU as <- <- <- HhU <-.
+               iEval (rewrite /lrel_auth /lrel_auth' /=).
+               iEval (cbv [lrel_auth_un lrel_un_car]).
+               iExists tU, a1U, un_a1_in, sU.
+               iSplit; [by iPureIntro|]. iFrame "HswU HA1U".
+               iExists lb_new, lr_new, p_new.
+               iSplit; [iPureIntro; rewrite -HhU; done|]. iRight. iExact "Hinv_new". }
+             iExists {[γ_new]}, _, (SOMEV (InjRV #susp_new)).
+             iFrame "Hlgp Hv".
+             iSplit; [by rewrite size_singleton|].
+             iFrame "Hpenfrag".
+             iSplit.
+             { iPureIntro. by exists p_new, lb_new, lr_new, un_a1_in, (hash s_in). }
+             iSplitR.
+             { rewrite big_sepS_singleton. iSplit.
+               - iExists lb_new. iFrame "Hlgpfrag". iPureIntro.
+                 by exists p_new, lb_new, lr_new, un_a1_in, (hash s_in).
+               - iExists susp_new. iFrame "Hlgv". iPureIntro.
+                 exists #susp_new. split; [by right|done]. }
+             iEval (rewrite Nat.add_1_r) in "Hpenc".
+             iFrame "Hpenc".
+             rewrite /visited_map_update_pending.
+             iFrame "Hvm".
+             (* the decoration wand at c = 1 *)
+             iIntros "#Hcap Hmapf %Hsregdef".
+             iEval (rewrite -(Qp.div_2 1)) in "Hmapf".
+             iDestruct (mapg_frag_split with "Hmapf") as "[HmapfI HmapfC]".
+             iMod (na_inv_alloc seqG_name ⊤ (ver_susp_n susp_new)
+                     (auth_susp_v_inv id (InjRV #susp_new)
+                        (filled_string (hash s_in)))
+                     with "[Hunfilled HmapfI Hpts2]") as "#Hinv_v".
+             { iNext. iRight.
+               iExists (hash s_in), susp_new, p_v, (SOMEV (InjRV #susp_new)),
+                 tauth, s_reg, 1.
+               iSplit; [done|].
+               iSplitR; [iExact "Hcap"|].
+               iFrame "Hunfilled".
+               replace (1 / (2 * pos_to_Qp (Pos.of_nat 1)))%Qp with (1/2)%Qp;
+                 last by rewrite Qp.mul_1_r.
+               iFrame "HmapfI".
+               iSplit.
+               { iPureIntro. exists #susp_new. split; [by right|done]. }
+               iSplit.
+               { iPureIntro. simpl. split; [done|exact Hsregdef]. }
+               iFrame "Hserpred Hpts2". }
+             iModIntro.
+             iSplit.
+             { iEval (rewrite /lrel_auth /=). iSplit.
+               - iEval (cbv [lrel_auth_tern lrel_car]).
+                 iExists t_in, (InjRV #susp_new), a1_in, a2_in, un_a1_in, s_in.
+                 iSplit; [iPureIntro; split; [done|exact Hunsusp_in]|].
+                 iFrame "Hser_in HA_in".
+                 iExists lb_new, lr_new, p_new. iSplit; [done|].
+                 iRight.
+                 iExists γ_new, (filled_string (hash s_in)), susp_new, id.
+                 iSplit; [done|].
+                 iFrame "Hlgpfrag".
+                 iSplit; [iExact "Hinv_new"|].
+                 iFrame "Hsnap Hlgv".
+                 iSplit; [done|]. iExact "Hinv_v".
+               - iPoseProof "HAun" as "HAu2".
+               iEval (rewrite /lrel_auth /lrel_auth' /=) in "HAu2".
+               iEval (cbv [lrel_auth_un lrel_un_car]) in "HAu2".
+               iDestruct "HAu2" as (tU a1U un_a1U sU) "(%HuU & #HswU & #HA1U & #HapU)".
+               iDestruct "HapU" as (lbU lrU psU) "[%Ha1eqU _]".
+               injection Ha1eqU as <- <- <- HhU <-.
+               iEval (rewrite /lrel_auth /lrel_auth' /=).
+               iEval (cbv [lrel_auth_un lrel_un_car]).
+               iExists tU, a1U, un_a1_in, sU.
+               iSplit; [by iPureIntro|]. iFrame "HswU HA1U".
+               iExists lb_new, lr_new, p_new.
+               iSplit; [iPureIntro; rewrite -HhU; done|]. iRight. iExact "Hinv_new". }
+             iSplitL "Hpend Hpts4a HmapfC".
+             { iFrame "Hcap". iSplit; [done|].
+               iSplitL.
+               - iExists (InjRV #susp_new). iSplit; [done|].
+                 iRight. iExists susp_new. iSplit; [done|].
+                 iRight. iExists p_v, γ_new.
+                 iFrame "Hlgv Hpts4a".
+                 iSplit; [done|].
+                 replace (1 / (2 * pos_to_Qp (Pos.of_nat 1)))%Qp with (1/2)%Qp;
+                   last by rewrite Qp.mul_1_r.
+                 iFrame "HmapfC Hsnap".
+                 by iLeft.
+               - by iLeft. }
+             iExists (InjRV #susp_new). iSplit; [done|].
+             iRight. iRight. iExists (hash s_in), susp_new, p_v.
+             iSplit; [done|]. iFrame "Hpts4b".
           -- (* mismatch on the suspended string *)
              iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
                        _ _ tauth).
