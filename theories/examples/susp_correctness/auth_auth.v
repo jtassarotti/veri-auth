@@ -518,16 +518,85 @@ Section authenticatable.
           iPoseProof (susp_p_ser_spec_at_intro with "Hreal_new Hsser_auth")
             as "#Hat_new".
           destruct (decide (s_pred = filled_string (hash s_in))) as [-> | Hne].
-          -- (* FILL-MATCH: the verifier parses [filled_string (hash s_in)]
-                (s_deser complete through the spec-verifier GenWp) to
-                [SOMEV (SOMEV (InjLV #(hash s_in)))]; c = 0 so the count
-                payload is pure and γl = ∅. The A-wand's [auth_pv] fill
-                disjunct is provable from [Hinv_new], and — after the
-                filled_string fix to [auth_susp_ser_p] — so is
-                [ser_v_proph tauth id a2' s_def] (left disjunct,
-                [auth_fill_ser_v]). No design gap remains here; needs
-                the spec-side [s_deser] stepping work. *)
-             admit.
+          -- (* FILL-MATCH: step the verifier through the parse of the filled
+                string, then assemble the c = 0 payload. *)
+             iDestruct "Hser" as %(pS & lbS & lrS & aS & hS & HeqboxS & ->).
+             injection HeqboxS as <- <- <- <- <-.
+             v_pures.
+             v_bind (s_deserializer _ _).
+             iMod (s_deser_complete auth_scheme ⊤ (filled_string (hash s_in)) ()
+                     (λ w, ⌜w = SOMEV (SOMEV #(hash s_in))⌝)%I
+                     with "[] [] [$Hv //]") as (?) "[Hv ->] /=".
+             { iApply (s_is_ser_eq auth_scheme (SOMEV #(hash s_in))).
+               rewrite /= /option_is_ser /option_is_ser'. iRight.
+               iExists #(hash s_in), (simple_string (hash s_in)).
+               iSplit; [by iPureIntro|]. iPureIntro. by eexists. }
+             { iIntros "!>" (w) "His". iDestruct "His" as %His. iPureIntro.
+               destruct His as [[_ Habs]|(w' & s' & [-> Hs'] & str & -> & Hstr)].
+               - by rewrite /filled_string /some_ser_str /none_ser_str in Habs.
+               - apply (inj some_ser_str) in Hs'. subst s'.
+                 rewrite /simple_string in Hstr.
+                 by apply (inj string_ser_str) in Hstr as <-. }
+             v_pures.
+             iMod penset_frag_empty as "Hpen0".
+             iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
+                       (filled_string (hash s_in)) 0 tauth).
+             iModIntro.
+             iFrame "Hat_new Hreal_new Hserpred".
+             iLeft. iSplit; [done|].
+             iSplitR.
+             { iPoseProof "HAun" as "HAu2".
+               iEval (rewrite /lrel_auth /lrel_auth' /=) in "HAu2".
+               iEval (cbv [lrel_auth_un lrel_un_car]) in "HAu2".
+               iDestruct "HAu2" as (tU a1U un_a1U sU) "(%HuU & #HswU & #HA1U & #HapU)".
+               iDestruct "HapU" as (lbU lrU psU) "[%Ha1eqU _]".
+               injection Ha1eqU as <- <- <- HhU <-.
+               iEval (rewrite /lrel_auth /lrel_auth' /=).
+               iEval (cbv [lrel_auth_un lrel_un_car]).
+               iExists tU, a1U, un_a1_in, sU.
+               iSplit; [by iPureIntro|]. iFrame "HswU HA1U".
+               iExists lb_new, lr_new, p_new.
+               iSplit; [iPureIntro; rewrite -HhU; done|]. iLeft. iExact "Hinv_new". }
+             iExists ∅, _, (SOMEV (InjLV #(hash s_in))).
+             iFrame "Hlgp Hv".
+             iSplit; [by rewrite size_empty|].
+             iFrame "Hpen0".
+             iSplit.
+             { iPureIntro. by exists p_new, lb_new, lr_new, un_a1_in, (hash s_in). }
+             iSplit. { by rewrite big_sepS_empty. }
+             iSplitL "Hpenc"; [by iFrame "Hpenc"|].
+             rewrite /visited_map_update_pending set_fold_empty size_empty
+               Nat.add_0_r.
+             iFrame "Hvm".
+             (* the decoration wand — everything pure/persistent at c = 0 *)
+             iIntros "#Hcap _ _ #Hmint". iModIntro.
+             iSplit.
+             { iEval (rewrite /lrel_auth /=). iSplit.
+               - iEval (cbv [lrel_auth_tern lrel_car]).
+                 iExists t_in, (InjLV #(hash s_in)), a1_in, a2_in, un_a1_in, s_in.
+                 iSplit; [iPureIntro; split; [done|exact Hunsusp_in]|].
+                 iFrame "Hser_in HA_in".
+                 iExists lb_new, lr_new, p_new. iSplit; [done|].
+                 iLeft. iSplit; [done|]. iExact "Hinv_new".
+               - iPoseProof "HAun" as "HAu2".
+               iEval (rewrite /lrel_auth /lrel_auth' /=) in "HAu2".
+               iEval (cbv [lrel_auth_un lrel_un_car]) in "HAu2".
+               iDestruct "HAu2" as (tU a1U un_a1U sU) "(%HuU & #HswU & #HA1U & #HapU)".
+               iDestruct "HapU" as (lbU lrU psU) "[%Ha1eqU _]".
+               injection Ha1eqU as <- <- <- HhU <-.
+               iEval (rewrite /lrel_auth /lrel_auth' /=).
+               iEval (cbv [lrel_auth_un lrel_un_car]).
+               iExists tU, a1U, un_a1_in, sU.
+               iSplit; [by iPureIntro|]. iFrame "HswU HA1U".
+               iExists lb_new, lr_new, p_new.
+               iSplit; [iPureIntro; rewrite -HhU; done|]. iLeft. iExact "Hinv_new". }
+             iSplitL "".
+             { iFrame "Hcap". iSplit; [done|]. iSplitL "".
+               - iExists (InjLV #(hash s_in)). iSplit; [done|].
+                 iLeft. by iExists (hash s_in).
+               - by iLeft. }
+             iExists (InjLV #(hash s_in)). iSplit; [done|].
+             iLeft. by iExists (hash s_in).
           -- (* mismatch on the filled string *)
              iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
                        _ _ tauth).
@@ -621,16 +690,85 @@ Section authenticatable.
           iPoseProof (susp_p_ser_spec_at_intro with "Hreal_new Hsser_auth")
             as "#Hat_new".
           destruct (decide (s_pred = filled_string (hash s_in))) as [-> | Hne].
-          -- (* FILL-MATCH: the verifier parses [filled_string (hash s_in)]
-                (s_deser complete through the spec-verifier GenWp) to
-                [SOMEV (SOMEV (InjLV #(hash s_in)))]; c = 0 so the count
-                payload is pure and γl = ∅. The A-wand's [auth_pv] fill
-                disjunct is provable from [Hinv_new], and — after the
-                filled_string fix to [auth_susp_ser_p] — so is
-                [ser_v_proph tauth id a2' s_def] (left disjunct,
-                [auth_fill_ser_v]). No design gap remains here; needs
-                the spec-side [s_deser] stepping work. *)
-             admit.
+          -- (* FILL-MATCH: step the verifier through the parse of the filled
+                string, then assemble the c = 0 payload. *)
+             iDestruct "Hser" as %(pS & lbS & lrS & aS & hS & HeqboxS & ->).
+             injection HeqboxS as <- <- <- <- <-.
+             v_pures.
+             v_bind (s_deserializer _ _).
+             iMod (s_deser_complete auth_scheme ⊤ (filled_string (hash s_in)) ()
+                     (λ w, ⌜w = SOMEV (SOMEV #(hash s_in))⌝)%I
+                     with "[] [] [$Hv //]") as (?) "[Hv ->] /=".
+             { iApply (s_is_ser_eq auth_scheme (SOMEV #(hash s_in))).
+               rewrite /= /option_is_ser /option_is_ser'. iRight.
+               iExists #(hash s_in), (simple_string (hash s_in)).
+               iSplit; [by iPureIntro|]. iPureIntro. by eexists. }
+             { iIntros "!>" (w) "His". iDestruct "His" as %His. iPureIntro.
+               destruct His as [[_ Habs]|(w' & s' & [-> Hs'] & str & -> & Hstr)].
+               - by rewrite /filled_string /some_ser_str /none_ser_str in Habs.
+               - apply (inj some_ser_str) in Hs'. subst s'.
+                 rewrite /simple_string in Hstr.
+                 by apply (inj string_ser_str) in Hstr as <-. }
+             v_pures.
+             iMod penset_frag_empty as "Hpen0".
+             iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
+                       (filled_string (hash s_in)) 0 tauth).
+             iModIntro.
+             iFrame "Hat_new Hreal_new Hserpred".
+             iLeft. iSplit; [done|].
+             iSplitR.
+             { iPoseProof "HAun" as "HAu2".
+               iEval (rewrite /lrel_auth /lrel_auth' /=) in "HAu2".
+               iEval (cbv [lrel_auth_un lrel_un_car]) in "HAu2".
+               iDestruct "HAu2" as (tU a1U un_a1U sU) "(%HuU & #HswU & #HA1U & #HapU)".
+               iDestruct "HapU" as (lbU lrU psU) "[%Ha1eqU _]".
+               injection Ha1eqU as <- <- <- HhU <-.
+               iEval (rewrite /lrel_auth /lrel_auth' /=).
+               iEval (cbv [lrel_auth_un lrel_un_car]).
+               iExists tU, a1U, un_a1_in, sU.
+               iSplit; [by iPureIntro|]. iFrame "HswU HA1U".
+               iExists lb_new, lr_new, p_new.
+               iSplit; [iPureIntro; rewrite -HhU; done|]. iLeft. iExact "Hinv_new". }
+             iExists ∅, _, (SOMEV (InjLV #(hash s_in))).
+             iFrame "Hlgp Hv".
+             iSplit; [by rewrite size_empty|].
+             iFrame "Hpen0".
+             iSplit.
+             { iPureIntro. by exists p_new, lb_new, lr_new, un_a1_in, (hash s_in). }
+             iSplit. { by rewrite big_sepS_empty. }
+             iSplitL "Hpenc"; [by iFrame "Hpenc"|].
+             rewrite /visited_map_update_pending set_fold_empty size_empty
+               Nat.add_0_r.
+             iFrame "Hvm".
+             (* the decoration wand — everything pure/persistent at c = 0 *)
+             iIntros "#Hcap _ _ #Hmint". iModIntro.
+             iSplit.
+             { iEval (rewrite /lrel_auth /=). iSplit.
+               - iEval (cbv [lrel_auth_tern lrel_car]).
+                 iExists t_in, (InjLV #(hash s_in)), a1_in, a2_in, un_a1_in, s_in.
+                 iSplit; [iPureIntro; split; [done|exact Hunsusp_in]|].
+                 iFrame "Hser_in HA_in".
+                 iExists lb_new, lr_new, p_new. iSplit; [done|].
+                 iLeft. iSplit; [done|]. iExact "Hinv_new".
+               - iPoseProof "HAun" as "HAu2".
+               iEval (rewrite /lrel_auth /lrel_auth' /=) in "HAu2".
+               iEval (cbv [lrel_auth_un lrel_un_car]) in "HAu2".
+               iDestruct "HAu2" as (tU a1U un_a1U sU) "(%HuU & #HswU & #HA1U & #HapU)".
+               iDestruct "HapU" as (lbU lrU psU) "[%Ha1eqU _]".
+               injection Ha1eqU as <- <- <- HhU <-.
+               iEval (rewrite /lrel_auth /lrel_auth' /=).
+               iEval (cbv [lrel_auth_un lrel_un_car]).
+               iExists tU, a1U, un_a1_in, sU.
+               iSplit; [by iPureIntro|]. iFrame "HswU HA1U".
+               iExists lb_new, lr_new, p_new.
+               iSplit; [iPureIntro; rewrite -HhU; done|]. iLeft. iExact "Hinv_new". }
+             iSplitL "".
+             { iFrame "Hcap". iSplit; [done|]. iSplitL "".
+               - iExists (InjLV #(hash s_in)). iSplit; [done|].
+                 iLeft. by iExists (hash s_in).
+               - by iLeft. }
+             iExists (InjLV #(hash s_in)). iSplit; [done|].
+             iLeft. by iExists (hash s_in).
           -- (* mismatch on the filled string *)
              iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
                        _ _ tauth).
@@ -724,16 +862,85 @@ Section authenticatable.
           iPoseProof (susp_p_ser_spec_at_intro with "Hreal_new Hsser_auth")
             as "#Hat_new".
           destruct (decide (s_pred = filled_string (hash s_in))) as [-> | Hne].
-          -- (* FILL-MATCH: the verifier parses [filled_string (hash s_in)]
-                (s_deser complete through the spec-verifier GenWp) to
-                [SOMEV (SOMEV (InjLV #(hash s_in)))]; c = 0 so the count
-                payload is pure and γl = ∅. The A-wand's [auth_pv] fill
-                disjunct is provable from [Hinv_new], and — after the
-                filled_string fix to [auth_susp_ser_p] — so is
-                [ser_v_proph tauth id a2' s_def] (left disjunct,
-                [auth_fill_ser_v]). No design gap remains here; needs
-                the spec-side [s_deser] stepping work. *)
-             admit.
+          -- (* FILL-MATCH: step the verifier through the parse of the filled
+                string, then assemble the c = 0 payload. *)
+             iDestruct "Hser" as %(pS & lbS & lrS & aS & hS & HeqboxS & ->).
+             injection HeqboxS as <- <- <- <- <-.
+             v_pures.
+             v_bind (s_deserializer _ _).
+             iMod (s_deser_complete auth_scheme ⊤ (filled_string (hash s_in)) ()
+                     (λ w, ⌜w = SOMEV (SOMEV #(hash s_in))⌝)%I
+                     with "[] [] [$Hv //]") as (?) "[Hv ->] /=".
+             { iApply (s_is_ser_eq auth_scheme (SOMEV #(hash s_in))).
+               rewrite /= /option_is_ser /option_is_ser'. iRight.
+               iExists #(hash s_in), (simple_string (hash s_in)).
+               iSplit; [by iPureIntro|]. iPureIntro. by eexists. }
+             { iIntros "!>" (w) "His". iDestruct "His" as %His. iPureIntro.
+               destruct His as [[_ Habs]|(w' & s' & [-> Hs'] & str & -> & Hstr)].
+               - by rewrite /filled_string /some_ser_str /none_ser_str in Habs.
+               - apply (inj some_ser_str) in Hs'. subst s'.
+                 rewrite /simple_string in Hstr.
+                 by apply (inj string_ser_str) in Hstr as <-. }
+             v_pures.
+             iMod penset_frag_empty as "Hpen0".
+             iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
+                       (filled_string (hash s_in)) 0 tauth).
+             iModIntro.
+             iFrame "Hat_new Hreal_new Hserpred".
+             iLeft. iSplit; [done|].
+             iSplitR.
+             { iPoseProof "HAun" as "HAu2".
+               iEval (rewrite /lrel_auth /lrel_auth' /=) in "HAu2".
+               iEval (cbv [lrel_auth_un lrel_un_car]) in "HAu2".
+               iDestruct "HAu2" as (tU a1U un_a1U sU) "(%HuU & #HswU & #HA1U & #HapU)".
+               iDestruct "HapU" as (lbU lrU psU) "[%Ha1eqU _]".
+               injection Ha1eqU as <- <- <- HhU <-.
+               iEval (rewrite /lrel_auth /lrel_auth' /=).
+               iEval (cbv [lrel_auth_un lrel_un_car]).
+               iExists tU, a1U, un_a1_in, sU.
+               iSplit; [by iPureIntro|]. iFrame "HswU HA1U".
+               iExists lb_new, lr_new, p_new.
+               iSplit; [iPureIntro; rewrite -HhU; done|]. iLeft. iExact "Hinv_new". }
+             iExists ∅, _, (SOMEV (InjLV #(hash s_in))).
+             iFrame "Hlgp Hv".
+             iSplit; [by rewrite size_empty|].
+             iFrame "Hpen0".
+             iSplit.
+             { iPureIntro. by exists p_new, lb_new, lr_new, un_a1_in, (hash s_in). }
+             iSplit. { by rewrite big_sepS_empty. }
+             iSplitL "Hpenc"; [by iFrame "Hpenc"|].
+             rewrite /visited_map_update_pending set_fold_empty size_empty
+               Nat.add_0_r.
+             iFrame "Hvm".
+             (* the decoration wand — everything pure/persistent at c = 0 *)
+             iIntros "#Hcap _ _ #Hmint". iModIntro.
+             iSplit.
+             { iEval (rewrite /lrel_auth /=). iSplit.
+               - iEval (cbv [lrel_auth_tern lrel_car]).
+                 iExists t_in, (InjLV #(hash s_in)), a1_in, a2_in, un_a1_in, s_in.
+                 iSplit; [iPureIntro; split; [done|exact Hunsusp_in]|].
+                 iFrame "Hser_in HA_in".
+                 iExists lb_new, lr_new, p_new. iSplit; [done|].
+                 iLeft. iSplit; [done|]. iExact "Hinv_new".
+               - iPoseProof "HAun" as "HAu2".
+               iEval (rewrite /lrel_auth /lrel_auth' /=) in "HAu2".
+               iEval (cbv [lrel_auth_un lrel_un_car]) in "HAu2".
+               iDestruct "HAu2" as (tU a1U un_a1U sU) "(%HuU & #HswU & #HA1U & #HapU)".
+               iDestruct "HapU" as (lbU lrU psU) "[%Ha1eqU _]".
+               injection Ha1eqU as <- <- <- HhU <-.
+               iEval (rewrite /lrel_auth /lrel_auth' /=).
+               iEval (cbv [lrel_auth_un lrel_un_car]).
+               iExists tU, a1U, un_a1_in, sU.
+               iSplit; [by iPureIntro|]. iFrame "HswU HA1U".
+               iExists lb_new, lr_new, p_new.
+               iSplit; [iPureIntro; rewrite -HhU; done|]. iLeft. iExact "Hinv_new". }
+             iSplitL "".
+             { iFrame "Hcap". iSplit; [done|]. iSplitL "".
+               - iExists (InjLV #(hash s_in)). iSplit; [done|].
+                 iLeft. by iExists (hash s_in).
+               - by iLeft. }
+             iExists (InjLV #(hash s_in)). iSplit; [done|].
+             iLeft. by iExists (hash s_in).
           -- (* mismatch on the filled string *)
              iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
                        _ _ tauth).
@@ -827,16 +1034,85 @@ Section authenticatable.
           iPoseProof (susp_p_ser_spec_at_intro with "Hreal_new Hsser_auth")
             as "#Hat_new".
           destruct (decide (s_pred = filled_string (hash s_in))) as [-> | Hne].
-          -- (* FILL-MATCH: the verifier parses [filled_string (hash s_in)]
-                (s_deser complete through the spec-verifier GenWp) to
-                [SOMEV (SOMEV (InjLV #(hash s_in)))]; c = 0 so the count
-                payload is pure and γl = ∅. The A-wand's [auth_pv] fill
-                disjunct is provable from [Hinv_new], and — after the
-                filled_string fix to [auth_susp_ser_p] — so is
-                [ser_v_proph tauth id a2' s_def] (left disjunct,
-                [auth_fill_ser_v]). No design gap remains here; needs
-                the spec-side [s_deser] stepping work. *)
-             admit.
+          -- (* FILL-MATCH: step the verifier through the parse of the filled
+                string, then assemble the c = 0 payload. *)
+             iDestruct "Hser" as %(pS & lbS & lrS & aS & hS & HeqboxS & ->).
+             injection HeqboxS as <- <- <- <- <-.
+             v_pures.
+             v_bind (s_deserializer _ _).
+             iMod (s_deser_complete auth_scheme ⊤ (filled_string (hash s_in)) ()
+                     (λ w, ⌜w = SOMEV (SOMEV #(hash s_in))⌝)%I
+                     with "[] [] [$Hv //]") as (?) "[Hv ->] /=".
+             { iApply (s_is_ser_eq auth_scheme (SOMEV #(hash s_in))).
+               rewrite /= /option_is_ser /option_is_ser'. iRight.
+               iExists #(hash s_in), (simple_string (hash s_in)).
+               iSplit; [by iPureIntro|]. iPureIntro. by eexists. }
+             { iIntros "!>" (w) "His". iDestruct "His" as %His. iPureIntro.
+               destruct His as [[_ Habs]|(w' & s' & [-> Hs'] & str & -> & Hstr)].
+               - by rewrite /filled_string /some_ser_str /none_ser_str in Habs.
+               - apply (inj some_ser_str) in Hs'. subst s'.
+                 rewrite /simple_string in Hstr.
+                 by apply (inj string_ser_str) in Hstr as <-. }
+             v_pures.
+             iMod penset_frag_empty as "Hpen0".
+             iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
+                       (filled_string (hash s_in)) 0 tauth).
+             iModIntro.
+             iFrame "Hat_new Hreal_new Hserpred".
+             iLeft. iSplit; [done|].
+             iSplitR.
+             { iPoseProof "HAun" as "HAu2".
+               iEval (rewrite /lrel_auth /lrel_auth' /=) in "HAu2".
+               iEval (cbv [lrel_auth_un lrel_un_car]) in "HAu2".
+               iDestruct "HAu2" as (tU a1U un_a1U sU) "(%HuU & #HswU & #HA1U & #HapU)".
+               iDestruct "HapU" as (lbU lrU psU) "[%Ha1eqU _]".
+               injection Ha1eqU as <- <- <- HhU <-.
+               iEval (rewrite /lrel_auth /lrel_auth' /=).
+               iEval (cbv [lrel_auth_un lrel_un_car]).
+               iExists tU, a1U, un_a1_in, sU.
+               iSplit; [by iPureIntro|]. iFrame "HswU HA1U".
+               iExists lb_new, lr_new, p_new.
+               iSplit; [iPureIntro; rewrite -HhU; done|]. iLeft. iExact "Hinv_new". }
+             iExists ∅, _, (SOMEV (InjLV #(hash s_in))).
+             iFrame "Hlgp Hv".
+             iSplit; [by rewrite size_empty|].
+             iFrame "Hpen0".
+             iSplit.
+             { iPureIntro. by exists p_new, lb_new, lr_new, un_a1_in, (hash s_in). }
+             iSplit. { by rewrite big_sepS_empty. }
+             iSplitL "Hpenc"; [by iFrame "Hpenc"|].
+             rewrite /visited_map_update_pending set_fold_empty size_empty
+               Nat.add_0_r.
+             iFrame "Hvm".
+             (* the decoration wand — everything pure/persistent at c = 0 *)
+             iIntros "#Hcap _ _ #Hmint". iModIntro.
+             iSplit.
+             { iEval (rewrite /lrel_auth /=). iSplit.
+               - iEval (cbv [lrel_auth_tern lrel_car]).
+                 iExists t_in, (InjLV #(hash s_in)), a1_in, a2_in, un_a1_in, s_in.
+                 iSplit; [iPureIntro; split; [done|exact Hunsusp_in]|].
+                 iFrame "Hser_in HA_in".
+                 iExists lb_new, lr_new, p_new. iSplit; [done|].
+                 iLeft. iSplit; [done|]. iExact "Hinv_new".
+               - iPoseProof "HAun" as "HAu2".
+               iEval (rewrite /lrel_auth /lrel_auth' /=) in "HAu2".
+               iEval (cbv [lrel_auth_un lrel_un_car]) in "HAu2".
+               iDestruct "HAu2" as (tU a1U un_a1U sU) "(%HuU & #HswU & #HA1U & #HapU)".
+               iDestruct "HapU" as (lbU lrU psU) "[%Ha1eqU _]".
+               injection Ha1eqU as <- <- <- HhU <-.
+               iEval (rewrite /lrel_auth /lrel_auth' /=).
+               iEval (cbv [lrel_auth_un lrel_un_car]).
+               iExists tU, a1U, un_a1_in, sU.
+               iSplit; [by iPureIntro|]. iFrame "HswU HA1U".
+               iExists lb_new, lr_new, p_new.
+               iSplit; [iPureIntro; rewrite -HhU; done|]. iLeft. iExact "Hinv_new". }
+             iSplitL "".
+             { iFrame "Hcap". iSplit; [done|]. iSplitL "".
+               - iExists (InjLV #(hash s_in)). iSplit; [done|].
+                 iLeft. by iExists (hash s_in).
+               - by iLeft. }
+             iExists (InjLV #(hash s_in)). iSplit; [done|].
+             iLeft. by iExists (hash s_in).
           -- (* mismatch on the filled string *)
              iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
                        _ _ tauth).
