@@ -866,7 +866,7 @@ Section proof.
                 repeat (iSplit; eauto). admit. }
               admit.
 
-            - iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%& #Hcap & Hunfill & Hmfrag & %Hmsub & %Hsamser & #Hserpred & Hsusp & Hproph)".
+            - iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%& #Hcap & Hunfill & Hmfrag & %Hmsub & %Hsamser & #Hserpred & Hsusp)".
 
               destruct! H6. rewrite /filled_string /simple_string in H7. 
               simplify_eq.
@@ -901,8 +901,8 @@ Section proof.
                 { inversion Hcgt; simplify_eq; try lia. }
                 split; eauto. }
 
-              iMod ("Hclose" with "[$Htok Hunfill Hmfrag Hsusp Hproph]") as "Htok".
-              { iNext. iRight. iFrame "Hsusp Hunfill Hmfrag Hproph Hcap Hserpred". eauto. }
+              iMod ("Hclose" with "[$Htok Hunfill Hmfrag Hsusp]") as "Htok".
+              { iNext. iRight. iFrame "Hsusp Hunfill Hmfrag Hcap Hserpred". eauto. }
 
               iModIntro. iFrame "Htok Hintr Hc Hvmauth Hmauth".
               iSplitR "Hbigsep".
@@ -964,7 +964,7 @@ Section proof.
                   iSplitL "Hintr Hsusp". { iLeft. iFrame "∗ #". admit. }
                   admit.
 
-                + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%Hpure& Hcap & Hunfill & Hmfrag & %Hmsub & %Hssf & #Hserpred_emp & Hsusp & Hproph)".
+                + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%Hpure& Hcap & Hunfill & Hmfrag & %Hmsub & %Hssf & #Hserpred_emp & Hsusp)".
                   destruct! Hpure. simplify_eq.
 
                   iPoseProof (mapg_auth_alive with "Hmauth Hmfrag") as (y) "%Hin".
@@ -1257,7 +1257,7 @@ Section proof.
                 repeat (iSplit; eauto). admit. }
               admit.
 
-            - iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%& #Hcap & Hunfill & Hmfrag & %Hmsub & %Hsamser & #Hserpred & Hsusp & Hproph)".
+            - iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%& #Hcap & Hunfill & Hmfrag & %Hmsub & %Hsamser & #Hserpred & Hsusp)".
 
               destruct! H6. rewrite /filled_string /simple_string in H7. 
               simplify_eq.
@@ -1292,8 +1292,8 @@ Section proof.
                 { inversion Hcgt; simplify_eq; try lia. }
                 split; eauto. }
 
-              iMod ("Hclose" with "[$Htok Hunfill Hmfrag Hsusp Hproph]") as "Htok".
-              { iNext. iRight. iFrame "Hsusp Hunfill Hmfrag Hproph Hcap Hserpred". eauto. }
+              iMod ("Hclose" with "[$Htok Hunfill Hmfrag Hsusp]") as "Htok".
+              { iNext. iRight. iFrame "Hsusp Hunfill Hmfrag Hcap Hserpred". eauto. }
 
               iModIntro. iFrame "Htok Hintr Hc Hvmauth Hmauth".
               iSplitR "Hbigsep".
@@ -1355,7 +1355,7 @@ Section proof.
                   iSplitL "Hintr Hsusp". { iLeft. iFrame "∗ #". admit. }
                   admit.
 
-                + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%Hpure& Hcap & Hunfill & Hmfrag & %Hmsub & %Hssf & #Hserpred_emp & Hsusp & Hproph)".
+                + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%Hpure& Hcap & Hunfill & Hmfrag & %Hmsub & %Hssf & #Hserpred_emp & Hsusp)".
                   destruct! Hpure. simplify_eq.
 
                   iPoseProof (mapg_auth_alive with "Hmauth Hmfrag") as (y) "%Hin".
@@ -1625,7 +1625,7 @@ Section proof.
               { intros ?. simplify_eq. }
               by iApply "Hvis".
 
-            - iDestruct "Hinv_2" as "(%&%&%&%&%&%&%& Hxcap & Hxunfill & Hxmfrag & %Hxmsub & Hxsusp & Hxproph)".
+            - iDestruct "Hinv_2" as "(%&%&%&%&%&%&%& Hxcap & Hxunfill & Hxmfrag & %Hxmsub & Hxsusp)".
 
               iPoseProof (mapg_auth_alive with "Hmauth Hxmfrag") as (yx) "%Hxin".
               destruct Hxin as [(?&Hxin&?)%Some_equiv_eq ?].
