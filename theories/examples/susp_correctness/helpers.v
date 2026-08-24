@@ -1251,13 +1251,13 @@ Section authentikit_helpers.
   Lemma gt_child :
     ∀ m vm mp (id ctr ctr' Nc pn : nat) t x (q : Qp),
       ⌜ctr > 0⌝ -∗ ⌜(1/2 < q)%Qp⌝ -∗ vm_big_sep m vm -∗
-      intransit q -∗ stok_unset -∗ pencount_frag pn -∗
+      intransit q -∗ pencount_frag pn -∗
       sub_susp_count_frags t x ctr id Nc -∗
       visited_mapg_auth vm mp pn ctr' -∗
       (⌜pn > 0 ∨ (∃ id' v', id' > id ∧ m !! #id' = Some v')⌝).
   Proof.
     iIntros (m vm mp id ctr ctr' Nc pn t x q).
-    iIntros "%Hctr %Hq Hvm Hintr Hstok Hpn Hsub Hauth".
+    iIntros "%Hctr %Hq Hvm Hintr Hpn Hsub Hauth".
     iDestruct "Hsub" as "(_ & _ & Hcount & _)".
     iAssert (∀ (v_outer : val) (tind : evi_type) (vind : val) (cind : nat),
                ⌜cind > 0⌝ -∗ sub_susp_count tind vind cind id Nc v_outer -∗

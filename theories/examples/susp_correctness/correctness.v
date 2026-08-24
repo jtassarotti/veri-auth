@@ -441,7 +441,7 @@ Section proof.
     iSplit; interp_unfold!; last first.
     { (* unary  *) admit. }
     iIntros (???????????? Ψ)
-        "!# (Htabtok & Htok & Hv & Hi & Hpenc & Hpw & Hvw & Hpr & % & Hintr & Hst & Hstok) HΨ".
+        "!# (Htabtok & Htok & Hv & Hi & Hpenc & Hpw & Hvw & Hpr & % & Hintr & Hst) HΨ".
     interp_unfold! in "Hauth".
     iDestruct "Hauth" as "(Hauth & _)".
     iDestruct "Hauth" as (tA' ? a1 a2 un_a1 s [-> ?]) "(Hpserp & #HA & Hpvauth)".
@@ -616,7 +616,7 @@ Section proof.
             iPureIntro. exists prf1, v, (definitions.sum_list (0 :: lpn)).
             simpl. split_and!; try done; lia. }
           iLeft. iExists ps2. simpl.
-          iFrame "HA' Hv Hid Hpenc Hstok Hst".
+          iFrame "HA' Hv Hid Hpenc Hst".
           iSplit.
           { iPureIntro. by rewrite reverse_cons -assoc. }
 
@@ -697,7 +697,7 @@ Section proof.
             iPureIntro. exists prf1, v, (definitions.sum_list (size γl :: lpn)).
             simpl. split_and!; try done; lia. }
 
-          iLeft. iExists ps2. iFrame "HA' Hv Hid Hstok Hst Hpenc".
+          iLeft. iExists ps2. iFrame "HA' Hv Hid Hst Hpenc".
           simpl. iSplit. { iPureIntro. by rewrite reverse_cons -assoc. }
           
           iPureIntro.
@@ -735,7 +735,7 @@ Section proof.
           iApply (refines_unauth_susp_consume with
               "Htab Hpsuspspec Hvserspec Hvcountspec Hpserp HA Hpvuneq Hlbvfrag
                Hinv_authv Hvisit
-               [$Htabtok $Hv $Hi $Hpenc $Hbuf $Hid $Hpr $Hintr $Hstok $Hst $Htok]
+               [$Htabtok $Hv $Hi $Hpenc $Hbuf $Hid $Hpr $Hintr $Hst $Htok]
                HΨ"); eauto.
 
         * iMod ("Hclose_inv" with "[$Htok Hlb Hlr Hbrproph]") as "Htok".
@@ -753,7 +753,7 @@ Section proof.
           iApply (refines_unauth_susp_consume with
               "Htab Hpsuspspec Hvserspec Hvcountspec Hpserp HA Hpvuneq Hlbvfrag
                Hinv_authv Hvisit
-               [$Htabtok $Hv $Hi $Hpenc $Hbuf $Hid $Hpr $Hintr $Hstok $Hst $Htok]
+               [$Htabtok $Hv $Hi $Hpenc $Hbuf $Hid $Hpr $Hintr $Hst $Htok]
                HΨ"); eauto.
 
       + iDestruct "Hbrproph" as "(Hbrproph & %&%)".
@@ -772,7 +772,7 @@ Section proof.
         iApply (refines_unauth_susp_consume_cps with
             "Htab Hpsuspspec Hvserspec Hvcountspec Hpserp HA Hpvuneq Hlbvfrag
              Hinv_authv [Htok Hlb Hlr Hbrproph Hclose_inv]
-             [$Htabtok $Hv $Hi $Hpenc $Hbuf $Hid $Hpr $Hintr $Hstok $Hst]
+             [$Htabtok $Hv $Hi $Hpenc $Hbuf $Hid $Hpr $Hintr $Hst]
              HΨ"); try done.
         iSplit.
         { iIntros "#Hstbad".

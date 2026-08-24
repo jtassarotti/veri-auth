@@ -110,14 +110,13 @@ Section unauth_step.
       id_ctr_frag cntr ∗
       proph_proof p (reverse (s0 :: ps2) ++ ps1) ∗
       intransit 1 ∗
-      stok_unset ∗
       tern_state ) -∗
     (∀ (ps1' : list string) (lpn' : list nat) (w1' a0 a3 : val),
        tabseq_tok ⊤ ∗ seq_tok ⊤ ∗ spec_ideal t3 (fill K3 a3) ∗
        intransit 1 ∗ proph_proof p (reverse (s0 :: ps2) ++ ps1) ∗
        p_proof_state w1' ps1' ps_fix lpn' ∗
        ((∃ (ps2' : list string) (w2' a4 : val),
-           pencount_frag (definitions.sum_list lpn') ∗ stok_unset ∗
+           pencount_frag (definitions.sum_list lpn') ∗
            ⌜reverse (s0 :: ps2) ++ ps1 = reverse ps2' ++ ps1'⌝ ∗ A a0 a4 a3 ∗
            spec_verifier t2 (fill K2 (InjRV (w2', a4))) ∗
            v_proof_state w2' ps2' ∗ tern_state)
@@ -133,7 +132,7 @@ Section unauth_step.
   Proof.
     iIntros "#Htab #Hpsuspspec #Hvserspec #Hvcountspec #Hpserp #HA
              #Hpvuneq #Hlbvfrag #Hinv_authv".
-    iIntros "HC (Htabtok & Hv & Hi & Hpenc & Hbuf & Hid & Hpr & Hintr & Hstok & Hst) HΨ".
+    iIntros "HC (Htabtok & Hv & Hi & Hpenc & Hbuf & Hid & Hpr & Hintr & Hst) HΨ".
     v_bind (list_head _).
           wp_pure credit:"Hlc"; wp_pure credit:"Hlctab"; wp_pures.
 
@@ -305,7 +304,7 @@ Section unauth_step.
               simpl. split_and!; try done; lia. }
             iLeft. iExists ps2. iSimpl.
             assert (pn' = definitions.sum_list lpn) as <- by lia.
-            iFrame "HA' Hv Hid Hpenc Hstok Hst".
+            iFrame "HA' Hv Hid Hpenc Hst".
             iSplit.
             { iPureIntro. by rewrite reverse_cons -assoc. }
 
@@ -373,7 +372,7 @@ Section unauth_step.
               simpl. split_and!; try done; lia. }
             iLeft. iExists ps2. iSimpl.
             assert (pn' = size γl + definitions.sum_list lpn) as <- by lia.
-            iFrame "HA' Hv Hid Hpenc Hstok Hst".
+            iFrame "HA' Hv Hid Hpenc Hst".
             iSplit.
             { iPureIntro. by rewrite reverse_cons -assoc. }
 
@@ -441,7 +440,6 @@ Section unauth_step.
       id_ctr_frag cntr ∗
       proph_proof p (reverse (s0 :: ps2) ++ ps1) ∗
       intransit 1 ∗
-      stok_unset ∗
       tern_state ∗
       seq_tok ⊤ ) -∗
     (∀ (ps1' : list string) (lpn' : list nat) (w1' a0 a3 : val),
@@ -449,7 +447,7 @@ Section unauth_step.
        intransit 1 ∗ proph_proof p (reverse (s0 :: ps2) ++ ps1) ∗
        p_proof_state w1' ps1' ps_fix lpn' ∗
        ((∃ (ps2' : list string) (w2' a4 : val),
-           pencount_frag (definitions.sum_list lpn') ∗ stok_unset ∗
+           pencount_frag (definitions.sum_list lpn') ∗
            ⌜reverse (s0 :: ps2) ++ ps1 = reverse ps2' ++ ps1'⌝ ∗ A a0 a4 a3 ∗
            spec_verifier t2 (fill K2 (InjRV (w2', a4))) ∗
            v_proof_state w2' ps2' ∗ tern_state)
@@ -465,10 +463,10 @@ Section unauth_step.
   Proof.
     iIntros "#Htab #Hpsuspspec #Hvserspec #Hvcountspec #Hpserp #HA
              #Hpvuneq #Hlbvfrag #Hinv_authv #Hvisit".
-    iIntros "(Htabtok & Hv & Hi & Hpenc & Hbuf & Hid & Hpr & Hintr & Hstok & Hst & Htok) HΨ".
+    iIntros "(Htabtok & Hv & Hi & Hpenc & Hbuf & Hid & Hpr & Hintr & Hst & Htok) HΨ".
     iApply (refines_unauth_susp_consume_cps with
         "Htab Hpsuspspec Hvserspec Hvcountspec Hpserp HA Hpvuneq Hlbvfrag Hinv_authv
-         [Htok] [$Htabtok $Hv $Hi $Hpenc $Hbuf $Hid $Hpr $Hintr $Hstok $Hst] HΨ");
+         [Htok] [$Htabtok $Hv $Hi $Hpenc $Hbuf $Hid $Hpr $Hintr $Hst] HΨ");
       try done.
     iSplit; [iIntros "_"; by iFrame "Htok"|].
     iSplitL "Htok".
