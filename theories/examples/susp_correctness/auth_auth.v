@@ -227,16 +227,26 @@ Section authenticatable.
         wp_apply wp_new_proph; [done|].
         iIntros (us p) "Hp".
         wp_alloc lr as "Hlr".
-        wp_alloc lb as "Hlb".
+        wp_apply wp_alloc; first done.
+        iIntros (lb) "[Hlb Hmtok_lb]".
         wp_pures.
         destruct (longest_valid_prefix_bool (map snd us)) as [|[] bs'] eqn:Hbs.
-        * (* [] — fill route (c = 0): [auth_susp_ser_p_fill] demands
-             [lg_mapg_p_unalloc lb], which cannot be minted here:
-             [suspend_spec_bin] carries no [lg_p_auth], and the fragment
-             is a ◯ of the fixed-gname lg map. Needs either ghost
-             threading through the unary evidence or a meta-token-based
-             lg map. Same blocker as the [false ::] branch below. *)
-          admit.
+        * (* [] — fill route (c = 0): the never-registered mark is minted
+             from the allocation's meta_token (auth-free). *)
+          iMod (lg_p_unalloc_mint lb with "Hmtok_lb") as "#Hunalloc".
+          iMod (na_inv_alloc seqG_name ⊤
+                  (prover_susp_n (BoxV (#lb, #lr, un_a1, #(hash s0), #p)%V))
+                  (susp_p_fill_inv p lb lr) with "[Hlb Hlr Hp]") as "#Hinv".
+          { iNext. iFrame "Hlb". iRight. iRight. iLeft. iFrame "Hlr".
+            iExists us. iFrame "Hp". by rewrite Hbs. }
+          iApply ("HΨ" $! _ (filled_string (hash s0)) 0).
+          iSplitL "HA1".
+          { iExists t0, a1, un_a1, s0. iModIntro.
+            iSplit; [by iPureIntro|]. iFrame "Hsw0 HA1".
+            iExists lb, lr, p. iSplit; [done|]. by iLeft. }
+          simpl. iLeft. iModIntro. iSplit; [|done].
+          iExists p, lb, lr, un_a1, (hash s0), false.
+          iSplit; [done|]. iFrame "Hunalloc Hinv".
         * (* true :: — emp route (c = 1): allocate the unfill invariant. *)
           iMod (na_inv_alloc seqG_name ⊤
                   (prover_susp_n (BoxV (#lb, #lr, un_a1, #(hash s0), #p)%V))
@@ -251,8 +261,21 @@ Section authenticatable.
           simpl. iRight. iModIntro. iSplit; [|done].
           iExists p, lb, lr, un_a1, (hash s0), false.
           iSplit; [done|]. iFrame "Hinv".
-        * (* false :: — fill route: same [lg_mapg_p_unalloc] blocker. *)
-          admit.
+        * (* false :: — fill route, first-disjunct prophecy shape. *)
+          iMod (lg_p_unalloc_mint lb with "Hmtok_lb") as "#Hunalloc".
+          iMod (na_inv_alloc seqG_name ⊤
+                  (prover_susp_n (BoxV (#lb, #lr, un_a1, #(hash s0), #p)%V))
+                  (susp_p_fill_inv p lb lr) with "[Hlb Hlr Hp]") as "#Hinv".
+          { iNext. iFrame "Hlb". iLeft. iExists (false :: bs'). iFrame "Hlr".
+            iSplit; [iExists us; iFrame "Hp"; by rewrite Hbs|by eauto]. }
+          iApply ("HΨ" $! _ (filled_string (hash s0)) 0).
+          iSplitL "HA1".
+          { iExists t0, a1, un_a1, s0. iModIntro.
+            iSplit; [by iPureIntro|]. iFrame "Hsw0 HA1".
+            iExists lb, lr, p. iSplit; [done|]. by iLeft. }
+          simpl. iLeft. iModIntro. iSplit; [|done].
+          iExists p, lb, lr, un_a1, (hash s0), false.
+          iSplit; [done|]. iFrame "Hunalloc Hinv".
     - (* unsuspend_spec_bin *)
       rewrite /unsuspend_spec_bin.
       iIntros (E a1 HE Ψ) "!# (HA & Htok) HΨ".
@@ -335,7 +358,7 @@ Section authenticatable.
             iFrame "Hlb Hlr Hlbfrag Htrans". iExists pvs'. by iFrame. }
           wp_pures. iApply "HΨ". iModIntro. iFrame "Htok".
           iPureIntro. simpl. by eexists lb, lr, _, (hash s_in), ps.
-  Admitted.
+  Qed.
 
   Lemma refines_Auth_auth Θ (Δ : ctxO Σ Θ) (R : kindO Σ (⋆ ⇒ ⋆)) :
     ⊢ ⟦ ∀: ⋆, var1 (var3 var0) ⟧
@@ -501,8 +524,7 @@ Section authenticatable.
         destruct (longest_valid_prefix_bool (map snd us_new))
           as [|[] bs'] eqn:Hbs.
         * (* fill real form, c = 0 *)
-          iMod (lg_p_insert_unalloc _ lb_new with "Hmtok_lb Hlgp")
-            as "[Hlgp #Hunalloc]".
+          iMod (lg_p_unalloc_mint lb_new with "Hmtok_lb") as "#Hunalloc".
           iMod (na_inv_alloc seqG_name ⊤
                   (prover_susp_n (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V))
                   (susp_p_fill_inv p_new lb_new lr_new)
@@ -788,8 +810,7 @@ Section authenticatable.
              iExists lb_new, lr_new, p_new.
              iSplit; [iPureIntro; rewrite -Hh0; done|]. iRight. iExact "Hinv_new".
         * (* fill real form, c = 0 *)
-          iMod (lg_p_insert_unalloc _ lb_new with "Hmtok_lb Hlgp")
-            as "[Hlgp #Hunalloc]".
+          iMod (lg_p_unalloc_mint lb_new with "Hmtok_lb") as "#Hunalloc".
           iMod (na_inv_alloc seqG_name ⊤
                   (prover_susp_n (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V))
                   (susp_p_fill_inv p_new lb_new lr_new)
@@ -960,8 +981,7 @@ Section authenticatable.
         destruct (longest_valid_prefix_bool (map snd us_new))
           as [|[] bs'] eqn:Hbs.
         * (* fill real form, c = 0 *)
-          iMod (lg_p_insert_unalloc _ lb_new with "Hmtok_lb Hlgp")
-            as "[Hlgp #Hunalloc]".
+          iMod (lg_p_unalloc_mint lb_new with "Hmtok_lb") as "#Hunalloc".
           iMod (na_inv_alloc seqG_name ⊤
                   (prover_susp_n (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V))
                   (susp_p_fill_inv p_new lb_new lr_new)
@@ -1247,8 +1267,7 @@ Section authenticatable.
              iExists lb_new, lr_new, p_new.
              iSplit; [iPureIntro; rewrite -Hh0; done|]. iRight. iExact "Hinv_new".
         * (* fill real form, c = 0 *)
-          iMod (lg_p_insert_unalloc _ lb_new with "Hmtok_lb Hlgp")
-            as "[Hlgp #Hunalloc]".
+          iMod (lg_p_unalloc_mint lb_new with "Hmtok_lb") as "#Hunalloc".
           iMod (na_inv_alloc seqG_name ⊤
                   (prover_susp_n (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V))
                   (susp_p_fill_inv p_new lb_new lr_new)

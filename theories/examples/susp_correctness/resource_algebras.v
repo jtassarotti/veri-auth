@@ -1498,12 +1498,20 @@ Section lg_map.
   Definition lg_mapg_frag (l : loc) (γ : gname) : iProp Σ :=
     own lg_mapG_v_name (◯ ({[ l := Cinr (to_agree γ) ]} : gmap loc lg_mapEntry)).
 
-  (* Prover-side fragments. *)
+  (* Prover-side fragments. The fragment carries the per-loc
+     [meta l lg_p_meta_n true] mark set at insertion, so that the
+     never-registered mark below excludes it WITHOUT the authority. *)
   Definition lg_mapg_p_frag (l : loc) (γ : gname) : iProp Σ :=
-    own lg_mapG_p_name (◯ ({[ l := Cinr (to_agree γ) ]} : gmap loc lg_mapEntry)).
+    own lg_mapG_p_name (◯ ({[ l := Cinr (to_agree γ) ]} : gmap loc lg_mapEntry)) ∗
+    meta l lg_p_meta_n (true : bool).
 
+  (* Persistent never-registered mark: mintable LOCALLY from the
+     allocation's [meta_token] (no [lg_p_auth] needed — this is what the
+     unary evidence world relies on). [lg_p_insert]'s [meta_combine_dom]
+     sets [true] at the same namespace, so a marked loc can never be
+     registered and vice versa. *)
   Definition lg_mapg_p_unalloc (l : loc) : iProp Σ :=
-    own lg_mapG_p_name (◯ ({[ l := Cinl (to_agree (tt : unitO)) ]} : gmap loc lg_mapEntry)).
+    meta l lg_p_meta_n (false : bool).
 
   Global Instance lg_mapg_frag_persistent l γ : Persistent (lg_mapg_frag l γ).
   Proof. apply _. Qed.
@@ -1529,9 +1537,9 @@ Section lg_map.
     lg_mapg_p_frag l γ1 -∗ lg_mapg_p_frag l γ2 -∗
       ⌜γ1 = γ2⌝ ∗ lg_mapg_p_frag l γ1 ∗ lg_mapg_p_frag l γ2.
   Proof.
-    rewrite /lg_mapg_p_frag. iIntros "H1 H2".
+    rewrite /lg_mapg_p_frag. iIntros "[H1 #Hm1] [H2 #Hm2]".
     iDestruct (own_valid_2 with "H1 H2") as %Hv.
-    iFrame. iPureIntro.
+    iFrame "H1 H2 Hm1". iPureIntro.
     rewrite -auth_frag_op auth_frag_valid singleton_op singleton_valid -Cinr_op
       Cinr_valid in Hv.
     fold_leibniz. by apply to_agree_op_inv_L in Hv.
@@ -1540,10 +1548,20 @@ Section lg_map.
   Lemma lg_mapg_p_frag_unalloc_excl l γ :
     lg_mapg_p_frag l γ -∗ lg_mapg_p_unalloc l -∗ False.
   Proof.
-    rewrite /lg_mapg_p_frag /lg_mapg_p_unalloc. iIntros "H1 H2".
-    iDestruct (own_valid_2 with "H1 H2") as %Hv.
-    rewrite -auth_frag_op singleton_op auth_frag_valid singleton_valid in Hv.
-    done.
+    rewrite /lg_mapg_p_frag /lg_mapg_p_unalloc. iIntros "[_ H1] H2".
+    by iDestruct (meta_agree with "H1 H2") as %?.
+  Qed.
+
+  (** Mint the never-registered mark from a fresh allocation's
+      [meta_token] — auth-free, hence available in the unary world. *)
+  Lemma lg_p_unalloc_mint (l : loc) :
+    meta_token l ⊤ ==∗ lg_mapg_p_unalloc l.
+  Proof.
+    rewrite /lg_mapg_p_unalloc.
+    iIntros "Hmtok".
+    iDestruct (meta_token_difference l (↑lg_p_meta_n) with "Hmtok")
+      as "[Hmtok_N _]"; first set_solver.
+    by iMod (meta_set _ l (false : bool) lg_p_meta_n with "Hmtok_N").
   Qed.
 
   (** Combined [vmeta_token l ∗ own spec_meta_name (◯ GSet (dom m))]
@@ -1573,7 +1591,7 @@ Section lg_map.
       [∉] branch uses [meta_set true] to extend the bigsep. *)
   Local Lemma meta_combine_dom (m : lg_mapg_type) (l : loc) (e : lg_mapEntry) :
     meta_token l ⊤ -∗ ([∗ set] l' ∈ dom m, meta l' lg_p_meta_n (true : bool)) ==∗
-      ⌜l ∉ dom m⌝ ∗
+      ⌜l ∉ dom m⌝ ∗ meta l lg_p_meta_n (true : bool) ∗
       ([∗ set] l' ∈ dom (<[ l := e ]> m), meta l' lg_p_meta_n (true : bool)).
   Proof.
     iIntros "Hmtok Hbig".
@@ -1614,27 +1632,11 @@ Section lg_map.
     rewrite /lg_mapg_auth /lg_mapg_p_frag.
     iIntros "Hmtok ((Hauth_v & Hsmeta) & Hauth_p & Hbig_p)".
     iMod (meta_combine_dom m_p l (Cinr (to_agree γ)) with "Hmtok Hbig_p")
-      as "[%Hl_nin Hbig_p']".
+      as "(%Hl_nin & #Hmeta & Hbig_p')".
     apply not_elem_of_dom in Hl_nin.
-    iMod (own_update with "Hauth_p") as "[$ $]";
-      last by iModIntro; iFrame "Hauth_v Hsmeta Hbig_p'".
-    apply auth_update_alloc.
-    by apply alloc_singleton_local_update.
-  Qed.
-
-  Lemma lg_mapg_p_insert_unalloc m_v m_p l :
-    meta_token l ⊤ -∗ lg_mapg_auth m_v m_p ==∗
-      lg_mapg_auth m_v (<[ l := Cinl (to_agree (tt : unitO)) ]> m_p) ∗ lg_mapg_p_unalloc l.
-  Proof.
-    rewrite /lg_mapg_auth /lg_mapg_p_unalloc.
-    iIntros "Hmtok ((Hauth_v & Hsmeta) & Hauth_p & Hbig_p)".
-    iMod (meta_combine_dom m_p l (Cinl (to_agree (tt : unitO))) with "Hmtok Hbig_p")
-      as "[%Hl_nin Hbig_p']".
-    apply not_elem_of_dom in Hl_nin.
-    iMod (own_update with "Hauth_p") as "[$ $]";
-      last by iModIntro; iFrame "Hauth_v Hsmeta Hbig_p'".
-    apply auth_update_alloc.
-    by apply alloc_singleton_local_update.
+    iMod (own_update with "Hauth_p") as "[$ Hfrag]".
+    { apply auth_update_alloc. by apply alloc_singleton_local_update. }
+    iModIntro. iFrame "Hauth_v Hsmeta Hbig_p' Hfrag Hmeta".
   Qed.
 
   (** Prover-only variants of the above: insert into [lg_p_auth] alone
@@ -1646,24 +1648,11 @@ Section lg_map.
     rewrite /lg_p_auth /lg_mapg_p_frag.
     iIntros "Hmtok [Hauth_p Hbig_p]".
     iMod (meta_combine_dom m_p l (Cinr (to_agree γ)) with "Hmtok Hbig_p")
-      as "[%Hl_nin Hbig_p']".
+      as "(%Hl_nin & #Hmeta & Hbig_p')".
     apply not_elem_of_dom in Hl_nin.
-    iMod (own_update with "Hauth_p") as "[$ $]"; last by iFrame "Hbig_p'".
-    apply auth_update_alloc. by apply alloc_singleton_local_update.
-  Qed.
-
-  Lemma lg_p_insert_unalloc m_p l :
-    meta_token l ⊤ -∗ lg_p_auth m_p ==∗
-      lg_p_auth (<[ l := Cinl (to_agree (tt : unitO)) ]> m_p) ∗
-      lg_mapg_p_unalloc l.
-  Proof.
-    rewrite /lg_p_auth /lg_mapg_p_unalloc.
-    iIntros "Hmtok [Hauth_p Hbig_p]".
-    iMod (meta_combine_dom m_p l (Cinl (to_agree (tt : unitO)))
-      with "Hmtok Hbig_p") as "[%Hl_nin Hbig_p']".
-    apply not_elem_of_dom in Hl_nin.
-    iMod (own_update with "Hauth_p") as "[$ $]"; last by iFrame "Hbig_p'".
-    apply auth_update_alloc. by apply alloc_singleton_local_update.
+    iMod (own_update with "Hauth_p") as "[$ Hfrag]".
+    { apply auth_update_alloc. by apply alloc_singleton_local_update. }
+    iModIntro. iFrame "Hbig_p' Hfrag Hmeta".
   Qed.
 
   (** Bind a FRESH verifier susp loc [l] to an arbitrary γ in the
