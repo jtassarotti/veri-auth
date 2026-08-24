@@ -250,10 +250,12 @@ Section authenticatable_definitions.
   Definition auth_susp_ser_p_real (v : val) (s : string) c : iProp Σ :=
     (auth_susp_ser_p_fill v s ∧ ⌜c = 0⌝) ∨ (auth_susp_ser_p_emp v s ∧ ⌜c = 1⌝).
 
-  (* What it would serialize to without suspension *)
+  (* What it would serialize to without suspension. SOME-wrapped
+     ([filled_string]) so the prover's would-be format coincides with the
+     verifier's [auth_ser_v] format (hash-format fix, blocker #2). *)
   Definition auth_susp_ser_p (v : val) (s : string) : iProp Σ :=
     ∃ (p : proph_id) (lb lr : loc) (a : val) (h : string),
-      ⌜v = BoxV (#lb, #lr, a, #h, #p)%V ∧ s = simple_string h⌝.
+      ⌜v = BoxV (#lb, #lr, a, #h, #p)%V ∧ s = filled_string h⌝.
 
   Definition auth_fill_ser_v (v : val) (s : string) : iProp Σ :=
     ∃ (h : string), ⌜s = filled_string h ∧ v = InjLV #h⌝.
@@ -499,7 +501,7 @@ Section authenticatable_definitions.
       evolving state — required to compose component calls sequentially
       (e.g. pair runs deserA then deserB). [cap_auth]/[mapg_auth] come with
       freshness of [id] so the match case can register the deser'd value;
-      [serpred_frag id s_def] is the caller's registered prediction, handed
+      [serpred_frag id s_reg] is the caller's registered prediction, handed
       back in the post. *)
   Definition suspend_v_deser_spec
       (ser suspend v_deser : val) (A : lrel_tern Σ) (t : evi_type) : iProp Σ :=
@@ -507,26 +509,24 @@ Section authenticatable_definitions.
       spec_verifier tᵥ (fill K (v_deser #id))
       ={⊤}=∗ ∃ (v_deser_par : val),
         spec_verifier tᵥ (fill K v_deser_par) ∗
-        □(∀ t' (a1 un_a1 a2 a3 : val) (s_def s_pred : string)
-             m vm pn ctr mlg_p mcap K' tᵥ',
+        □(∀ t' (a1 un_a1 a2 a3 : val) (s_def s_pred s_reg : string)
+             vm mp pn ctr mlg_p K' tᵥ',
           {{{ ⌜unsusp t' a1 un_a1⌝ ∗
-              ⌜m !! id = None⌝ ∗ ⌜mcap !! id = None⌝ ∗
               ▷ A a1 a2 a3 ∗ susp_ser_p t' a1 s_def ∗
-              serpred_frag id s_def ∗
-              visited_mapg_auth vm pn ctr ∗
-              lg_p_auth mlg_p ∗ mapg_auth m ∗ cap_auth mcap ∗
+              serpred_frag id s_reg ∗
+              visited_mapg_auth vm mp pn ctr ∗
+              lg_p_auth mlg_p ∗
               pencount_frag pn ∗
               spec_verifier tᵥ' (fill K' (v_deser_par #s_pred)) }}}
             suspend un_a1
           {{{ a1' s_real c t_real, RET a1';
               susp_p_ser_spec_at ser t_real c a1' s_real ∗
-              serpred_frag id s_def ∗
-              ((⌜s_pred = s_real ∧ t_real = t⌝ ∗ ∃ γl mlg_p' a2',
+              susp_ser_p_real t_real c a1' s_real ∗
+              serpred_frag id s_reg ∗
+              ((⌜s_pred = s_real ∧ t_real = t⌝ ∗
+                (lrel_tern_un A) a1' ∗ ∃ γl mlg_p' a2',
                 lg_p_auth mlg_p' ∗
-                ((⌜c > 0⌝ ∧ mapg_auth (mapg_insert_def m id a2')) ∨
-                  (⌜c = 0⌝ ∧ mapg_auth m)) ∗
-                cap_insert_auth mcap id c ∗
-                ⌜size γl = c⌝ ∗ penset_frag γl ∗ A a1' a2' a3 ∗
+                ⌜size γl = c⌝ ∗ penset_frag γl ∗
                 susp_ser_p t a1' s_def ∗
                 spec_verifier tᵥ' (fill K' (SOMEV a2')) ∗
                 ([∗ set] γ ∈ γl,
@@ -534,9 +534,29 @@ Section authenticatable_definitions.
                     lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a1' #lb⌝) ∗
                   ∃ susp,
                     lg_mapg_frag susp γ ∗ ⌜v_sub_obj t a2' #susp⌝) ∗
-                sub_susp_count_frags t a2' c id c ∗
-                ser_v_proph t id a2' s_def ∗ pencount_frag (c + pn) ∗
-                visited_map_update_pending vm γl pn ctr) ∨
+                pencount_frag (c + pn) ∗
+                visited_map_update_pending vm mp γl pn ctr ∗
+                (* Decoration wand — fired by the caller right after
+                   [visited_deser_commit_*], whose products are exactly its
+                   inputs. Everything with commit-dependent tauth leaves is
+                   assembled here: the fresh suspenders' [auth_susp_v_inv]
+                   invariants inside [A], the mapg/cap pieces and
+                   [pval_snapshot]s inside [sub_susp_count_frags]; the raw
+                   points-to halves, [unfilled] tokens, prophecies and
+                   [vmeta_token]s are captured in the wand's closure. The □
+                   premise is the caller's obligation to mint apartness
+                   witnesses ([pval_snapshot]) for freshly allocated
+                   verifier locs at the just-committed id. *)
+                (cap_frag id c -∗
+                 (match c with
+                  | 0%nat => emp
+                  | _ => mapg_frag id 1 a2'
+                  end) -∗
+                 □(∀ susp : loc, vmeta_token susp ={⊤}=∗
+                     vmeta_token susp ∗ pval_snapshot susp id) ={⊤}=∗
+                   A a1' a2' a3 ∗
+                   sub_susp_count_frags t a2' c id c ∗
+                   ser_v_proph t id a2' s_def)) ∨
               (⌜s_pred ≠ s_real⌝ ∗ (lrel_tern_un A) a1')) }}})).
 
   Definition unsuspend_spec (unsuspend : val) (A : lrel Σ) (t : evi_type) : iProp Σ :=
@@ -810,8 +830,8 @@ Section authentikit_definitions.
   Definition is_v_susp_table (l : loc) : iProp Σ :=
     (∃ (d : val) (m : gmap val val) (m' : mapg_type) (vm : state_mapg_type)
         (ctr pn : nat) (msp : serpred_type),
-      l ↦ᵥ d ∗ ⌜is_map d m⌝ ∗ v_susp_big_sep m m' ∗ mapg_auth m' ∗
-      ⌜size (mapg_alive m') = size m⌝ ∗ visited_mapg_auth vm pn ctr ∗
+      l ↦ᵥ d ∗ ⌜is_map d m⌝ ∗ v_susp_big_sep m m' ∗
+      ⌜size (mapg_alive m') = size m⌝ ∗ visited_mapg_auth vm m' pn ctr ∗
       ⌜ctr_inv ctr m⌝ ∗ vm_big_sep m vm ∗ tern_state ∗ serpred_auth msp ∗
       ⌜dom msp ⊆ set_seq 0 ctr⌝)
     ∨ un_state.
@@ -828,15 +848,15 @@ Section authentikit_definitions.
       {{{ ls', RET #s;
             seq_tok E ∗ proph_proof pr_s ls' ∗
             ⌜ls = s :: ls'⌝ ∗
-            (∀ vm pn ctr (γl : pending_setg_type),
+            (∀ vm mp pn ctr (γl : pending_setg_type),
               tern_state -∗ penset_frag γl -∗
               pencount_frag pn -∗
-              visited_mapg_auth vm pn ctr -∗
+              visited_mapg_auth vm mp pn ctr -∗
               ⌜size γl = c⌝ -∗
               ([∗ set] γ ∈ γl, ∃ lb,
                 lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj t a #lb⌝) ==∗
               tern_state ∗ pencount_frag (pn - size γl) ∗
-              visited_mapg_pending_removed vm γl pn ctr) }}}.
+              visited_mapg_pending_removed vm mp γl pn ctr) }}}.
 
   Definition p_buffer_elem (finish_s_pn : (val * string * nat)) : iProp Σ :=
     ∃ (finish ser a : val) (s : string) (pn : nat) (t : evi_type),

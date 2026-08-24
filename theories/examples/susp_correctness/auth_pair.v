@@ -10,6 +10,155 @@ Section authenticatable.
   Local Typeclasses Opaque susp_p_ser_spec unsusp_p_ser_spec suspend_v_deser_spec
         unsuspend_spec v_ser_spec auth_ser_spec v_count_spec.
 
+  (** Pure parse facts about [prod_ser_str], mirroring
+      [prod_deser'_sound]/[_complete]. *)
+  Local Lemma prod_ser_str_index s1 s2 :
+    String.index 0 "_" (prod_ser_str s1 s2)
+    = Some (String.length (StringOfZ (String.length s1))).
+  Proof.
+    rewrite /prod_ser_str.
+    eapply index_0_append_char; [done|apply valid_tag_stringOfZ].
+  Qed.
+
+  Local Lemma prod_ser_str_prefix s1 s2 :
+    String.substring 0 (String.length (StringOfZ (String.length s1)))
+      (prod_ser_str s1 s2)
+    = StringOfZ (String.length s1).
+  Proof. rewrite /prod_ser_str substring_0_length_append //. Qed.
+
+  Local Lemma prod_ser_str_length s1 s2 :
+    String.length (prod_ser_str s1 s2)
+    = (String.length (StringOfZ (String.length s1)) + 1
+       + String.length s1 + String.length s2)%nat.
+  Proof. rewrite /prod_ser_str !strings.length_app /=. lia. Qed.
+
+  Local Lemma prod_ser_str_sub1 s1 s2 :
+    String.substring (String.length (StringOfZ (String.length s1)) + 1)
+      (String.length s1) (prod_ser_str s1 s2) = s1.
+  Proof.
+    rewrite /prod_ser_str substring_add_length_app /=.
+    apply substring_0_length_append.
+  Qed.
+
+  Local Lemma prod_ser_str_sub2 s1 s2 :
+    String.substring
+      (String.length (StringOfZ (String.length s1)) + 1 + String.length s1)
+      (String.length s2) (prod_ser_str s1 s2) = s2.
+  Proof.
+    rewrite /prod_ser_str.
+    replace (String.length (StringOfZ (String.length s1)) + 1
+             + String.length s1)%nat
+      with (String.length (StringOfZ (String.length s1))
+            + (1 + String.length s1))%nat by lia.
+    rewrite substring_add_length_app /=.
+    rewrite -{1}(Nat.add_0_r (String.length s1)) substring_add_length_app.
+    apply substring_0_length.
+  Qed.
+
+  (** Pair-level [susp_p_ser_spec_at] from the components': runs the two
+      component serializations and splits the reachability closure's
+      pending set by the partition argument (as in the evidence lemmas'
+      case 2). Shared by all arms of the pair's [suspend_v_deser_spec]. *)
+  Lemma pair_susp_p_ser_spec_at (tA tB : evi_type) (ssA ssB : val)
+      (cA cB : nat) (aA aB : val) (sA sB : string) :
+    susp_ser_p_real tA cA aA sA -∗
+    susp_ser_p_real tB cB aB sB -∗
+    susp_p_ser_spec_at ssA tA cA aA sA -∗
+    susp_p_ser_spec_at ssB tB cB aB sB -∗
+    susp_p_ser_spec_at
+      (λ: "v",
+         let: "s1" := ssA (Fst "v") in
+         let: "s2" := ssB (Snd "v") in z2s (strlen "s1") ^ #"_" ^ "s1" ^ "s2")%V
+      (tprod tA tB) (cA + cB) (aA, aB)%V (prod_ser_str sA sB).
+  Proof.
+    iIntros "#Hser1 #Hser2 #HatA #HatB".
+    rewrite /susp_p_ser_spec_at.
+    iIntros (E q HE Ψ) "!# (Htok & Hintr) HΨ".
+    iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+    iDestruct "Hintr" as "[HintrA HintrB]".
+    wp_pures.
+    wp_apply ("HatA" $! E (q/2)%Qp with "[//] [$Htok $HintrA]").
+    iIntros "(Htok & HintrA' & HreachA)". wp_pures.
+    wp_apply ("HatB" $! E (q/2)%Qp with "[//] [$Htok $HintrB]").
+    iIntros "(Htok & HintrB' & HreachB)". wp_pures.
+    unfold prod_ser_str. iApply "HΨ". iModIntro. iFrame "Htok".
+    iCombine "HintrA' HintrB'" as "Hcomb".
+    replace ((q/2)/2 + (q/2)/2)%Qp with (q/2)%Qp by (symmetry; apply Qp.div_2).
+    iFrame "Hcomb".
+    iIntros (γl) "Hg Hpen %Hsz Hbig".
+    iDestruct (susp_ser_p_real_not_loc with "Hser1") as %Hua_not_loc.
+    iDestruct (susp_ser_p_real_not_loc with "Hser2") as %Hub_not_loc.
+    assert (size γl = cA + cB)%nat as Hsz_keep by exact Hsz. clear Hsz.
+    iAssert (∃ γlA γlB : gset gname,
+               ⌜γlA ## γlB ∧ γl = γlA ∪ γlB⌝ ∗
+               ([∗ set] γ ∈ γlA, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj tA aA #lb⌝) ∗
+               ([∗ set] γ ∈ γlB, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj tB aB #lb⌝))%I
+      with "[Hbig]"
+      as "(%γlA & %γlB & [%HdisjAB %HsplitAB] & HbigA & HbigB)".
+    { clear Hsz_keep.
+      iRevert "Hbig".
+      iInduction γl as [|γ γl' Hnotin] "IHγl" using set_ind_L.
+      - iIntros "_". iExists ∅, ∅. rewrite !big_sepS_empty.
+        iSplit; [iPureIntro; set_solver|]. by iSplit.
+      - iIntros "Hbig".
+        iEval (rewrite big_sepS_insert; [|done]) in "Hbig".
+        iDestruct "Hbig" as "[(%lb_γ & #Hfrag_γ & %Hsub_γ) Hbig']".
+        iDestruct ("IHγl" with "Hbig'")
+          as "(%γlA' & %γlB' & [%Hdisj' %Hsplit'] & HA' & HB')".
+        destruct Hsub_γ as (x & y & Heq & Hdisj_p).
+        injection Heq as -> ->.
+        destruct Hdisj_p as [Heq | [Heq | [Hsub | Hsub]]].
+        + exfalso. by apply (Hua_not_loc lb_γ).
+        + exfalso. by apply (Hub_not_loc lb_γ).
+        + iExists ({[γ]} ∪ γlA'), γlB'.
+          iSplit; [iPureIntro; split; [|set_solver]|].
+          { assert (γ ∉ γlA') by set_solver. set_solver. }
+          iSplitL "HA'".
+          * rewrite big_sepS_insert; [|set_solver].
+            iSplitL ""; [iExists lb_γ; by iFrame "Hfrag_γ"|done].
+          * done.
+        + iExists γlA', ({[γ]} ∪ γlB').
+          iSplit; [iPureIntro; split; [|set_solver]|].
+          { assert (γ ∉ γlB') by set_solver. set_solver. }
+          iSplitL "HA'"; [done|].
+          rewrite big_sepS_insert; [|set_solver].
+          iSplitL ""; [iExists lb_γ; by iFrame "Hfrag_γ"|done]. }
+    iDestruct (susp_ser_p_real_γl_card_le with "Hser1 HbigA") as %HszA_le.
+    iDestruct (susp_ser_p_real_γl_card_le with "Hser2 HbigB") as %HszB_le.
+    assert (size γlA + size γlB = cA + cB) as Hsz_sum.
+    { rewrite HsplitAB in Hsz_keep.
+      by rewrite (size_union _ _ HdisjAB) in Hsz_keep. }
+    assert (size γlA = cA) as HszA by lia.
+    assert (size γlB = cB) as HszB by lia.
+    iAssert (penset_frag γlA ∗ penset_frag γlB)%I with "[Hpen]" as "[HpenA HpenB]".
+    { rewrite /penset_frag.
+      replace (◯ GSet γl) with (◯ GSet γlA ⋅ ◯ GSet γlB).
+      - rewrite own_op. by iDestruct "Hpen" as "[$ $]".
+      - rewrite -auth_frag_op gset_disj_union //. by rewrite -HsplitAB. }
+    iSpecialize ("HreachA" $! γlA with "Hg HpenA [//] HbigA").
+    iDestruct "HreachA" as "(Hg & HpenA & HbigA')".
+    iSpecialize ("HreachB" $! γlB with "Hg HpenB [//] HbigB").
+    iDestruct "HreachB" as "(Hg & HpenB & HbigB')".
+    iFrame "Hg".
+    iAssert (penset_frag (γlA ∪ γlB)) with "[HpenA HpenB]" as "Hpen".
+    { rewrite /penset_frag -gset_disj_union //.
+      rewrite auth_frag_op own_op. iSplitL "HpenA"; [iExact "HpenA"|iExact "HpenB"]. }
+    rewrite -HsplitAB. iFrame "Hpen".
+    rewrite HsplitAB.
+    rewrite (big_sepS_union _ _ _ HdisjAB).
+    iSplitL "HbigA'".
+    { iApply (big_sepS_mono with "HbigA'").
+      iIntros (γ' ?) "[Hreach Hlb]". iFrame "Hreach".
+      iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
+      iPureIntro. simpl. exists aA, aB. split; [done|].
+      right. right. left. done. }
+    iApply (big_sepS_mono with "HbigB'").
+    iIntros (γ' ?) "[Hreach Hlb]". iFrame "Hreach".
+    iDestruct "Hlb" as (lb) "[Hlg %Hp]". iExists lb. iFrame "Hlg".
+    iPureIntro. simpl. exists aA, aB. split; [done|].
+    right. right. right. done.
+  Qed.
+
   (** Unary (prover-only) evidence for the product; discharges every
       tern/un split in [refines_Auth_pair]. Mirrors
       [refines_un_Auth_sum] in base_correctness.v. *)
@@ -392,7 +541,463 @@ Section authenticatable.
       iPureIntro. simpl. exists ua, ub. split; [done|].
       right. right. right. done.
 
-    - (* 3. suspend_v_deser_spec (combined) *) admit.
+    - (* 3. suspend_v_deser_spec (combined) *)
+      rewrite /suspend_v_deser_spec.
+      iIntros "!#" (K tᵥ3 pid) "Hv".
+      v_pures.
+      v_bind (v_dB _).
+      iMod ("HsuspvdeserB" with "Hv") as (v_parB) "(Hv & #HinnerB) /=".
+      v_bind (v_dA _).
+      iMod ("HsuspvdeserA" with "Hv") as (v_parA) "(Hv & #HinnerA) /=".
+      rewrite /prod_deser. v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      wp_pure _.
+      iPoseProof "HA" as "HA'".
+      iEval (rewrite interp_prod_combined) in "HA'".
+      iDestruct "HA'" as (wa1 wa2 wb1 wb2 wc1 wc2) "(-> & -> & -> & HAc & HBc)".
+      destruct t' as [t1' t2'|t1' t2'| | |]; simpl in Hunsusp; first last.
+      { destruct Hunsusp as (?&?&?&?&?&Heq&_). simplify_eq. }
+      { iDestruct "Hser" as %(z & Heq & _). simplify_eq. }
+      { iDestruct "Hser" as %(s' & Heq & _). simplify_eq. }
+      { destruct Hunsusp as [(?&?&Heq&_)|(?&?&Heq&_)]; simplify_eq. }
+      destruct Hunsusp as (x & y & un_x & un_y & Heq & -> & Hunx & Huny).
+      simplify_eq.
+      iDestruct "Hser" as (v1 v2 s1_def s2_def [Heqv Heqs]) "[#HserA' #HserB']".
+      simplify_eq.
+      wp_pures. wp_bind (p_spA _).
+      interp_unfold! in "HAc". interp_unfold! in "HBc".
+      v_pures; try solve_vals_compare_safe.
+      (* the verifier's parse of the abstract s_pred *)
+      destruct (String.index (Z.to_nat 0) "_" s_pred) as [i|] eqn:Hidx; last first.
+      { iSimpl in "Hv". v_pures.
+        iPoseProof "HA_un" as "HAu".
+        iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+          in "HAu".
+        iDestruct "HAu" as (tAu ssAu usAu spAu uspAu ? ? ?)
+          "(%HeqAu & _ & #HsserAu & #HspbAu & _)".
+        injection HeqAu as <- <- <- <-.
+        iPoseProof "HB_un" as "HBu".
+        iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+          in "HBu".
+        iDestruct "HBu" as (tBu ssBu usBu spBu uspBu ? ? ?)
+          "(%HeqBu & _ & #HsserBu & #HspbBu & _)".
+        injection HeqBu as <- <- <- <-.
+        iDestruct "HAc" as "[_ HAcun]".
+        wp_apply ("HspbAu" $! t1' _ _ with "[HAcun]").
+        { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
+        iIntros (a1A' sA cA) "[HAun' #HrealA']".
+        wp_pures. wp_bind (p_spB _).
+        iDestruct "HBc" as "[_ HBcun]".
+        wp_apply ("HspbBu" $! t2' _ _ with "[HBcun]").
+        { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
+        iIntros (a1B' sB cB) "[HBun' #HrealB']".
+        wp_pures.
+        iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str sA sB) (cA + cB)
+                  (tprod tAu tBu)).
+        iModIntro.
+        iPoseProof (susp_p_ser_spec_at_intro with "HrealA' HsserAu") as "#HatA'".
+        iPoseProof (susp_p_ser_spec_at_intro with "HrealB' HsserBu") as "#HatB'".
+        iSplitR.
+        { iApply (pair_susp_p_ser_spec_at with "HrealA' HrealB' HatA' HatB'"). }
+        iSplitR.
+        { iExists cA, cB. iSplit; [done|].
+          iExists a1A', a1B', sA, sB. iSplit; [done|].
+          iSplitR; [iApply "HrealA'"|iApply "HrealB'"]. }
+        iFrame "Hserpred".
+        iRight. iSplit.
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. done. }
+        rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
+        iSplitL "HAun'".
+        - interp_unfold!. iApply "HAun'".
+        - interp_unfold!. iApply "HBun'". }
+      iSimpl in "Hv". v_pures.
+      destruct (ZOfString (String.substring (Z.to_nat 0) (Z.to_nat i) s_pred))
+        as [Alen|] eqn:HAlen; last first.
+      { iSimpl in "Hv". v_pures.
+        iPoseProof "HA_un" as "HAu".
+        iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+          in "HAu".
+        iDestruct "HAu" as (tAu ssAu usAu spAu uspAu ? ? ?)
+          "(%HeqAu & _ & #HsserAu & #HspbAu & _)".
+        injection HeqAu as <- <- <- <-.
+        iPoseProof "HB_un" as "HBu".
+        iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+          in "HBu".
+        iDestruct "HBu" as (tBu ssBu usBu spBu uspBu ? ? ?)
+          "(%HeqBu & _ & #HsserBu & #HspbBu & _)".
+        injection HeqBu as <- <- <- <-.
+        iDestruct "HAc" as "[_ HAcun]".
+        wp_apply ("HspbAu" $! t1' _ _ with "[HAcun]").
+        { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
+        iIntros (a1A' sA cA) "[HAun' #HrealA']".
+        wp_pures. wp_bind (p_spB _).
+        iDestruct "HBc" as "[_ HBcun]".
+        wp_apply ("HspbBu" $! t2' _ _ with "[HBcun]").
+        { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
+        iIntros (a1B' sB cB) "[HBun' #HrealB']".
+        wp_pures.
+        iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str sA sB) (cA + cB)
+                  (tprod tAu tBu)).
+        iModIntro.
+        iPoseProof (susp_p_ser_spec_at_intro with "HrealA' HsserAu") as "#HatA'".
+        iPoseProof (susp_p_ser_spec_at_intro with "HrealB' HsserBu") as "#HatB'".
+        iSplitR.
+        { iApply (pair_susp_p_ser_spec_at with "HrealA' HrealB' HatA' HatB'"). }
+        iSplitR.
+        { iExists cA, cB. iSplit; [done|].
+          iExists a1A', a1B', sA, sB. iSplit; [done|].
+          iSplitR; [iApply "HrealA'"|iApply "HrealB'"]. }
+        iFrame "Hserpred".
+        iRight. iSplit.
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. injection Hidx as <-.
+          replace (Z.to_nat 0) with 0%nat in HAlen by done.
+          rewrite Nat2Z.id in HAlen.
+          rewrite prod_ser_str_prefix in HAlen.
+          rewrite ZOfString_inv in HAlen. done. }
+        rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
+        iSplitL "HAun'".
+        - interp_unfold!. iApply "HAun'".
+        - interp_unfold!. iApply "HBun'". }
+      iSimpl in "Hv". v_pures; try solve_vals_compare_safe.
+      destruct (decide (StringOfZ Alen
+                        = String.substring (Z.to_nat 0) (Z.to_nat i) s_pred))
+        as [Hecho|Hecho]; last first.
+      { assert (¬ ((#(StringOfZ Alen) : val)
+                   = #(String.substring (Z.to_nat 0) (Z.to_nat i) s_pred)))
+          as Hvne.
+        { intros Heq. apply Hecho. by injection Heq. }
+        iEval (rewrite (bool_decide_eq_false_2 _ Hvne) /=) in "Hv".
+        v_pures.
+        iPoseProof "HA_un" as "HAu".
+        iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+          in "HAu".
+        iDestruct "HAu" as (tAu ssAu usAu spAu uspAu ? ? ?)
+          "(%HeqAu & _ & #HsserAu & #HspbAu & _)".
+        injection HeqAu as <- <- <- <-.
+        iPoseProof "HB_un" as "HBu".
+        iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+          in "HBu".
+        iDestruct "HBu" as (tBu ssBu usBu spBu uspBu ? ? ?)
+          "(%HeqBu & _ & #HsserBu & #HspbBu & _)".
+        injection HeqBu as <- <- <- <-.
+        iDestruct "HAc" as "[_ HAcun]".
+        wp_apply ("HspbAu" $! t1' _ _ with "[HAcun]").
+        { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
+        iIntros (a1A' sA cA) "[HAun' #HrealA']".
+        wp_pures. wp_bind (p_spB _).
+        iDestruct "HBc" as "[_ HBcun]".
+        wp_apply ("HspbBu" $! t2' _ _ with "[HBcun]").
+        { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
+        iIntros (a1B' sB cB) "[HBun' #HrealB']".
+        wp_pures.
+        iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str sA sB) (cA + cB)
+                  (tprod tAu tBu)).
+        iModIntro.
+        iPoseProof (susp_p_ser_spec_at_intro with "HrealA' HsserAu") as "#HatA'".
+        iPoseProof (susp_p_ser_spec_at_intro with "HrealB' HsserBu") as "#HatB'".
+        iSplitR.
+        { iApply (pair_susp_p_ser_spec_at with "HrealA' HrealB' HatA' HatB'"). }
+        iSplitR.
+        { iExists cA, cB. iSplit; [done|].
+          iExists a1A', a1B', sA, sB. iSplit; [done|].
+          iSplitR; [iApply "HrealA'"|iApply "HrealB'"]. }
+        iFrame "Hserpred".
+        iRight. iSplit.
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. injection Hidx as <-.
+          replace (Z.to_nat 0) with 0%nat in HAlen by done.
+          rewrite Nat2Z.id in HAlen.
+          rewrite prod_ser_str_prefix in HAlen.
+          rewrite ZOfString_inv in HAlen. injection HAlen as <-.
+          replace (Z.to_nat 0) with 0%nat in Hecho by done.
+          apply Hecho. rewrite Nat2Z.id prod_ser_str_prefix. done. }
+        rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
+        iSplitL "HAun'".
+        - interp_unfold!. iApply "HAun'".
+        - interp_unfold!. iApply "HBun'". }
+      assert ((#(StringOfZ Alen) : val)
+              = #(String.substring (Z.to_nat 0) (Z.to_nat i) s_pred)) as Hveq
+        by (by rewrite Hecho).
+      iEval (rewrite (bool_decide_eq_true_2 _ Hveq) /=) in "Hv".
+      v_pures.
+      case_bool_decide as Hsign; v_pures.
+      { iPoseProof "HA_un" as "HAu".
+        iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+          in "HAu".
+        iDestruct "HAu" as (tAu ssAu usAu spAu uspAu ? ? ?)
+          "(%HeqAu & _ & #HsserAu & #HspbAu & _)".
+        injection HeqAu as <- <- <- <-.
+        iPoseProof "HB_un" as "HBu".
+        iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+          in "HBu".
+        iDestruct "HBu" as (tBu ssBu usBu spBu uspBu ? ? ?)
+          "(%HeqBu & _ & #HsserBu & #HspbBu & _)".
+        injection HeqBu as <- <- <- <-.
+        iDestruct "HAc" as "[_ HAcun]".
+        wp_apply ("HspbAu" $! t1' _ _ with "[HAcun]").
+        { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
+        iIntros (a1A' sA cA) "[HAun' #HrealA']".
+        wp_pures. wp_bind (p_spB _).
+        iDestruct "HBc" as "[_ HBcun]".
+        wp_apply ("HspbBu" $! t2' _ _ with "[HBcun]").
+        { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
+        iIntros (a1B' sB cB) "[HBun' #HrealB']".
+        wp_pures.
+        iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str sA sB) (cA + cB)
+                  (tprod tAu tBu)).
+        iModIntro.
+        iPoseProof (susp_p_ser_spec_at_intro with "HrealA' HsserAu") as "#HatA'".
+        iPoseProof (susp_p_ser_spec_at_intro with "HrealB' HsserBu") as "#HatB'".
+        iSplitR.
+        { iApply (pair_susp_p_ser_spec_at with "HrealA' HrealB' HatA' HatB'"). }
+        iSplitR.
+        { iExists cA, cB. iSplit; [done|].
+          iExists a1A', a1B', sA, sB. iSplit; [done|].
+          iSplitR; [iApply "HrealA'"|iApply "HrealB'"]. }
+        iFrame "Hserpred".
+        iRight. iSplit.
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. injection Hidx as <-.
+          replace (Z.to_nat 0) with 0%nat in HAlen by done.
+          rewrite Nat2Z.id in HAlen.
+          rewrite prod_ser_str_prefix in HAlen.
+          rewrite ZOfString_inv in HAlen. injection HAlen as <-.
+          lia. }
+        rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
+        iSplitL "HAun'".
+        - interp_unfold!. iApply "HAun'".
+        - interp_unfold!. iApply "HBun'". }
+      case_bool_decide as Hbound; v_pures.
+      { iPoseProof "HA_un" as "HAu".
+        iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+          in "HAu".
+        iDestruct "HAu" as (tAu ssAu usAu spAu uspAu ? ? ?)
+          "(%HeqAu & _ & #HsserAu & #HspbAu & _)".
+        injection HeqAu as <- <- <- <-.
+        iPoseProof "HB_un" as "HBu".
+        iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+          in "HBu".
+        iDestruct "HBu" as (tBu ssBu usBu spBu uspBu ? ? ?)
+          "(%HeqBu & _ & #HsserBu & #HspbBu & _)".
+        injection HeqBu as <- <- <- <-.
+        iDestruct "HAc" as "[_ HAcun]".
+        wp_apply ("HspbAu" $! t1' _ _ with "[HAcun]").
+        { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
+        iIntros (a1A' sA cA) "[HAun' #HrealA']".
+        wp_pures. wp_bind (p_spB _).
+        iDestruct "HBc" as "[_ HBcun]".
+        wp_apply ("HspbBu" $! t2' _ _ with "[HBcun]").
+        { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
+        iIntros (a1B' sB cB) "[HBun' #HrealB']".
+        wp_pures.
+        iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str sA sB) (cA + cB)
+                  (tprod tAu tBu)).
+        iModIntro.
+        iPoseProof (susp_p_ser_spec_at_intro with "HrealA' HsserAu") as "#HatA'".
+        iPoseProof (susp_p_ser_spec_at_intro with "HrealB' HsserBu") as "#HatB'".
+        iSplitR.
+        { iApply (pair_susp_p_ser_spec_at with "HrealA' HrealB' HatA' HatB'"). }
+        iSplitR.
+        { iExists cA, cB. iSplit; [done|].
+          iExists a1A', a1B', sA, sB. iSplit; [done|].
+          iSplitR; [iApply "HrealA'"|iApply "HrealB'"]. }
+        iFrame "Hserpred".
+        iRight. iSplit.
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. injection Hidx as <-.
+          replace (Z.to_nat 0) with 0%nat in HAlen by done.
+          rewrite Nat2Z.id in HAlen.
+          rewrite prod_ser_str_prefix in HAlen.
+          rewrite ZOfString_inv in HAlen. injection HAlen as <-.
+          rewrite prod_ser_str_length in Hbound. lia. }
+        rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
+        iSplitL "HAun'".
+        - interp_unfold!. iApply "HAun'".
+        - interp_unfold!. iApply "HBun'". }
+      (* coupled path: verifier at deserA s1 *)
+      v_bind (v_parA _).
+      wp_apply ("HinnerA" with "[$HAc $HserA' $Hserpred $Hvm $Hlgp $Hpenc $Hv]").
+      { done. }
+      iIntros (a1A' s_realA cA t_realA) "(#HspecatA & #HrealA & _ & HpostA)".
+      iDestruct "HpostA" as "[HmatchA | [%HnmA #HunA]]"; last first.
+      { (* A mismatched: the pair mismatches on the s1 slice; B still runs
+           prover-only via the unary evidence. *)
+        wp_pures. wp_bind (p_spB _).
+        iPoseProof "HB_un" as "HBu".
+        iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+          in "HBu".
+        iDestruct "HBu" as (tBu ssBu usBu spBu uspBu ? ? ?)
+          "(%HeqBu & _ & #HsserBu & #HspbBu & _)".
+        injection HeqBu as <- <- <- <-.
+        iDestruct "HBc" as "[_ HBcun]".
+        wp_apply ("HspbBu" $! t2' _ _ with "[HBcun]").
+        { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
+        iIntros (a1B' sB cB) "[HBun' #HrealB']".
+        wp_pures.
+        iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_realA sB) (cA + cB)
+                  (tprod t_realA tBu)).
+        iModIntro.
+        iPoseProof (susp_p_ser_spec_at_intro with "HrealB' HsserBu") as "#HatB'".
+        iSplitR.
+        { iApply (pair_susp_p_ser_spec_at with "HrealA HrealB' HspecatA HatB'"). }
+        iSplitR.
+        { iExists cA, cB. iSplit; [done|].
+          iExists a1A', a1B', s_realA, sB. iSplit; [done|].
+          iSplitR; [iApply "HrealA"|iApply "HrealB'"]. }
+        iFrame "Hserpred".
+        iRight. iSplit.
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. injection Hidx as <-.
+          replace (Z.to_nat 0) with 0%nat in HAlen by done.
+          rewrite Nat2Z.id in HAlen.
+          rewrite prod_ser_str_prefix in HAlen.
+          rewrite ZOfString_inv in HAlen. injection HAlen as <-.
+          apply HnmA.
+          etrans; [|apply (prod_ser_str_sub1 s_realA sB)].
+          f_equal; lia. }
+        rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
+        iSplitR.
+        - interp_unfold!. iDestruct "HunA" as "HunAc". iApply "HunAc".
+        - interp_unfold!. iApply "HBun'". }
+      iDestruct "HmatchA" as "([%HspA %HtA] & #HunA1' & %γlA & %mlgA & %a2A' &
+          HlgpA & %HszA & HpensA & #HpserpA2 & Hv & HbigA & HpencA & HvmA & HwandA)".
+      destruct cA as [|cA'']; last first.
+      { admit. (* cA > 0: needs the wand generalized over v_outer —
+                  composition TODO, not a design exclusion. *) }
+      apply size_empty_inv in HszA. fold_leibniz. subst γlA.
+      wp_pures. wp_bind (p_spB _).
+      iEval (rewrite /visited_map_update_pending set_fold_empty size_empty
+               Nat.add_0_r) in "HvmA".
+      iSimpl in "Hv". v_pures.
+      v_bind (v_parB _).
+      wp_apply ("HinnerB" with "[$HBc $HserB' $Hserpred $HvmA $HlgpA $HpencA $Hv]").
+      { done. }
+      iIntros (a1B' s_realB cB t_realB) "(#HspecatB & #HrealB & _ & HpostB)".
+      iDestruct "HpostB" as "[HmatchB | [%HnmB #HunB]]"; last first.
+      { (* B mismatched after A matched — pair mismatch via the s2 slice. *)
+        wp_pures.
+        iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_realA s_realB)
+                  (0 + cB)%nat (tprod t_realA t_realB)).
+        iModIntro.
+        iSplitR.
+        { iApply (pair_susp_p_ser_spec_at _ _ _ _ 0 cB
+                    with "HrealA HrealB HspecatA HspecatB"). }
+        iSplitR.
+        { iExists 0, cB. iSplit; [done|].
+          iExists a1A', a1B', s_realA, s_realB. iSplit; [done|].
+          iSplitR; [iApply "HrealA"|iApply "HrealB"]. }
+        iFrame "Hserpred".
+        iRight. iSplit.
+        { iPureIntro. intros ->.
+          replace (Z.to_nat 0) with 0%nat in Hidx by done.
+          rewrite prod_ser_str_index in Hidx. injection Hidx as <-.
+          replace (Z.to_nat 0) with 0%nat in HAlen by done.
+          rewrite Nat2Z.id in HAlen.
+          rewrite prod_ser_str_prefix in HAlen.
+          rewrite ZOfString_inv in HAlen. injection HAlen as <-.
+          apply HnmB.
+          etrans; [|apply (prod_ser_str_sub2 s_realA s_realB)].
+          rewrite prod_ser_str_length.
+          f_equal; lia. }
+        rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
+        iSplitR.
+        - interp_unfold!. iDestruct "HunA1'" as "HunA1c". iApply "HunA1c".
+        - interp_unfold!. iDestruct "HunB" as "HunBc". iApply "HunBc". }
+      iDestruct "HmatchB" as "([%HspB %HtB] & #HunB1' & %γlB & %mlgB & %a2B' &
+          HlgpB & %HszB & HpensB & #HpserpB2 & Hv & HbigB & HpencB & HvmB & HwandB)".
+      destruct cB as [|cB'']; last first.
+      { admit. (* cB > 0 — composition TODO. *) }
+      apply size_empty_inv in HszB. fold_leibniz. subst γlB.
+      subst t_realA t_realB.
+      wp_pures.
+      iSimpl in "Hv". v_pures.
+      iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_realA s_realB) 0
+                (tprod tA tB)).
+      iModIntro.
+      iSplitR.
+      { iApply (pair_susp_p_ser_spec_at _ _ _ _ 0 0
+                  with "HrealA HrealB HspecatA HspecatB"). }
+      iSplitR.
+      { iExists 0, 0. iSplit; [done|].
+        iExists a1A', a1B', s_realA, s_realB. iSplit; [done|].
+        iSplitR; [iApply "HrealA"|iApply "HrealB"]. }
+      iFrame "Hserpred".
+      iLeft. iSplit.
+      { iPureIntro. split; last done.
+        replace (Z.to_nat 0) with 0%nat in Hidx by done.
+        apply Znot_lt_ge in Hsign.
+        apply Znot_lt_ge in Hbound.
+        replace (Z.to_nat 0) with 0%nat in Hecho by done.
+        rewrite Nat2Z.id in Hecho.
+        assert (String.length
+                  (String.substring (Z.to_nat (i + 1)) (Z.to_nat Alen) s_pred)
+                = Z.to_nat Alen) as HlenA.
+        { apply length_substring. lia. }
+        rewrite -HspA -HspB /prod_ser_str HlenA.
+        replace (Z.of_nat (Z.to_nat Alen)) with Alen by lia.
+        rewrite Hecho.
+        pose proof (String.index_correct1 _ _ _ _ Hidx) as Hus.
+        simpl in Hus. rewrite -Hus.
+        replace (Z.to_nat (i + 1)) with (i + 1)%nat by lia.
+        replace (Z.to_nat (i + 1 + Alen)) with (i + 1 + Z.to_nat Alen)%nat
+          by lia.
+        replace (Z.to_nat (String.length s_pred - (i + 1 + Alen)))
+          with (String.length s_pred - (i + 1) - Z.to_nat Alen)%nat by lia.
+        rewrite -(substring_split (Z.to_nat Alen) s_pred
+                    (String.length s_pred - (i + 1)) (i + 1)); [|lia].
+        replace (String.length s_pred - (i + 1))%nat
+          with (String.length s_pred - i - 1)%nat by lia.
+        rewrite -(substring_split 1 s_pred (String.length s_pred - i) i);
+          [|lia].
+        apply substring_split_from_O. lia. }
+      iSplitR.
+      { rewrite interp_un_prod_unfold. iExists a1A', a1B'. iSplit; [done|].
+        iSplitR.
+        - interp_unfold!. iDestruct "HunA1'" as "HunA1c". iApply "HunA1c".
+        - interp_unfold!. iDestruct "HunB1'" as "HunB1c". iApply "HunB1c". }
+      iExists ∅, mlgB, (a2A', a2B')%V.
+      iFrame "HlgpB Hv".
+      iSplit; [by rewrite size_empty|].
+      iSplitL "HpensA"; [by iFrame "HpensA"|].
+      iSplit.
+      { iExists a1A', a1B', s1_def, s2_def. iSplit; [done|].
+        iSplitR; [iApply "HpserpA2"|iApply "HpserpB2"]. }
+      iSplit. { by rewrite big_sepS_empty. }
+      iSplitL "HpencB"; [by iFrame "HpencB"|].
+      iEval (rewrite /visited_map_update_pending set_fold_empty size_empty
+               Nat.add_0_r) in "HvmB".
+      rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
+      iFrame "HvmB".
+      (* the pair wand: compose both component wands; the shared cap_frag is
+         persistent, and at c = 0 both frag inputs are emp *)
+      iIntros "#Hcap _ #Hmint".
+      iMod ("HwandA" with "Hcap [//] Hmint") as "(HAf & HcntA & HservA)".
+      iMod ("HwandB" with "Hcap [//] Hmint") as "(HBf & HcntB & HservB)".
+      iModIntro.
+      iSplitL "HAf HBf".
+      { iEval (rewrite interp_prod_combined).
+        iExists a1A', a1B', a2A', a2B', wc1, wc2.
+        do 3 (iSplit; [done|]).
+        iSplitL "HAf"; [interp_unfold!; iApply "HAf"|interp_unfold!; iApply "HBf"]. }
+      iDestruct "HcntA" as "(_ & _ & HcA & _)".
+      iDestruct "HcntB" as "(_ & _ & HcB & _)".
+      iSplitL "HcA HcB".
+      { iFrame "Hcap". iSplit; [done|]. iSplitL.
+        - iExists 0, 0, a2A', a2B'. iSplit; [done|].
+          iSplitL "HcA"; by iApply sub_susp_count_c0_vout.
+        - by iLeft. }
+      iExists a2A', a2B', s1_def, s2_def. iSplit; [done|].
+      iSplitL "HservA"; [iExact "HservA"|iExact "HservB"].
 
     - (* 4. unsuspend_spec — re-derived without the deleted binary
          projection, mirroring sum's case 4 via interp_prod_combined. *)

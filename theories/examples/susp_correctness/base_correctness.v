@@ -274,7 +274,416 @@ Section authenticatable.
         iIntros (γl) "Hg Hpen %Hsz Hbig".
         iDestruct (susp_ser_p_real_sum_γl_empty_r with "Hser1 Hbig") as %->.
         iFrame "Hg Hpen". by rewrite !big_sepS_empty.
-    - (* 3. suspend_v_deser_spec (combined) *) admit.
+    - (* 3. suspend_v_deser_spec (combined) *)
+      rewrite /suspend_v_deser_spec.
+      iIntros "!#" (K tᵥ3 pid) "Hv".
+      v_pures.
+      v_bind (v_dB _).
+      iMod ("HsuspvdeserB" with "Hv") as (v_parB) "(Hv & #HinnerB) /=".
+      v_bind (v_dA _).
+      iMod ("HsuspvdeserA" with "Hv") as (v_parA) "(Hv & #HinnerA) /=".
+      rewrite /sum_deser. v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      wp_pure _.
+      iPoseProof "HA" as "HA'".
+      iEval (rewrite interp_sum_combined) in "HA'".
+      iDestruct "HA'" as (w1 w2 w3) "[(-> & -> & -> & HAc) | (-> & -> & -> & HBc)]".
+      + (* prover value is InjL w1 *)
+        destruct t' as [t1' t2'|t1' t2'| | |]; simpl in Hunsusp.
+        { destruct Hunsusp as (?&?&?&?&Heq&_). simplify_eq. }
+        2:{ iDestruct "Hser" as %(s' & Heq & _). simplify_eq. }
+        2:{ iDestruct "Hser" as %(z & Heq & _). simplify_eq. }
+        2:{ destruct Hunsusp as (?&?&?&?&?&Heq&_). simplify_eq. }
+        destruct Hunsusp as [(x & un_x & Heq & -> & Hunx)|(? & ? & Heq & _)];
+          simplify_eq.
+        (* [Hser] pins the components' defined serializations *)
+        iDestruct "Hser" as (w s1_def) "[[#HserA' [%HeqL %Hsdef]] | [_ [%HeqR _]]]";
+          simplify_eq.
+        wp_pures. wp_bind (p_spA _).
+        interp_unfold! in "HAc".
+        v_pures; try solve_vals_compare_safe.
+        case_bool_decide as HtagL; v_pures; try solve_vals_compare_safe.
+        * (* verifier parses an L-tag: couple with the A component *)
+          v_bind (v_parA _).
+          wp_apply ("HinnerA" with "[$HAc $HserA' $Hserpred $Hvm $Hlgp $Hpenc $Hv]").
+          { done. }
+          iIntros (a1A' s_realA cA t_realA)
+            "(#HspecatA & #HrealA & _ & HpostA)".
+          wp_pures.
+          iDestruct "HpostA" as "[HmatchA | [%HnmA #HunA]]".
+          ** (* component match *)
+             iDestruct "HmatchA" as "([%HspA %HtA] & #HunA1' & %γl & %mlg' & %a2A' &
+                 Hlgp' & %Hsz & Hpens & #HpserpA' & Hv & Hbig & Hpenc' & Hvm' & Hwand)".
+             iSimpl in "Hv". v_pures.
+             subst t_realA.
+             (* reconstruct s_pred = inl_ser_str s_realA *)
+             injection HtagL as HtagL'.
+             replace (Z.to_nat 0) with 0 in HtagL' by done.
+             replace (Z.to_nat 2) with 2 in HtagL' by done.
+             replace (Z.to_nat 2) with 2 in HspA by done.
+             replace (Z.to_nat (String.length s_pred - 2))
+               with (String.length s_pred - 2)%nat in HspA by lia.
+             assert (2 ≤ String.length s_pred)%nat as Hlen2.
+             { replace 2 with (String.length "L_") at 1; [|done].
+               rewrite -HtagL'. apply length_substring_le. }
+             assert (s_pred = inl_ser_str s_realA) as ->.
+             { rewrite {1}(substring_split_from_O s_pred 2) //.
+               by rewrite /inl_ser_str HtagL' HspA. }
+             destruct cA as [|cA'']; last first.
+             { (* cA > 0: suspensions under a sum are unreachable by design
+                  (v_sub_obj's tsum clause pins the injected value), so the
+                  sum-level per-γ payload cannot be assembled. Standing
+                  design exclusion. *)
+               admit. }
+             apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+             iApply ("HΨ" $! (InjLV a1A') (inl_ser_str s_realA) 0 (tsum tA tB)).
+             iModIntro.
+             iSplitR.
+             { (* the sum serializer spec at InjL, closure via γl = ∅ *)
+               rewrite /susp_p_ser_spec_at.
+               iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+               wp_pures.
+               wp_apply ("HspecatA" $! E q with "[//] [$Htok $Hintr]").
+               iIntros "(Htok & Hintr & Hreach)". wp_pures.
+               unfold inl_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
+               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
+               iDestruct (susp_ser_p_real_sum_γl_empty_l with "HrealA Hbig'") as %->.
+               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+             iSplitR.
+             { iExists a1A', s_realA. iLeft. iSplit; [iApply "HrealA"|done]. }
+             iFrame "Hserpred".
+             iLeft. iSplit; [done|].
+             iSplitR.
+             { rewrite interp_un_sum_unfold. iExists a1A'. iLeft.
+               iSplit; [done|]. interp_unfold!.
+               iDestruct "HunA1'" as "HunA1c". iApply "HunA1c". }
+             iExists ∅, mlg', (InjLV a2A').
+             iFrame "Hlgp' Hpens Hv".
+             iSplit; [by rewrite size_empty|].
+             iSplit.
+             { iExists a1A', s1_def. iLeft. iSplit; [iApply "HpserpA'"|done]. }
+             iSplit. { by rewrite big_sepS_empty. }
+             iSplitL "Hpenc'"; [by iFrame "Hpenc'"|].
+             iFrame "Hvm'".
+             (* the sum-level decoration wand, composing the component's *)
+             iIntros "Hcap _ #Hmint".
+             iMod ("Hwand" with "Hcap [//] Hmint") as "(HAf & Hcnt & Hserv)".
+             iModIntro.
+             iSplitL "HAf".
+             { iEval (rewrite interp_sum_combined).
+               iExists a1A', a2A', w3. iLeft.
+               do 3 (iSplit; [done|]). interp_unfold!. iApply "HAf". }
+             iDestruct "Hcnt" as "(#Hcap' & _ & Hc & Hagg)".
+             iSplitL "Hc".
+             { iFrame "Hcap'". iSplit; [done|]. iSplitL "Hc".
+               - iLeft. iExists a2A'. iSplit; [done|].
+                 by iApply sub_susp_count_c0_vout.
+               - by iLeft. }
+             iExists a2A', s1_def. iLeft. iSplit; [iExact "Hserv"|done].
+          ** (* component mismatch *)
+             injection HtagL as HtagL'.
+             replace (Z.to_nat 0) with 0 in HtagL' by done.
+             replace (Z.to_nat 2) with 2 in HtagL' by done.
+             replace (Z.to_nat 2) with 2 in HnmA by done.
+             replace (Z.to_nat (String.length s_pred - 2))
+               with (String.length s_pred - 2)%nat in HnmA by lia.
+             iApply ("HΨ" $! (InjLV a1A') (inl_ser_str s_realA) cA
+                       (tsum t_realA tB)).
+             iModIntro.
+             iSplitR.
+             { rewrite /susp_p_ser_spec_at.
+               iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+               wp_pures.
+               wp_apply ("HspecatA" $! E q with "[//] [$Htok $Hintr]").
+               iIntros "(Htok & Hintr & Hreach)". wp_pures.
+               unfold inl_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
+               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
+               iDestruct (susp_ser_p_real_sum_γl_empty_l with "HrealA Hbig'") as %->.
+               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+             iSplitR.
+             { iExists a1A', s_realA. iLeft. iSplit; [iApply "HrealA"|done]. }
+             iFrame "Hserpred".
+             iRight. iSplit.
+             { iPureIntro. intros Heqs. apply HnmA.
+               rewrite Heqs /inl_ser_str /=.
+               replace (String.length ("L_" +:+ s_realA) - 2)%nat
+                 with (String.length s_realA) by (simpl; lia).
+               by rewrite /= Nat.sub_0_r substring_0_length. }
+             rewrite interp_un_sum_unfold.
+             iExists a1A'. iLeft. iSplit; [done|].
+             interp_unfold!. iDestruct "HunA" as "HunA'". iApply "HunA'".
+        * case_bool_decide as HtagR; v_pures.
+          -- (* verifier parses an R-tag while the prover is InjL *)
+             iPoseProof "HA_un" as "HAu".
+             iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+               in "HAu".
+             iDestruct "HAu" as (tAu ssAu usAu spAu uspAu ? ? ?)
+               "(%HeqAu & #HusserAu & #HsserAu & #HspbAu & _)".
+             injection HeqAu as <- <- <- <-.
+             iDestruct "HAc" as "[_ HAcun]".
+             wp_apply ("HspbAu" $! t1' w un_x with "[HAcun]").
+             { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
+             iIntros (a1A' sA cA) "[HAun' #HrealA']".
+             wp_pures.
+             iApply ("HΨ" $! (InjLV a1A') (inl_ser_str sA) cA (tsum tAu tB)).
+             iModIntro.
+             iSplitR.
+             { iPoseProof (susp_p_ser_spec_at_intro with "HrealA' HsserAu")
+                 as "#HatA".
+               rewrite /susp_p_ser_spec_at.
+               iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+               wp_pures.
+               wp_apply ("HatA" $! E q with "[//] [$Htok $Hintr]").
+               iIntros "(Htok & Hintr & Hreach)". wp_pures.
+               unfold inl_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
+               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
+               iDestruct (susp_ser_p_real_sum_γl_empty_l with "HrealA' Hbig'")
+                 as %->.
+               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+             iSplitR.
+             { iExists a1A', sA. iLeft. iSplit; [iApply "HrealA'"|done]. }
+             iFrame "Hserpred".
+             iRight. iSplit.
+             { iPureIntro. intros ->. 
+               replace (Z.to_nat 0) with 0 in HtagR by done.
+               replace (Z.to_nat 2) with 2 in HtagR by done.
+               rewrite /inl_ser_str /= in HtagR.
+               rewrite substring_n_0 in HtagR. simplify_eq. }
+             rewrite interp_un_sum_unfold.
+             iExists a1A'. iLeft. iSplit; [done|].
+             interp_unfold!. iApply "HAun'".
+          -- (* no tag parses *)
+             iPoseProof "HA_un" as "HAu".
+             iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+               in "HAu".
+             iDestruct "HAu" as (tAu ssAu usAu spAu uspAu ? ? ?)
+               "(%HeqAu & #HusserAu & #HsserAu & #HspbAu & _)".
+             injection HeqAu as <- <- <- <-.
+             iDestruct "HAc" as "[_ HAcun]".
+             wp_apply ("HspbAu" $! t1' w un_x with "[HAcun]").
+             { iSplit; [done|]. iSplit; [iApply "HserA'"|]. iApply "HAcun". }
+             iIntros (a1A' sA cA) "[HAun' #HrealA']".
+             wp_pures.
+             iApply ("HΨ" $! (InjLV a1A') (inl_ser_str sA) cA (tsum tAu tB)).
+             iModIntro.
+             iSplitR.
+             { iPoseProof (susp_p_ser_spec_at_intro with "HrealA' HsserAu")
+                 as "#HatA".
+               rewrite /susp_p_ser_spec_at.
+               iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+               wp_pures.
+               wp_apply ("HatA" $! E q with "[//] [$Htok $Hintr]").
+               iIntros "(Htok & Hintr & Hreach)". wp_pures.
+               unfold inl_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
+               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
+               iDestruct (susp_ser_p_real_sum_γl_empty_l with "HrealA' Hbig'")
+                 as %->.
+               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+             iSplitR.
+             { iExists a1A', sA. iLeft. iSplit; [iApply "HrealA'"|done]. }
+             iFrame "Hserpred".
+             iRight. iSplit.
+             { iPureIntro. intros ->. 
+               apply HtagL. rewrite /inl_ser_str /=.
+               by rewrite substring_n_0. }
+             rewrite interp_un_sum_unfold.
+             iExists a1A'. iLeft. iSplit; [done|].
+             interp_unfold!. iApply "HAun'".
+      + (* prover value is InjR w1 *)
+        destruct t' as [t1' t2'|t1' t2'| | |]; simpl in Hunsusp.
+        { destruct Hunsusp as (?&?&?&?&Heq&_). simplify_eq. }
+        2:{ iDestruct "Hser" as %(s' & Heq & _). simplify_eq. }
+        2:{ iDestruct "Hser" as %(z & Heq & _). simplify_eq. }
+        2:{ destruct Hunsusp as (?&?&?&?&?&Heq&_). simplify_eq. }
+        destruct Hunsusp as [(? & ? & Heq & _)|(y & un_y & Heq & -> & Huny)];
+          simplify_eq.
+        iDestruct "Hser" as (w s1_def) "[[_ [%HeqL _]] | [#HserB' [%HeqR %Hsdef]]]";
+          simplify_eq.
+        wp_pures. wp_bind (p_spB _).
+        interp_unfold! in "HBc".
+        v_pures; try solve_vals_compare_safe.
+        case_bool_decide as HtagL; v_pures; try solve_vals_compare_safe.
+        * (* L-tag while the prover is InjR *)
+             iPoseProof "HB_un" as "HBu".
+             iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+               in "HBu".
+             iDestruct "HBu" as (tBu ssBu usBu spBu uspBu ? ? ?)
+               "(%HeqBu & #HusserBu & #HsserBu & #HspbBu & _)".
+             injection HeqBu as <- <- <- <-.
+             iDestruct "HBc" as "[_ HBcun]".
+             wp_apply ("HspbBu" $! t2' w un_y with "[HBcun]").
+             { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
+             iIntros (a1B' sB cB) "[HBun' #HrealB']".
+             wp_pures.
+             iApply ("HΨ" $! (InjRV a1B') (inr_ser_str sB) cB (tsum tA tBu)).
+             iModIntro.
+             iSplitR.
+             { iPoseProof (susp_p_ser_spec_at_intro with "HrealB' HsserBu")
+                 as "#HatB".
+               rewrite /susp_p_ser_spec_at.
+               iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+               wp_pures.
+               wp_apply ("HatB" $! E q with "[//] [$Htok $Hintr]").
+               iIntros "(Htok & Hintr & Hreach)". wp_pures.
+               unfold inr_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
+               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
+               iDestruct (susp_ser_p_real_sum_γl_empty_r with "HrealB' Hbig'")
+                 as %->.
+               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+             iSplitR.
+             { iExists a1B', sB. iRight. iSplit; [iApply "HrealB'"|done]. }
+             iFrame "Hserpred".
+             iRight. iSplit.
+             { iPureIntro. intros ->. 
+               replace (Z.to_nat 0) with 0 in HtagL by done.
+               replace (Z.to_nat 2) with 2 in HtagL by done.
+               rewrite /inr_ser_str /= in HtagL.
+               rewrite substring_n_0 in HtagL. simplify_eq. }
+             rewrite interp_un_sum_unfold.
+             iExists a1B'. iRight. iSplit; [done|].
+             interp_unfold!. iApply "HBun'".
+        * case_bool_decide as HtagR; v_pures.
+          -- (* R-tag: couple with the B component *)
+             v_bind (v_parB _).
+             wp_apply ("HinnerB" with "[$HBc $HserB' $Hserpred $Hvm $Hlgp $Hpenc $Hv]").
+             { done. }
+             iIntros (a1B' s_realB cB t_realB)
+               "(#HspecatB & #HrealB & _ & HpostB)".
+             wp_pures.
+             iDestruct "HpostB" as "[HmatchB | [%HnmB #HunB]]".
+             ** (* component match *)
+                iDestruct "HmatchB" as "([%HspB %HtB] & #HunB1' & %γl & %mlg' & %a2B' &
+                    Hlgp' & %Hsz & Hpens & #HpserpB' & Hv & Hbig & Hpenc' & Hvm' & Hwand)".
+                iSimpl in "Hv". v_pures.
+                subst t_realB.
+                injection HtagR as HtagR'.
+                replace (Z.to_nat 0) with 0 in HtagR' by done.
+                replace (Z.to_nat 2) with 2 in HtagR' by done.
+                replace (Z.to_nat 2) with 2 in HspB by done.
+                replace (Z.to_nat (String.length s_pred - 2))
+                  with (String.length s_pred - 2)%nat in HspB by lia.
+                assert (2 ≤ String.length s_pred)%nat as Hlen2.
+                { replace 2 with (String.length "R_") at 1; [|done].
+                  rewrite -HtagR'. apply length_substring_le. }
+                assert (s_pred = inr_ser_str s_realB) as ->.
+                { rewrite {1}(substring_split_from_O s_pred 2) //.
+                  by rewrite /inr_ser_str HtagR' HspB. }
+                destruct cB as [|cB'']; last first.
+                { (* cB > 0: suspensions under a sum are unreachable by
+                     design — standing exclusion. *)
+                  admit. }
+                apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+                iApply ("HΨ" $! (InjRV a1B') (inr_ser_str s_realB) 0 (tsum tA tB)).
+                iModIntro.
+                iSplitR.
+                { rewrite /susp_p_ser_spec_at.
+                  iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+                  wp_pures.
+                  wp_apply ("HspecatB" $! E q with "[//] [$Htok $Hintr]").
+                  iIntros "(Htok & Hintr & Hreach)". wp_pures.
+                  unfold inr_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
+                  iIntros (γl') "Hg Hpen %Hsz' Hbig'".
+                  iDestruct (susp_ser_p_real_sum_γl_empty_r with "HrealB Hbig'") as %->.
+                  iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+                iSplitR.
+                { iExists a1B', s_realB. iRight. iSplit; [iApply "HrealB"|done]. }
+                iFrame "Hserpred".
+                iLeft. iSplit; [done|].
+                iSplitR.
+                { rewrite interp_un_sum_unfold. iExists a1B'. iRight.
+                  iSplit; [done|]. interp_unfold!.
+                  iDestruct "HunB1'" as "HunB1c". iApply "HunB1c". }
+                iExists ∅, mlg', (InjRV a2B').
+                iFrame "Hlgp' Hpens Hv".
+                iSplit; [by rewrite size_empty|].
+                iSplit.
+                { iExists a1B', s1_def. iRight. iSplit; [iApply "HpserpB'"|done]. }
+                iSplit. { by rewrite big_sepS_empty. }
+                iSplitL "Hpenc'"; [by iFrame "Hpenc'"|].
+                iFrame "Hvm'".
+                iIntros "Hcap _ #Hmint".
+                iMod ("Hwand" with "Hcap [//] Hmint") as "(HBf & Hcnt & Hserv)".
+                iModIntro.
+                iSplitL "HBf".
+                { iEval (rewrite interp_sum_combined).
+                  iExists a1B', a2B', w3. iRight.
+                  do 3 (iSplit; [done|]). interp_unfold!. iApply "HBf". }
+                iDestruct "Hcnt" as "(#Hcap' & _ & Hc & Hagg)".
+                iSplitL "Hc".
+                { iFrame "Hcap'". iSplit; [done|]. iSplitL "Hc".
+                  - iRight. iExists a2B'. iSplit; [done|].
+                    by iApply sub_susp_count_c0_vout.
+                  - by iLeft. }
+                iExists a2B', s1_def. iRight. iSplit; [iExact "Hserv"|done].
+             ** (* component mismatch *)
+                injection HtagR as HtagR'.
+                replace (Z.to_nat 0) with 0 in HtagR' by done.
+                replace (Z.to_nat 2) with 2 in HtagR' by done.
+                replace (Z.to_nat 2) with 2 in HnmB by done.
+                replace (Z.to_nat (String.length s_pred - 2))
+                  with (String.length s_pred - 2)%nat in HnmB by lia.
+                iApply ("HΨ" $! (InjRV a1B') (inr_ser_str s_realB) cB
+                          (tsum tA t_realB)).
+                iModIntro.
+                iSplitR.
+                { rewrite /susp_p_ser_spec_at.
+                  iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+                  wp_pures.
+                  wp_apply ("HspecatB" $! E q with "[//] [$Htok $Hintr]").
+                  iIntros "(Htok & Hintr & Hreach)". wp_pures.
+                  unfold inr_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
+                  iIntros (γl') "Hg Hpen %Hsz' Hbig'".
+                  iDestruct (susp_ser_p_real_sum_γl_empty_r with "HrealB Hbig'") as %->.
+                  iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+                iSplitR.
+                { iExists a1B', s_realB. iRight. iSplit; [iApply "HrealB"|done]. }
+                iFrame "Hserpred".
+                iRight. iSplit.
+                { iPureIntro. intros Heqs. apply HnmB.
+                  rewrite Heqs /inr_ser_str /=.
+                  by rewrite /= Nat.sub_0_r substring_0_length. }
+                rewrite interp_un_sum_unfold.
+                iExists a1B'. iRight. iSplit; [done|].
+                interp_unfold!. iDestruct "HunB" as "HunB'". iApply "HunB'".
+          -- (* no tag parses *)
+             iPoseProof "HB_un" as "HBu".
+             iEval (rewrite /lrel_evidence /lrel_evidence' /lrel_un_evidence /=)
+               in "HBu".
+             iDestruct "HBu" as (tBu ssBu usBu spBu uspBu ? ? ?)
+               "(%HeqBu & #HusserBu & #HsserBu & #HspbBu & _)".
+             injection HeqBu as <- <- <- <-.
+             iDestruct "HBc" as "[_ HBcun]".
+             wp_apply ("HspbBu" $! t2' w un_y with "[HBcun]").
+             { iSplit; [done|]. iSplit; [iApply "HserB'"|]. iApply "HBcun". }
+             iIntros (a1B' sB cB) "[HBun' #HrealB']".
+             wp_pures.
+             iApply ("HΨ" $! (InjRV a1B') (inr_ser_str sB) cB (tsum tA tBu)).
+             iModIntro.
+             iSplitR.
+             { iPoseProof (susp_p_ser_spec_at_intro with "HrealB' HsserBu")
+                 as "#HatB".
+               rewrite /susp_p_ser_spec_at.
+               iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+               wp_pures.
+               wp_apply ("HatB" $! E q with "[//] [$Htok $Hintr]").
+               iIntros "(Htok & Hintr & Hreach)". wp_pures.
+               unfold inr_ser_str. iApply "HΨ'". iModIntro. iFrame "Htok Hintr".
+               iIntros (γl') "Hg Hpen %Hsz' Hbig'".
+               iDestruct (susp_ser_p_real_sum_γl_empty_r with "HrealB' Hbig'")
+                 as %->.
+               iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+             iSplitR.
+             { iExists a1B', sB. iRight. iSplit; [iApply "HrealB'"|done]. }
+             iFrame "Hserpred".
+             iRight. iSplit.
+             { iPureIntro. intros ->. 
+               apply HtagR. rewrite /inr_ser_str /=.
+               by rewrite substring_n_0. }
+             rewrite interp_un_sum_unfold.
+             iExists a1B'. iRight. iSplit; [done|].
+             interp_unfold!. iApply "HBun'".
     - (* 4. unsuspend_spec *)
       rewrite /unsuspend_spec.
       iIntros (E a1 a2 a3 HE Ψ) "!# (HA & Htok & Hintr) HΨ".
@@ -438,7 +847,81 @@ Section authenticatable.
       iIntros (γl) "Hg Hpen %Hsz Hbig".
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
-    - (* 3. suspend_v_deser_spec (combined) *) admit.
+    - (* 3. suspend_v_deser_spec (combined) *)
+      rewrite /suspend_v_deser_spec.
+      iIntros "!#" (K tᵥ3 pid) "Hv".
+      v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      rewrite /id. wp_pure _.
+      iPoseProof "HA" as "[HAt #HAun]".
+      iDestruct "HAt" as %(sv & -> & -> & ->).
+      (* [A] forces a string literal, so [Hser] refutes every t' ≠ tstring. *)
+      destruct t'; simpl in Hunsusp.
+      { iDestruct "Hser" as (v1 v2 s1 s2) "[%Hp _]".
+        destruct Hp as [Hp _]. simplify_eq. }
+      { iDestruct "Hser" as (w s') "[[_ %Hp] | [_ %Hp]]";
+          destruct Hp as [Hp _]; simplify_eq. }
+      2:{ iDestruct "Hser" as %(z & Hp & _). simplify_eq. }
+      2:{ iDestruct "Hser" as %(p & lb & lr & a & h & Hp & _). simplify_eq. }
+      (* t' = tstring *)
+      iDestruct "Hser" as %(s' & Heq & ->). injection Heq as <-. subst un_a1.
+      iMod penset_frag_empty as "Hpen0".
+      (* The serializer spec at the result — shared by match and mismatch. *)
+      iAssert (susp_p_ser_spec_at string_ser tstring 0 #sv
+                 (string_ser_str sv)) with "[]" as "#Hspecat".
+      { rewrite /susp_p_ser_spec_at.
+        iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+        rewrite /string_ser. wp_pures.
+        iApply "HΨ'". iModIntro. iFrame "Htok".
+        iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+        iDestruct "Hintr" as "[$ _]".
+        iIntros (γl) "Hg Hpen %Hsz Hbig".
+        apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+        iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+      destruct (decide (s_pred = string_ser_str sv)) as [->|Hne].
+      + (* match: the verifier parses the real serialization back to #sv *)
+        rewrite /string_deser. v_pures; try solve_vals_compare_safe.
+        iEval (rewrite substring_n_0) in "Hv".
+        iEval (rewrite bool_decide_eq_true_2 //) in "Hv".
+        v_pures.
+        assert (Z.to_nat (S (S (String.length sv)) - 2) = String.length sv)
+          as Hlen by lia.
+        iEval (rewrite Hlen substring_0_length) in "Hv".
+        v_pures.
+        iApply ("HΨ" $! #sv (string_ser_str sv) 0 tstring).
+        iFrame "Hspecat Hserpred". iModIntro.
+        iSplitR. { iPureIntro. naive_solver. }
+        iLeft. iSplit; [done|].
+        iSplitR; [iApply "HAun"|].
+        iExists ∅, mlg_p, #sv.
+        iFrame "Hlgp Hpen0 Hv".
+        iSplit; [by rewrite size_empty|].
+        iSplit. { iPureIntro. by exists sv. }
+        iSplit. { by rewrite big_sepS_empty. }
+        iSplitL "Hpenc"; [by iFrame "Hpenc"|].
+        rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
+        iFrame "Hvm".
+        (* the decoration wand: everything is pure at c = 0 *)
+        iIntros "#Hcap _ #Hmint". iModIntro.
+        iSplit. { iSplit; [by iExists sv|]. iApply "HAun". }
+        iSplit.
+        { iFrame "Hcap". iSplit; [done|]. iSplit.
+          - iSplit; [by iExists sv|done].
+          - by iLeft. }
+        iPureIntro. by exists sv.
+      + (* mismatch: parse fails or parses to a different string *)
+        rewrite /string_deser. v_pures; try solve_vals_compare_safe.
+        case_bool_decide as Htag; v_pures.
+        * iApply ("HΨ" $! #sv (string_ser_str sv) 0 tstring).
+          iFrame "Hspecat Hserpred". iModIntro.
+        iSplitR. { iPureIntro. naive_solver. }
+          iRight. iSplit; [done|]. by iExists sv.
+        * iApply ("HΨ" $! #sv (string_ser_str sv) 0 tstring).
+          iFrame "Hspecat Hserpred". iModIntro.
+        iSplitR. { iPureIntro. naive_solver. }
+          iRight. iSplit; [done|]. by iExists sv.
 
     - (* 4. unsuspend_spec *)
       rewrite /unsuspend_spec.
@@ -536,7 +1019,77 @@ Section authenticatable.
       iIntros (γl) "Hg Hpen %Hsz Hbig".
       apply size_empty_inv in Hsz. fold_leibniz. subst γl.
       iFrame "Hg Hpen". by rewrite big_sepS_empty.
-    - (* 3. suspend_v_deser_spec (combined) *) admit.
+    - (* 3. suspend_v_deser_spec (combined) *)
+      rewrite /suspend_v_deser_spec.
+      iIntros "!#" (K tᵥ3 pid) "Hv".
+      v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      rewrite /id. wp_pure _.
+      iPoseProof "HA" as "[HAt #HAun]".
+      iDestruct "HAt" as %(zv & -> & -> & ->).
+      (* [A] forces an int literal, so [Hser] refutes every t' ≠ tint. *)
+      destruct t'; simpl in Hunsusp.
+      { iDestruct "Hser" as (v1 v2 s1 s2) "[%Hp _]".
+        destruct Hp as [Hp _]. simplify_eq. }
+      { iDestruct "Hser" as (w s') "[[_ %Hp] | [_ %Hp]]";
+          destruct Hp as [Hp _]; simplify_eq. }
+      { iDestruct "Hser" as %(s' & Hp & _). simplify_eq. }
+      2:{ iDestruct "Hser" as %(p & lb & lr & a & h & Hp & _). simplify_eq. }
+      (* t' = tint *)
+      iDestruct "Hser" as %(z & Heq & ->). injection Heq as <-. subst un_a1.
+      iMod penset_frag_empty as "Hpen0".
+      iAssert (susp_p_ser_spec_at int_ser tint 0 #zv
+                 (int_ser_str zv)) with "[]" as "#Hspecat".
+      { rewrite /susp_p_ser_spec_at.
+        iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+        rewrite /int_ser. wp_pures.
+        iApply "HΨ'". iModIntro. iFrame "Htok".
+        iEval (rewrite -{1}(Qp.div_2 q) intransit_split) in "Hintr".
+        iDestruct "Hintr" as "[$ _]".
+        iIntros (γl) "Hg Hpen %Hsz Hbig".
+        apply size_empty_inv in Hsz. fold_leibniz. subst γl.
+        iFrame "Hg Hpen". by rewrite big_sepS_empty. }
+      destruct (decide (s_pred = int_ser_str zv)) as [->|Hne].
+      + (* match: the verifier parses the real serialization back to #zv *)
+        rewrite /int_deser. v_pures; try solve_vals_compare_safe.
+        iEval (rewrite substring_n_0) in "Hv".
+        iEval (rewrite bool_decide_eq_true_2 //) in "Hv".
+        v_pures.
+        assert (Z.to_nat (S (S (String.length (StringOfZ zv))) - 2)
+                  = String.length (StringOfZ zv)) as Hlen by lia.
+        iEval (rewrite Hlen substring_0_length) in "Hv".
+        v_pures.
+        iEval (rewrite ZOfString_inv) in "Hv".
+        v_pures; try solve_vals_compare_safe.
+        iEval (rewrite bool_decide_eq_true_2 //) in "Hv".
+        v_pures.
+        iApply ("HΨ" $! #zv (int_ser_str zv) 0 tint).
+        iFrame "Hspecat Hserpred". iModIntro.
+        iSplitR. { iPureIntro. naive_solver. }
+        iLeft. iSplit; [done|].
+        iSplitR; [iApply "HAun"|].
+        iExists ∅, mlg_p, #zv.
+        iFrame "Hlgp Hpen0 Hv".
+        iSplit; [by rewrite size_empty|].
+        iSplit. { iPureIntro. by exists zv. }
+        iSplit. { by rewrite big_sepS_empty. }
+        iSplitL "Hpenc"; [by iFrame "Hpenc"|].
+        rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
+        iFrame "Hvm".
+        iIntros "#Hcap _ #Hmint". iModIntro.
+        iSplit. { iSplit; [by iExists zv|]. iApply "HAun". }
+        iSplit.
+        { iFrame "Hcap". iSplit; [done|]. iSplit.
+          - iSplit; [by iExists zv|done].
+          - by iLeft. }
+        iPureIntro. by exists zv.
+      + (* mismatch: no need to step the verifier — the post drops it *)
+        iApply ("HΨ" $! #zv (int_ser_str zv) 0 tint).
+        iFrame "Hspecat Hserpred". iModIntro.
+        iSplitR. { iPureIntro. naive_solver. }
+        iRight. iSplit; [done|]. by iExists zv.
 
     - (* 4. unsuspend_spec *)
       rewrite /unsuspend_spec.
@@ -702,7 +1255,59 @@ Section authenticatable.
       wp_apply ("HsserA" $! _ _ _ c q with "[//] [$Hser $Htok $Hintr]").
       iIntros "(Htok & Hintr & HreachA)".
       iApply "HΨ". iFrame.
-    - (* 3. suspend_v_deser_spec (combined) *) admit.
+    - (* 3. suspend_v_deser_spec (combined) — delegation to the component:
+         the outer fupd picks the eta-wrapped deser as v_deser_par; the
+         component's own outer fupd is consumed inside the inner triple at
+         the extended evaluation context (fill-trick), and wp_pures' later
+         stripping turns ▷⟦μ⟧ into the component's ▷⟦F μ⟧ for free. *)
+      rewrite /suspend_v_deser_spec.
+      iIntros "!#" (K tᵥ1 pid) "Hv".
+      v_pures.
+      iModIntro. iExists _. iFrame "Hv".
+      iIntros "!#" (t' a1 un_a1 a2 a3 s_def s_pred s_reg vm mp pn ctr mlg_p K' tᵥ' Ψ).
+      iIntros "!# (%Hunsusp & #HA & #Hser & #Hserpred & Hvm & Hlgp & Hpenc & Hv) HΨ".
+      rewrite /rec_fold. wp_pures.
+      iEval (rewrite interp_rec_star_unfold) in "HA".
+      interp_unfold! in "HA".
+      v_pures.
+      v_bind (v_dA _).
+      iMod ("HsuspvdeserA" with "Hv") as (v_parA) "(Hv & #HinnerA) /=".
+      wp_apply ("HinnerA" with "[$HA $Hser $Hserpred $Hvm $Hlgp $Hpenc $Hv]").
+      { done. }
+      iIntros (a1' s_real c t_real) "(#Hspecat & #Hreal & _ & Hpost)".
+      iAssert (∀ (ser : val), susp_p_ser_spec_at ser t_real c a1' s_real -∗
+                 susp_p_ser_spec_at (λ: "a", rec_fold ser "a")%V t_real c a1' s_real)%I
+        with "[]" as "#Hwrap".
+      { iIntros (ser) "#Hat".
+        rewrite /susp_p_ser_spec_at.
+        iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
+        rewrite /rec_fold. wp_pures.
+        wp_apply ("Hat" $! E q with "[//] [$Htok $Hintr]").
+        iIntros "(? & ? & ?)". iApply "HΨ'". iFrame. }
+      iDestruct "Hpost" as "[Hmatch | [%Hnm #Hun]]".
+      + iDestruct "Hmatch" as "([%Hsp %Htr] & #Hun1' & %γl & %mlg' & %a2' &
+            Hlgp' & %Hsz & Hpens & Hpserp' & Hv & Hbig & Hpenc' & Hvm' & Hwand)".
+        iApply ("HΨ" $! a1' s_real c t_real).
+        iSplitR. { by iApply "Hwrap". }
+        iFrame "Hreal Hserpred".
+        iLeft. iSplit; [by iPureIntro|].
+        iSplitR.
+        { rewrite interp_rec_star_un_unfold. interp_unfold!. iApply "Hun1'". }
+        iExists γl, mlg', a2'.
+        iFrame "Hlgp' Hpens Hpserp' Hv Hbig Hpenc' Hvm'".
+        iSplit; [done|].
+        iIntros "Hcap Hmap #Hmint".
+        iMod ("Hwand" with "Hcap [Hmap] Hmint") as "(HAf & Hcnt & Hserv)".
+        { subst t_real. iExact "Hmap". }
+        iModIntro.
+        iSplitL "HAf".
+        { rewrite interp_rec_star_unfold. interp_unfold!. iApply "HAf". }
+        subst t_real. iFrame "Hcnt Hserv".
+      + iApply ("HΨ" $! a1' s_real c t_real).
+        iSplitR. { by iApply "Hwrap". }
+        iFrame "Hreal Hserpred".
+        iRight. iSplit; [done|].
+        rewrite interp_rec_star_un_unfold. interp_unfold!. iApply "Hun".
 
     - (* 4. unsuspend_spec *)
       rewrite /unsuspend_spec.
