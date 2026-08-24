@@ -589,8 +589,10 @@ Section proof.
           { iNext. iLeft. iFrame "Hvmauth". iFrame "∗ %".
             iSplit. { iPureIntro; intros ??; apply Hidinv; lia. }
 
-            admit. (* rewrite set_fold as union. get disjointness.
-                      apply big_sepM_union. *) }
+            apply size_empty_inv in Hγl0. fold_leibniz. rewrite Hγl0.
+            rewrite set_fold_empty. iFrame.
+            iPureIntro. rewrite dom_insert set_seq_S_end_union_L.
+            set_solver. }
 
           iMod ("Hvfinish" $! ⊤ with "[] Htabtok Hlc Hvser Hvserspec Hc [Htok Hidtok Hintr Hpvfrag]
                 Hst Hv") as "(Hv & Htabtok & Htok & Hst & Hintr) /=".
