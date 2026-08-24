@@ -1283,11 +1283,15 @@ Section proof.
                     fold_leibniz. by apply (inj to_agree) in Hyequiv. }
 
               iDestruct "Hxc" as "(Hxcap & % & Hxc & Hxagg)".
-              
-              iMod (visited_update_done with 
+
+              iAssert (⌜cntr > pid⌝)%I as %Hcntrgt.
+              { destruct (le_gt_dec cntr pid) as [Hle|]; last by iPureIntro.
+                iDestruct (pval_snapshot_neq _ _ _ _ Hle with "Hpvuneq Hvfrag") as %?.
+                done. }
+              iMod (visited_update_done with
                   "Hvmauth Hidtok Hintr Hvfrag Hlbvfrag Hsusp Hxc")
                 as "(Hintr & Hvisdone & Hvmauth & Hxc & Hsusp & Hpvuneq')";
-                [ admit | done | ].
+                [ done | done | ].
 
               iAssert (sub_susp_count_frags t pv ctr pid Nc) with "[$Hxcap $Hxc $Hxagg //]" as "Hxc".
 
@@ -1304,17 +1308,16 @@ Section proof.
               iModIntro. iFrame "Htok Hintr Hc Hvmauth Hmauth".
               iSplitR "Hbigsep".
               { iRight. iFrame "#".
-                repeat (iSplit; eauto). admit. admit. }
-              admit. }          
+                repeat (iSplit; eauto). admit. }
+              admit. }
 
           case_bool_decide; simplify_eq; v_pures.
           -- v_bind (v_finish _).
             assert (size γl = 0) as -> by lia.
-            destruct! H5; simplify_eq; first admit.
+            destruct! H5; simplify_eq; first lia.
 
-            iDestruct "Hvmauth" as (?) "Hvmauth".
-            iAssert (⌜cntr = n0⌝)%I as "<-". { admit. }
-            set (vm'' := (<[γ0:=done_val cntr]> vm')).
+            iDestruct "Hvmauth" as (n0) "Hvmauth".
+            set (vm'' := (<[γ0:=done_val n0]> vm')).
 
             iAssert (
               |={⊤}=> ∃ E',
@@ -1340,9 +1343,13 @@ Section proof.
                 + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%& Hxcap & Hxunfill & Hxmfrag & %Hxmsub & Hxsusp & Hxproph)".
                   destruct! H5; simplify_eq.
               
-              - iAssert (⌜pid0 = pid⌝)%I as "->". { admit. }
-                iAssert (⌜susp0 = susp⌝)%I as "->". { admit. }
-                iAssert (⌜γ0 = γ⌝)%I as "->". { admit. }
+              - iAssert (⌜cntr > pid⌝)%I as %Hcntrgt.
+                { destruct (le_gt_dec cntr pid) as [Hle|]; last by iPureIntro.
+                  iDestruct (pval_snapshot_neq _ _ _ _ Hle with "Hpvuneq Hvfrag") as %?.
+                  done. }
+                iAssert (⌜pid0 = pid⌝)%I as "->". { admit. }
+                iDestruct (pval_frag_agree with "Hvfrag Hpvfrag'") as %<-.
+                iDestruct (lg_mapg_agree with "Hlbvfrag Hlbvfrag'") as "(<- & _ & _)".
                 iMod (na_inv_acc with "Hinv_authv Htok") as "(>Hinvo & Htok & Hclose)";
                   [solve_ndisj|solve_ndisj|].
                 iDestruct "Hinvo" as "[Hinv_1|Hinv_2]".
