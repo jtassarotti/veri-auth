@@ -1168,14 +1168,18 @@ Section proof.
     wp_apply (wp_resolve_proph_nil_string with "Hproph").
     iIntros (->). simplify_list_eq. wp_pures.
 
-    iDestruct "Hv" as "[(%ps2' &%w2' &%a2 & Hpc' & % & HA & Hv & Hvw & Hst)|[%|(%Hne & HA & Hst)]]"; last first.
-    { unfold lastn in Hne. 
+    iDestruct "Hv" as "[(%ps2' &%w2' &%a2 & Hpc' & %Heqrev & HA & Hv & Hvw & Hst)|[%|(%Hne & HA & Hst)]]"; last first.
+    { unfold lastn in Hne.
       assert (∀ {A} (x : list A), (length x) - (length x) = 0) by lia.
       specialize (H1 _ (longest_valid_prefix_string (map snd us))).
       rewrite H1 in Hne. simplify_list_eq. }
     { lia. }
 
-    assert (ps2' = []) as -> by admit.
+    assert (ps2' = []) as ->.
+    { assert (length (reverse ps2') = 0) as Hlen.
+      { apply (f_equal (@length _)) in Heqrev. rewrite app_length in Heqrev. lia. }
+      apply length_zero_iff_nil in Hlen.
+      apply (f_equal (@reverse _)) in Hlen. by rewrite reverse_involutive in Hlen. }
     simplify_list_eq.
 
     iMod (na_inv_acc with "Htab Htabtok") as "(Htabo & Htabtok & Htab_close)"; try solve_ndisj.
@@ -1185,10 +1189,10 @@ Section proof.
       last first.
     { by iPoseProof (tern_state_un_state_excl with "Hst Hstbad") as "?". }
 
-    assert (pn = sum_list lpn') as -> by admit.
-    
+    iDestruct (pn_agree with "Hvmauth Hpc'") as %<-.
+
     iDestruct "Hvw" as (??) "[[-> %] Hid']".
-    assert (cntr = idctr) as -> by admit.
+    iDestruct (id_ctr_frag_agree with "Hvmauth Hid'") as %->.
 
     v_pures. v_load.
 
