@@ -4,6 +4,7 @@ From auth.heap_lang Require Import primitive_laws derived_laws.
 From auth.heap_lang.lib Require Import list map.
 From auth.examples Require Export authentikit_susp.
 From auth.examples.susp_correctness Require Import definitions helpers finish_specs unauth_step.
+From auth.examples.susp_correctness Require Import base_correctness auth_pair auth_auth.
 From iris.base_logic.lib Require Export na_invariants fancy_updates.
 
 (** We need [i_Authentikit] to be an expression since [v_Authenticable] needs to initialize its
@@ -11,6 +12,40 @@ From iris.base_logic.lib Require Export na_invariants fancy_updates.
 Definition i_Authenticable : expr :=
   (i_Auth_auth, i_Auth_mu, i_Auth_pair, i_Auth_sum, i_Auth_string, i_Auth_int, i_auth, i_unauth).
 Definition i_Authentikit : expr := (i_return, i_bind, i_Authenticable).
+
+(** The closure [v_unauth #c] reduces to; naming it lets [refines_auth_unauth]
+    be stated as a value interpretation, so [refines_Authenticatable] can apply
+    it after the verifier's cache allocation has been executed. *)
+Definition v_unauth_cl (c : loc) : val :=
+  (λ: <> "evi" "a" "proof",
+     match: "a" with
+       InjL <> => InjL #()
+     | InjR "a" =>
+       let: "counter" := "proof" in
+       let: "pf_stream" := Fst "counter" in
+       let: "counter" := Snd "counter" in
+       match: list_head "pf_stream" with
+         InjL <> => InjL #()
+       | InjR "p" =>
+         let: "id" := "counter" in
+         let: "serialize" := "evi" in
+         let: "deserialize" := Snd (Fst "serialize") in
+         let: "count" := Snd "serialize" in
+         let: "serialize" := Fst (Fst "serialize") in
+         match: "deserialize" "id" "p" with
+           InjL <> => InjL #()
+         | InjR "x" =>
+           let: "nchild" := "count" "x" in
+           let: "finish" := v_finish #c "a" "x" "serialize" in
+           match: if: "nchild" = #0 then "finish" #()
+                  else #c <- map.map_insert "id" ("nchild", "finish") ! #c;;
+                       InjRV #() with
+             InjL <> => InjL #()
+           | InjR <> => InjR (list_tail "pf_stream", "id" + #1, "x")
+           end
+         end
+       end
+     end)%V.
 
 (** * Correctness proof *)
 Section proof.
@@ -409,14 +444,11 @@ Section proof.
 
   Lemma refines_auth_unauth Θ (Δ : ctxO Σ Θ) c :
     inv_v_susp_table c
-    ⊢ REL p_unauth << v_unauth #c << i_unauth :
-      ⟦ ∀: ⋆, var1 var0 → var3 var0 → var2 var0 ⟧
-      (ext (auth_ctx Δ) lrel_evidence).
+    ⊢ ⟦ ∀: ⋆, var1 var0 → var3 var0 → var2 var0 ⟧
+      (ext (auth_ctx Δ) lrel_evidence) p_unauth (v_unauth_cl c) i_unauth.
   Proof.
-    iIntros "#Htab" (????) "Hv Hi Htok".
-    rewrite /p_unauth /v_unauth /i_unauth.
-    v_pures; wp_pures.
-    iModIntro. iFrame. clear.
+    iIntros "#Htab".
+    rewrite /p_unauth /i_unauth /v_unauth_cl.
     iSplit; interp_unfold!; last first.
     { (* unary  *) admit. }
     iIntros (????) "!# _"; rewrite -!/interp.
@@ -794,7 +826,8 @@ Section proof.
             iMod ("Hclose" with "[$Htok Hsusp]") as "Htok".
             { iNext. iLeft. iFrame "Hsusp Hfilled Hlbvfrag Hvisfin". eauto. }
 
-            iAssert (visit_reached_done γ)%I as "#Hvisdone". { admit. }
+            iAssert (visit_reached_done γ)%I as "#Hvisdone".
+            { iDestruct (visit_finished_keep with "Hvisfin") as "[_ $]". }
 
             iMod ("Hclose_inv" with "[$Htok Hlb Hlr Hbrproph]") as "Htok".
             { iNext. iRight. iFrame "∗ #". iExists _.
@@ -952,6 +985,56 @@ Section proof.
     { by iIntros "!#" (??). }
 
     v_alloc as l "Hl". v_pures.
+    wp_pures.
+    iEval (rewrite /v_unauth /v_run_def) in "Hv".
+    v_pures. i_pures.
+    iDestruct "Hl" as "[Hl _]".
+    iMod (na_inv_alloc tabseqG_name ⊤ tableN (is_v_susp_table l)
+      with "[Hl]") as "#Htab".
+    { iNext. iLeft.
+      iExists x, ∅, ∅, ∅, 0, 0, ∅. iFrame "Hl".
+      (* initial ghost state for the fixed correctnessG gnames — must be
+         allocated where the instance is created (adequacy theorem) *)
+      admit. }
+    iModIntro. iExists _, _. iFrame "Hv Hi Htok".
+    iExists lrel_evidence; rewrite -!/interp.
+    iExists _, _, _, _, _, _; rewrite -!/interp.
+    do 3 (iSplit; [done|]).
+    iSplit; last first.
+    { iApply (refines_auth_unauth with "Htab"). }
+    iExists _, _, _, _, _, _; rewrite -!/interp.
+    do 3 (iSplit; [done|]).
+    iSplit; last first.
+    { iApply refines_auth_auth. }
+    iExists _, _, _, _, _, _; rewrite -!/interp.
+    do 3 (iSplit; [done|]).
+    iSplit; last first.
+    { interp_unfold!.
+      replace (⟦ t_nat ⟧ (ext (auth_ctx Δ) lrel_evidence))
+        with (LRelTern lrel_int lrel_un_int : lrel_tern Σ)
+        by (rewrite interp_unseal; reflexivity).
+      iApply refines_Auth_int. }
+    iExists _, _, _, _, _, _; rewrite -!/interp.
+    do 3 (iSplit; [done|]).
+    iSplit; last first.
+    { interp_unfold!.
+      replace (⟦ t_string ⟧ (ext (auth_ctx Δ) lrel_evidence))
+        with (LRelTern lrel_string lrel_un_string : lrel_tern Σ)
+        by (rewrite interp_unseal; reflexivity).
+      iApply refines_Auth_string. }
+    iExists _, _, _, _, _, _; rewrite -!/interp.
+    do 3 (iSplit; [done|]).
+    iSplit; last first.
+    { iApply refines_Auth_sum. }
+    iExists _, _, _, _, _, _; rewrite -!/interp.
+    do 3 (iSplit; [done|]).
+    iSplit; last first.
+    { iApply refines_Auth_pair. }
+    iExists _, _, _, _, _, _; rewrite -!/interp.
+    do 3 (iSplit; [done|]).
+    iSplit; last first.
+    { iApply refines_Auth_mu. }
+    iApply auth_auth.refines_Auth_auth.
   Admitted.
     
 
