@@ -1012,7 +1012,9 @@ Section proof.
 
             iMod ("Hvfinish" $! ⊤ with "[] Htabtok Hlc Hvser Hvserspec Hc
                     Htauthv Hst Hv") as "(Hv & Htabtok & Htok & Hst & Hintr) /=".
-            { iModIntro. iIntros (???) "_ _ _ _". admit. }
+            { iModIntro. iIntros (pid' psusp pγ) "%Hlt Hpv Hlg Hvis".
+              iPoseProof ("Hnmspc'" $! pid' psusp pγ with "[//] Hpv Hlg Hvis") as "%Hsub".
+              iPureIntro. clear -Hsub. set_solver. }
 
             v_pures. v_bind (list_tail _).
             iMod (gwp_list_tail ⊤ _ (s_real :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
@@ -1021,17 +1023,19 @@ Section proof.
 
             iApply ("HΨ"). iFrame "Htabtok Htok Hpr Hi Hintr".
             iModIntro. iSplitL "Hbuf".
-            { iPoseProof (big_sepL_cons (λ _, p_buffer_elem) with "Hbuf") as "Hbuf". 
-              assert 
-                (((p_finish, s_real, 0) :: combine (combine bufl ps1) lpn) = 
+            { iPoseProof (big_sepL_cons (λ _, p_buffer_elem) with "Hbuf") as "Hbuf".
+              assert
+                (((p_finish, s_real, 0) :: combine (combine bufl ps1) lpn) =
                   combine (combine (p_finish :: bufl) (s_real :: ps1)) (0 :: lpn))
                 as -> by done.
-              iFrame "Hbuf". admit. }
+              iFrame "Hbuf".
+              iPureIntro. exists prf1, v, (definitions.sum_list (0 :: lpn)).
+              simpl. split_and!; try done; lia. }
             iLeft. iExists ps2. iSimpl.
-            assert (pn' = definitions.sum_list lpn) as <- by admit.
+            assert (pn' = definitions.sum_list lpn) as <- by lia.
             iFrame "HA' Hv Hid Hpenc Hstok Hst".
             iSplit.
-            { iPureIntro. admit. }
+            { iPureIntro. by rewrite reverse_cons -assoc. }
 
             iPureIntro.
             eexists _. split; eauto.
@@ -1410,17 +1414,19 @@ Section proof.
 
             iApply ("HΨ"). iFrame "Htabtok Htok Hpr Hi Hintr".
             iModIntro. iSplitL "Hbuf".
-            { iPoseProof (big_sepL_cons (λ _, p_buffer_elem) with "Hbuf") as "Hbuf". 
-              assert 
-                (((p_finish, s_real, 0) :: combine (combine bufl ps1) lpn) = 
+            { iPoseProof (big_sepL_cons (λ _, p_buffer_elem) with "Hbuf") as "Hbuf".
+              assert
+                (((p_finish, s_real, 0) :: combine (combine bufl ps1) lpn) =
                   combine (combine (p_finish :: bufl) (s_real :: ps1)) (0 :: lpn))
                 as -> by done.
-              iFrame "Hbuf". admit. }
+              iFrame "Hbuf".
+              iPureIntro. exists prf1, v, (definitions.sum_list (0 :: lpn)).
+              simpl. split_and!; try done; lia. }
             iLeft. iExists ps2. iSimpl.
-            assert (pn' = definitions.sum_list lpn) as <- by admit.
+            assert (pn' = definitions.sum_list lpn) as <- by lia.
             iFrame "HA' Hv Hid Hpenc Hstok Hst".
             iSplit.
-            { iPureIntro. admit. }
+            { iPureIntro. by rewrite reverse_cons -assoc. }
 
             iPureIntro.
             eexists _. split; eauto.
