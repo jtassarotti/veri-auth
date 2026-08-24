@@ -1131,8 +1131,7 @@ Section proof.
           iDestruct "Htabo" as "[(%&%&%m2 &%& %idctr &%&%msp_2 & Hl & %Hm &
               Hbigsep &% & Hvmauth & %Hidinv & Hvisinv & Hst' & Hserp2 & %Hmspdom2) | Hst']";
             last first.
-          { admit. }
-            (* iPoseProof (state_agree with "Hst Hst'") as "(% & Hst & Hst')"; simplify_eq. *)
+          { by iPoseProof (tern_state_un_state_excl with "Hst Hst'") as "?". }
 
           iDestruct (id_ctr_frag_agree with "Hvmauth Hid") as "->".
           iMod (serpred_alloc msp_2 cntr s with "Hserp2") as "[Hserp2 #Hserpfrag]".
@@ -1542,8 +1541,7 @@ Section proof.
           iDestruct "Htabo" as "[(%&%&%m2 &%& %idctr &%&%msp_2 & Hl & %Hm &
               Hbigsep &% & Hvmauth & %Hidinv & Hvisinv & Hst' & Hserp2 & %Hmspdom2) | Hst']";
             last first.
-          { admit. }
-            (* iPoseProof (state_agree with "Hst Hst'") as "(% & Hst & Hst')"; simplify_eq. *)
+          { by iPoseProof (tern_state_un_state_excl with "Hst Hst'") as "?". }
 
           iDestruct (id_ctr_frag_agree with "Hvmauth Hid") as "->".
           iMod (serpred_alloc msp_2 cntr s with "Hserp2") as "[Hserp2 #Hserpfrag]".
