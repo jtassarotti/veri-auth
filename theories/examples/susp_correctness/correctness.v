@@ -557,7 +557,8 @@ Section proof.
         iEval (rewrite visited_map_update_pending_rewrite) in "Hvmauth".
         iMod (visited_deser_commit _ _ _ _ _ a2' c' with "Hvmauth Hid")
           as "(Hvmauth & Hid & Hidtok & Hpvfrag & Hcapf & Hmapf)".
-        iMod ("Hdecorate" with "Hcapf Hmapf []") as "(#HA' & Hc & Hvser)".
+        iMod ("Hdecorate" with "Hcapf Hmapf [] []") as "(#HA' & Hc & Hvser)".
+        { by destruct c'. }
         { admit. (* pval_snapshot minting for the fresh verifier locs at the
                     just-committed id — pending the general apartness lemma. *) }
 
@@ -806,7 +807,8 @@ Section proof.
           iEval (rewrite visited_map_update_pending_rewrite) in "Hvmauth".
           iMod (visited_deser_commit _ _ _ _ susp a2' c' with "Hvmauth Hid")
             as "(Hvmauth & Hid & Hidtok & #Hvfrag & Hcapf & Hmapf)".
-          iMod ("Hdecorate" with "Hcapf Hmapf []") as "(#HA' & Hc & Hvser)".
+          iMod ("Hdecorate" with "Hcapf Hmapf [] []") as "(#HA' & Hc & Hvser)".
+        { by destruct c'. }
           { admit. (* pval_snapshot minting for the fresh verifier locs at the
                       just-committed id — pending the general apartness lemma. *) }
 
@@ -1202,7 +1204,8 @@ Section proof.
           iEval (rewrite visited_map_update_pending_rewrite) in "Hvmauth".
           iMod (visited_deser_commit _ _ _ _ susp a2' c' with "Hvmauth Hid")
             as "(Hvmauth & Hid & Hidtok & #Hvfrag & Hcapf & Hmapf)".
-          iMod ("Hdecorate" with "Hcapf Hmapf []") as "(#HA' & Hc & Hvser)".
+          iMod ("Hdecorate" with "Hcapf Hmapf [] []") as "(#HA' & Hc & Hvser)".
+        { by destruct c'. }
           { admit. (* pval_snapshot minting for the fresh verifier locs at the
                       just-committed id — pending the general apartness lemma. *) }
 

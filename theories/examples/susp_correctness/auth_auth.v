@@ -572,13 +572,17 @@ Section authenticatable.
                     [lg_mapg_frag susp_new γ_new] is mintable from the
                     fresh susp's [vmeta_token] (step_verifier_alloc)
                     against the m_v held inside [visited_mapg_auth];
-                (2) [auth_susp_emp_v]'s [proph_v_susp p_v h] is
-                    unmintable: [step_verifier_newproph] yields no
-                    prophecy resource for spec-side prophecies;
-                (3) the emp_v invariant's [serpred_frag id ps] +
-                    [same_ser_for_fill] force [s_reg = filled_string h]
-                    for the prophesied [h] — not derivable for the
-                    universally quantified [s_reg]. *)
+                (2) [RESOLVED]: [proph_v_susp] dropped from
+                    [auth_susp_emp_v] — serpred plays the prophecy's
+                    role (fix 3);
+                (3) [RESOLVED]: the wand's c-scoped [⌜s_reg = s_def⌝]
+                    premise (fix 4) supplies exactly the string equality
+                    emp_v's [same_ser_for_fill] needs at c = 1.
+                No design gap remains — this arm is now provable work:
+                spec-side parse stepping, [visited_insert] +
+                [lg_p_insert] + [lg_v_bind_fresh] ghost registration,
+                emp_v/seq_inv allocation from the wand inputs, and the
+                A/count/ser_v payloads. *)
              admit.
           -- (* mismatch on the suspended string *)
              iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)
@@ -774,13 +778,17 @@ Section authenticatable.
                     [lg_mapg_frag susp_new γ_new] is mintable from the
                     fresh susp's [vmeta_token] (step_verifier_alloc)
                     against the m_v held inside [visited_mapg_auth];
-                (2) [auth_susp_emp_v]'s [proph_v_susp p_v h] is
-                    unmintable: [step_verifier_newproph] yields no
-                    prophecy resource for spec-side prophecies;
-                (3) the emp_v invariant's [serpred_frag id ps] +
-                    [same_ser_for_fill] force [s_reg = filled_string h]
-                    for the prophesied [h] — not derivable for the
-                    universally quantified [s_reg]. *)
+                (2) [RESOLVED]: [proph_v_susp] dropped from
+                    [auth_susp_emp_v] — serpred plays the prophecy's
+                    role (fix 3);
+                (3) [RESOLVED]: the wand's c-scoped [⌜s_reg = s_def⌝]
+                    premise (fix 4) supplies exactly the string equality
+                    emp_v's [same_ser_for_fill] needs at c = 1.
+                No design gap remains — this arm is now provable work:
+                spec-side parse stepping, [visited_insert] +
+                [lg_p_insert] + [lg_v_bind_fresh] ghost registration,
+                emp_v/seq_inv allocation from the wand inputs, and the
+                A/count/ser_v payloads. *)
              admit.
           -- (* mismatch on the suspended string *)
              iApply ("HΨ" $! (BoxV (#lb_new, #lr_new, un_a1_in, #(hash s_in), #p_new)%V)

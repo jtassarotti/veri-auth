@@ -368,8 +368,8 @@ Section authenticatable.
              iSplitL "Hpenc'"; [by iFrame "Hpenc'"|].
              iFrame "Hvm'".
              (* the sum-level decoration wand, composing the component's *)
-             iIntros "Hcap _ #Hmint".
-             iMod ("Hwand" with "Hcap [//] Hmint") as "(HAf & Hcnt & Hserv)".
+             iIntros "Hcap _ _ #Hmint".
+             iMod ("Hwand" with "Hcap [//] [//] Hmint") as "(HAf & Hcnt & Hserv)".
              iModIntro.
              iSplitL "HAf".
              { iEval (rewrite interp_sum_combined).
@@ -603,8 +603,8 @@ Section authenticatable.
                 iSplit. { by rewrite big_sepS_empty. }
                 iSplitL "Hpenc'"; [by iFrame "Hpenc'"|].
                 iFrame "Hvm'".
-                iIntros "Hcap _ #Hmint".
-                iMod ("Hwand" with "Hcap [//] Hmint") as "(HBf & Hcnt & Hserv)".
+                iIntros "Hcap _ _ #Hmint".
+                iMod ("Hwand" with "Hcap [//] [//] Hmint") as "(HBf & Hcnt & Hserv)".
                 iModIntro.
                 iSplitL "HBf".
                 { iEval (rewrite interp_sum_combined).
@@ -904,7 +904,7 @@ Section authenticatable.
         rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
         iFrame "Hvm".
         (* the decoration wand: everything is pure at c = 0 *)
-        iIntros "#Hcap _ #Hmint". iModIntro.
+        iIntros "#Hcap _ _ #Hmint". iModIntro.
         iSplit. { iSplit; [by iExists sv|]. iApply "HAun". }
         iSplit.
         { iFrame "Hcap". iSplit; [done|]. iSplit.
@@ -1078,7 +1078,7 @@ Section authenticatable.
         iSplitL "Hpenc"; [by iFrame "Hpenc"|].
         rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
         iFrame "Hvm".
-        iIntros "#Hcap _ #Hmint". iModIntro.
+        iIntros "#Hcap _ _ #Hmint". iModIntro.
         iSplit. { iSplit; [by iExists zv|]. iApply "HAun". }
         iSplit.
         { iFrame "Hcap". iSplit; [done|]. iSplit.
@@ -1296,9 +1296,10 @@ Section authenticatable.
         iExists γl, mlg', a2'.
         iFrame "Hlgp' Hpens Hpserp' Hv Hbig Hpenc' Hvm'".
         iSplit; [done|].
-        iIntros "Hcap Hmap #Hmint".
-        iMod ("Hwand" with "Hcap [Hmap] Hmint") as "(HAf & Hcnt & Hserv)".
+        iIntros "Hcap Hmap Hsr #Hmint".
+        iMod ("Hwand" with "Hcap [Hmap] [Hsr] Hmint") as "(HAf & Hcnt & Hserv)".
         { subst t_real. iExact "Hmap". }
+        { subst t_real. iExact "Hsr". }
         iModIntro.
         iSplitL "HAf".
         { rewrite interp_rec_star_unfold. interp_unfold!. iApply "HAf". }
