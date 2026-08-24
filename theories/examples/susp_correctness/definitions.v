@@ -379,7 +379,13 @@ Section authenticatable_definitions.
     | tsum t1 t2 => sum_is_ser' v s (ser_v t1) (ser_v t2)
     | tstring => string_is_ser v s
     | tint => int_is_ser v s
-    | tauth => ∃ v1, ⌜v = SOMEV v1⌝ ∗ auth_fill_ser_v v1 s
+    | tauth => ∃ v1, ⌜v = SOMEV v1⌝ ∗
+                 (auth_fill_ser_v v1 s ∨
+                  (* filled-through-a-susp: the ¼ points-to budget lives
+                     with the count/proph structures, not with
+                     [auth_ser_spec] — this form is pure. *)
+                  ∃ (h : string) (susp : loc),
+                    ⌜s = filled_string h ∧ v1 = InjRV #susp⌝)
     end.
  
   #[global] Instance ser_v_persistent t v s : Persistent (ser_v t v s).

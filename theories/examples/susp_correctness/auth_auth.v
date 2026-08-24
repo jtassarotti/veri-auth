@@ -1535,26 +1535,93 @@ Section authenticatable.
         iFrame "Hspec".
         iExists (InjRV #susp). iSplit; [done|]. iRight. iLeft.
         iExists _, susp. iFrame "Hpts'". done.
-    - (* 6. auth_ser_spec
-         BLOCKED on a hash-format inconsistency in the CODE, surfaced by
-         the coupled spec's same-string postcondition:
-         - prover: [auth_unsusp_ser_p] (authenticatable_base_susp.v:149)
-           serializes the box's hash field BARE — [string_ser "h"], i.e.
-           [simple_string h] (matching [auth_unsusp_ser_p]/[unsusp_ser_p
-           tauth], definitions.v:219);
-         - verifier: [auth_ser_v] (authenticatable_base_susp.v:29)
-           serializes [SOME h] via [auth_scheme], i.e. [filled_string h =
-           some_ser_str (simple_string h)] (matching [ser_v tauth]).
-         Both feed [Hash] in [p_auth]/[v_auth], so for auth-of-auth the
-         two sides hash DIFFERENT strings and [auth_pv]'s same-hash
-         obligation is unsatisfiable regardless of the spec's shape.
-         (In the non-susp original, authenticatable_base.v, both sides
-         serialize the bare hash string — the option wrapper is the
-         susp-side drift.) Likely fix: make [auth_unsusp_ser_p] (code)
-         SOME-wrap and change [auth_unsusp_ser_p]/[unsusp_ser_p tauth]
-         (predicate) to [filled_string h], making unsusp-format ≡
-         ser_v-format at every type; needs a design decision. *)
-      admit.
+    - (* 6. auth_ser_spec — provable after the SOME-wrap fix (both sides
+         serialize [filled_string h]); the only remaining gap is the
+         unfilled-suspender sub-case, where [auth_ser_v] returns NONEV
+         and the post's [SOMEV #s] cannot be met — ruling it out needs
+         an intransit/visit_finished-style exclusion in the pre or a
+         NONEV escape in the spec (design decision). *)
+      iIntros (K tᵥ6 a1 un_a1 a2 a3 s Ψ)
+        "!# (%Hunsusp & HAt & #Hser & Htok & Hv) HΨ".
+      destruct Hunsusp as (lb & lr & a & h & p & -> & ->).
+      iDestruct "Hser" as %(a' & h' & Heq & ->).
+      injection Heq as <- <-.
+      rewrite /authenticatable_base_susp.auth_unsusp_ser_p.
+      wp_pure _. (* strips the ▷ on HAt *)
+      iEval (rewrite /lrel_auth /=) in "HAt".
+      iEval (cbv [lrel_auth_tern lrel_car]) in "HAt".
+      iDestruct "HAt" as (t_in v2' a1_in a2_in un_a1_in s_in)
+        "([%Ha2eq %Hunsusp_in] & #Hser_in & HA_in & #Hpv)".
+      iDestruct "Hpv" as (lb_pv lr_pv ps_pv Ha1_eq) "Hpv_br".
+      injection Ha1_eq as -> -> -> -> ->.
+      subst a2.
+      rewrite /authenticatable_base_susp.auth_ser_v.
+      iDestruct "Hpv_br" as "[[%Hv2eq #Hinv_fill] | Hsusp]".
+      + (* verifier value is the bare hash *)
+        subst v2'.
+        v_pures.
+        rewrite /auth_scheme /option_serialization_scheme /=.
+        unfold s_serializer'. simpl.
+        rewrite /option_ser'''. v_pures.
+        rewrite /string_serialization /=.
+        unfold s_serializer'. simpl.
+        rewrite /string_ser' /string_ser. v_pures.
+        wp_pures.
+        wp_apply (s_ser_spec auth_scheme _ (InjRV #(hash s_in))).
+        { iRight. iExists _. iSplit; [done|]. by iExists (hash s_in). }
+        iIntros (sv) "#Hs".
+        iDestruct "Hs" as "[[%Hbad _] | (%w & %s' & [%Heqw ->] & #Hserw)]";
+          [done|].
+        injection Heqw as <-.
+        iDestruct "Hserw" as %(s0 & Heqw2 & ->). injection Heqw2 as <-.
+        iApply "HΨ".
+        rewrite /filled_string /simple_string /some_ser_str /string_ser_str.
+        iFrame "Htok Hv".
+        iExists (InjLV #(hash s_in)). iSplit; [done|].
+        iLeft. iExists (hash s_in). done.
+      + (* verifier value is a susp — load through the ver-susp invariant *)
+        iDestruct "Hsusp" as (γ_pv s'_pv susp_pv pid_pv Hv2eq)
+          "(#Hlbf & #Hinv_unfill & #Hsnap & #Hlbv & %Hs'eq & #Hinv_v)".
+        subst v2'.
+        v_pures.
+        v_bind (! _)%E.
+        iMod (na_inv_acc with "Hinv_v Htok") as "(>Hinvo & Htok & Hclose)";
+          [solve_ndisj|solve_ndisj|].
+        iDestruct "Hinvo" as "[Hfill_v | Hemp_v]"; last first.
+        { (* unfilled suspender: [auth_ser_v] would return NONEV — the
+             post's [SOMEV #s] is unreachable. Needs a pre-side
+             exclusion (intransit / visit_finished) or a NONEV escape
+             in the spec. *)
+          admit. }
+        iDestruct "Hfill_v" as (h2 susp2 γ2)
+          "([%Hs2 %Hv2] & Hpts & #Hfilled & #Hlbf2 & #Hfin2)".
+        assert (susp2 = susp_pv) as -> by (by simplify_eq).
+        assert (h2 = hash s_in) as ->.
+        { rewrite Hs'eq /filled_string /simple_string in Hs2.
+          by apply (inj some_ser_str), (inj string_ser_str) in Hs2. }
+        v_load. v_pures.
+        iMod ("Hclose" with "[$Htok Hpts]") as "Htok".
+        { iNext. iLeft. iExists (hash s_in), susp_pv, γ2.
+          iSplit; [by rewrite Hs'eq|]. iFrame "Hpts Hfilled Hlbf2 Hfin2". }
+        rewrite /auth_scheme /option_serialization_scheme /=.
+        unfold s_serializer'. simpl.
+        rewrite /option_ser'''. v_pures.
+        rewrite /string_serialization /=.
+        unfold s_serializer'. simpl.
+        rewrite /string_ser' /string_ser. v_pures.
+        wp_pures.
+        wp_apply (s_ser_spec auth_scheme _ (InjRV #(hash s_in))).
+        { iRight. iExists _. iSplit; [done|]. by iExists (hash s_in). }
+        iIntros (sv) "#Hs".
+        iDestruct "Hs" as "[[%Hbad _] | (%w & %s' & [%Heqw ->] & #Hserw)]";
+          [done|].
+        injection Heqw as <-.
+        iDestruct "Hserw" as %(s0 & Heqw2 & ->). injection Heqw2 as <-.
+        iApply "HΨ".
+        rewrite /filled_string /simple_string /some_ser_str /string_ser_str.
+        iFrame "Htok Hv".
+        iExists (InjRV #susp_pv). iSplit; [done|].
+        iRight. iExists (hash s_in), susp_pv. done.
     - (* 7. v_count_spec *)
       iIntros (K tᵥ7 a c id Nc v_outer) "!# Hcnt Hspec".
       iDestruct "Hcnt" as (vcnt ->) "Hbr".
