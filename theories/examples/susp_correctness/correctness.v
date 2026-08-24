@@ -1403,9 +1403,11 @@ Section proof.
             { (* table re-close: see the note at the first branch. *)
               iNext. iLeft. admit. }
 
-            iMod ("Hvfinish" $! ⊤ with "[] Htabtok Hlc Hvser Hvserspec Hc 
+            iMod ("Hvfinish" $! ⊤ with "[] Htabtok Hlc Hvser Hvserspec Hc
                     Htauthv Hst Hv") as "(Hv & Htabtok & Htok & Hst & Hintr) /=".
-            { iModIntro. iIntros (???) "_ _ _ _". admit. }
+            { iModIntro. iIntros (pid' psusp pγ) "%Hlt Hpv Hlg Hvis".
+              iPoseProof ("Hnmspc'" $! pid' psusp pγ with "[//] Hpv Hlg Hvis") as "%Hsub".
+              iPureIntro. clear -Hsub. set_solver. }
 
             v_pures. v_bind (list_tail _).
             iMod (gwp_list_tail ⊤ _ (s_real :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
