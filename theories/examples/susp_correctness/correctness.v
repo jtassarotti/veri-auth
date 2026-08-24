@@ -969,7 +969,7 @@ Section proof.
                     { inversion Hcgt; simplify_eq; try lia. }
                     split; eauto. }
 
-                  iModIntro. iExists _. iSplit; eauto.
+                  iModIntro. iExists (⊤ ∖ ↑ver_susp_n susp0). iSplit; first done.
                   iSplitR.
                   { iModIntro. iIntros (pid' psusp pγ Hpidlt) "H1 H2 H3".
                     admit. }
@@ -1349,7 +1349,7 @@ Section proof.
                     { inversion Hcgt; simplify_eq; try lia. }
                     split; eauto. }
 
-                  iModIntro. iExists _. iSplit; eauto.
+                  iModIntro. iExists (⊤ ∖ ↑ver_susp_n susp0). iSplit; first done.
                   iSplitR.
                   { iModIntro. iIntros (pid' psusp pγ Hpidlt) "H1 H2 H3".
                     admit. }
