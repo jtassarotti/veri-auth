@@ -1182,7 +1182,7 @@ Section proof.
     iDestruct "Htabo" as "[(%d &%m &%m' &%vm &%idctr &%pn &%msp & Hl & %Hm &
           Hbigsep & %Hszeq & Hvmauth & %Hidinv & Hvisinv & Hst' & Hserp & %Hmspdom) | Hstbad]";
       last first.
-    { admit. (* un_state case: contradict with the good-trace tern_state *) }
+    { by iPoseProof (tern_state_un_state_excl with "Hst Hstbad") as "?". }
 
     assert (pn = sum_list lpn') as -> by admit.
     
@@ -1207,7 +1207,7 @@ Section proof.
 
     iMod ("Htab_close" with "[$Htabtok Hl Hvmauth Hbigsep Hvisinv Hst' Hserp]") as "Htabtok".
     { iNext. iLeft. iFrame "Hl Hvmauth Hbigsep Hvisinv Hst' Hserp".
-      iFrame "%". admit. (* re-close pures *) }
+      iFrame "%". iPureIntro. lia. }
 
     destruct! Hmemp. simplify_eq. rewrite Hmsize.
     v_pures.
