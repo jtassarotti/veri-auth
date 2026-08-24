@@ -1695,14 +1695,20 @@ Section map_res.
 
   Definition mapg_type := gmap nat mapEntry.
 
+  Definition mapAliveEntry := dfrac_agreeR valO.
+
   Definition mapg_auth (m : mapg_type) : iProp Σ :=
     own mapG_name (● m).
 
   Definition mapg_auth_update_dead (pid : nat) (m : mapg_type) : iProp Σ :=
     own mapG_name (● (<[ pid := Cinr (to_agree ()) ]> m)).
 
+  Definition mapg_insert_val v : mapEntry := Cinl (to_frac_agree 1 v).
+
+  Definition mapg_alive_insert_val v : mapAliveEntry := to_frac_agree 1 v.
+
   Definition mapg_insert_def (m : mapg_type) k v : mapg_type :=
-    <[ k := Cinl (to_frac_agree 1 v) ]> m.
+    <[ k := mapg_insert_val v ]> m.
 
   (** Alive fragment: fraction [q] for key [k] and value [v]. A full
       fraction [q = 1] is exclusive (since [to_frac_agree 1 v] is
@@ -1839,15 +1845,15 @@ Section map_res.
   (** [mapg_alive m] is the alive subset of [m]: keys mapping to [Cinl _]
       are kept (with the underlying [dfrac_agreeR valO] value), tombstones
       are dropped. Lets consumers iterate only over live entries. *)
-  Definition mapg_alive (m : mapg_type) : gmap nat (dfrac_agreeR valO) :=
+  Definition mapg_alive (m : mapg_type) : gmap nat mapAliveEntry :=
     omap (λ e, match e with
                | Cinl x => Some x
                | _      => None
                end) m.
 
   Lemma mapg_alive_insert m k v :
-    mapg_alive (<[ k := Cinl (to_frac_agree 1 v) ]> m)
-      = <[ k := to_frac_agree 1 v ]> (mapg_alive m).
+    mapg_alive (<[ k := mapg_insert_val v ]> m)
+      = <[ k := mapg_alive_insert_val v ]> (mapg_alive m).
   Proof. apply (omap_insert_Some _ _ _ _ (to_frac_agree 1 v)). done. Qed.
 
   Lemma mapg_alive_remove m k :
