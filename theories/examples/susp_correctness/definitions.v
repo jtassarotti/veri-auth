@@ -272,6 +272,12 @@ Section authenticatable_definitions.
       ⌜s = suspended_string ∧ v = InjRV #susp⌝ ∗ 
       susp ↦ᵥ{#(1/2)} InjLV (#pid, #p) ∗ proph_v_susp p h. *)
 
+  (* No [proph_v_susp]: spec-side prophecies carry no resource
+     ([step_verifier_newproph] is a ghost no-op), so the future fill
+     value [h] is pinned by the invariant's string ([s = filled_string h],
+     itself fixed by [auth_pv]) and by the registered prediction
+     ([same_ser_for_fill] forces [ps = filled_string h]) — serpred plays
+     the prophecy's role. *)
   Definition auth_susp_emp_v (pid : nat) (v : val) (s : string) : iProp Σ :=
     ∃ (h : string) (susp : loc) (p : proph_id) pv pt ps N,
       ⌜s = filled_string h ∧ v = InjRV #susp⌝ ∗
@@ -279,7 +285,7 @@ Section authenticatable_definitions.
       mapg_frag pid (1 / (2 * pos_to_Qp (Pos.of_nat N)))%Qp pv ∗
       ⌜v_sub_obj pt pv #susp⌝ ∗ ⌜same_ser_for_fill pt pv ps susp h⌝ ∗
       serpred_frag pid ps ∗
-      susp ↦ᵥ{#(1/2)} InjLV (#pid, #p) ∗ proph_v_susp p h.
+      susp ↦ᵥ{#(1/2)} InjLV (#pid, #p).
 
   Definition auth_susp_fill_ser_v (v : val) (s : string) : iProp Σ :=
     ∃ (h : string) (susp : loc),

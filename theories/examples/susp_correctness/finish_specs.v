@@ -47,7 +47,7 @@ Section finish_specs.
           { iNext. iLeft. iFrame. eauto. }
           iFrame. iRight. iFrame "∗ #".
           eauto.
-        + iDestruct "Hinv_2" as "(%&%&%& Hlbfrag' & #Hvisfin & Hintr & (%&%&%&%&%&%&%&%& Hcap &       Hunfill & Hmfrag & %Hmsub & Hsusp & Hproph))".
+        + iDestruct "Hinv_2" as "(%&%&%& Hlbfrag' & #Hvisfin & Hintr & (%&%&%&%&%&%&%&%& Hcap &       Hunfill & Hmfrag & %Hmsub & Hsusp))".
           iDestruct (visited_mapg_acc with "Hvmauth") as "[Hmauth Hvmclose]".
           iPoseProof (mapg_auth_alive with "Hmauth Hmfrag") as (y) "%Hin".
           iDestruct ("Hvmclose" with "[//] Hmauth") as "Hvmauth".
@@ -137,7 +137,7 @@ Section finish_specs.
         iDestruct (visit_reached_done_inj with "Hvisdone Hvisit") as %->.
         iFrame "Hvisfin". *)
         
-      + iDestruct "Hinv_2" as "(%&%&%& Hlbfrag' & #Hvisfin & Hintr & (%&%&%&%&%&%&%&%& Hcap & Hunfill & Hmfrag & %Hmsub & %Hssf & #Hserpred_emp & Hsusp & Hproph))".
+      + iDestruct "Hinv_2" as "(%&%&%& Hlbfrag' & #Hvisfin & Hintr & (%&%&%&%&%&%&%&%& Hcap & Hunfill & Hmfrag & %Hmsub & %Hssf & #Hserpred_emp & Hsusp))".
 
         simplify_eq H1. intros <-.
         destruct H2 as [H2a H2].
@@ -346,7 +346,7 @@ Section finish_specs.
                 { intros ?. simplify_eq. }
                 by iApply "Hvis".
 
-              + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%Hxpure& Hxcap & Hxunfill & Hxmfrag & %Hxmsub & %Hxssf & #Hxserpred_emp & Hxsusp & Hxproph)".
+              + iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%Hxpure& Hxcap & Hxunfill & Hxmfrag & %Hxmsub & %Hxssf & #Hxserpred_emp & Hxsusp)".
                 destruct Hxpure as [Hxpurea Hxpureb].
                 simplify_eq Hxpureb. intros <-.
 
