@@ -980,9 +980,9 @@ Section authenticatable.
       iFrame "HvmB".
       (* the pair wand: compose both component wands; the shared cap_frag is
          persistent, and at c = 0 both frag inputs are emp *)
-      iIntros "#Hcap _ #Hmint".
-      iMod ("HwandA" with "Hcap [//] Hmint") as "(HAf & HcntA & HservA)".
-      iMod ("HwandB" with "Hcap [//] Hmint") as "(HBf & HcntB & HservB)".
+      iIntros "#Hcap _ _ #Hmint".
+      iMod ("HwandA" with "Hcap [//] [//] Hmint") as "(HAf & HcntA & HservA)".
+      iMod ("HwandB" with "Hcap [//] [//] Hmint") as "(HBf & HcntB & HservB)".
       iModIntro.
       iSplitL "HAf HBf".
       { iEval (rewrite interp_prod_combined).

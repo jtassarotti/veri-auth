@@ -558,6 +558,15 @@ Section authenticatable_definitions.
                   | 0%nat => emp
                   | _ => mapg_frag id 1 a2'
                   end) -∗
+                 (* The registered prediction coincides with the defined
+                    serialization — needed only where a suspension was
+                    actually created (the tauth leaf's emp_v invariant);
+                    [emp] at [c = 0] so compound paths thread it
+                    trivially. *)
+                 (match c with
+                  | 0%nat => emp
+                  | _ => ⌜s_reg = s_def⌝
+                  end) -∗
                  □(∀ susp : loc, vmeta_token susp ={⊤}=∗
                      vmeta_token susp ∗ pval_snapshot susp id) ={⊤}=∗
                    A a1' a2' a3 ∗
