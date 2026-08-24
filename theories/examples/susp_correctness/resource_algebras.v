@@ -61,14 +61,6 @@ Definition intransitUR := fracR.
 
 Definition stateUR := authUR (optionUR unitO).
 
-(* Single-instance token with two states:
-   - [None]   — unparameterized state
-   - [Some n] — state parameterized by [n : nat].
-   The full fraction (1) is exclusive; any two fragments agree on the
-   carried [option nat] and split/combine via fractional ownership.
-   At full fraction the value can be updated (e.g. unparameterized to
-   [Some n] or vice versa). *)
-Definition stateTokUR := dfrac_agreeR (leibnizO (option nat)).
 
 (* Per-loc two-state ghost. Tracks whether a suspended location has been
    filled or not. Each loc is bound to a fresh ghost name [γ] (via
@@ -126,8 +118,6 @@ Class correctnessG Σ := CorrectnessG {
   state_inG :> inG Σ stateUR;
   stateG_name : gname;
 
-  state_tok_inG :> inG Σ stateTokUR;
-  state_tok_name : gname;
 
   suspfilledmap_inG :> inG Σ suspfilledmapUR;
   suspfilledmapG_name : gname;
@@ -636,8 +626,8 @@ Section visited_map_res.
           apply elem_of_union; right. by apply Hl.
   Qed.
 
-  (* visited_transition_done has been subsumed by [bind_id_fresh_susp] —
-     binding now writes to gm, pvm, and m_v atomically to maintain
+  (* visited_transition_done has been subsumed by [bind_id_existing_susp] —
+     binding now writes to gm and m_v atomically to maintain
      [id_susp_gamma_coherent]. *)
 
   Lemma visited_transition_finished m mp pn ctr γ n :
@@ -950,10 +940,10 @@ Section visited_map_res.
       the susp loc [l] the verifier has just minted. Writes [Cinl (Excl ())]
       into [gm] at [ctr] and [to_agree l] into [pvm] at [ctr] in lockstep —
       this keeps [dom gm = dom pvm = set_seq 0 ctr]. The [m_v] / [rs]
-      entries (and the γ binding) are written later by [bind_id_fresh_susp].
+      entries (and the γ binding) are written later by [bind_id_existing_susp].
 
       Returns the pure fact [⌜rs !! ctr = None⌝] so that callers can chain
-      directly into [bind_id_fresh_susp] (whose [rs !! from = None]
+      directly into the binding step (whose [rs !! from = None]
       precondition is exactly this). The fact follows from
       [id_ref_coherent] on the pre-state: [ctr ∉ dom pvm], and every key
       of [rs] must have a [pvm] entry. *)
@@ -1318,39 +1308,6 @@ Section visited_map_res.
     iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta Hrs Hmp Hcap".
     iPureIntro. eauto 20.
   Qed.
-
-  (** [id_ref_frag from to] forces [to < from] (via [id_ref_coherent]). *)
-  Lemma id_ref_frag_lt m mp pn ctr from to :
-    visited_mapg_auth m mp pn ctr -∗ id_ref_frag from to -∗
-      ⌜to < from⌝ ∗ visited_mapg_auth m mp pn ctr.
-  Proof.
-    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & %mcap & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & Hmp & Hcap & %Hdommp & %Hdomcap & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hfrag".
-    iDestruct (id_ref_auth_frag with "Hrs Hfrag") as %Hrs_lookup.
-    pose proof (Hirc from to Hrs_lookup) as [Hlt _].
-    iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta Hrs Hmp Hcap". iPureIntro. eauto 20.
-  Qed.
-
-  (** [id_ref_frag from to] paired with [pval_frag from susp_from] and
-      [pval_frag to susp_to] forces [susp_from ≠ susp_to]. *)
-  Lemma id_ref_frag_locs_neq m mp pn ctr from to susp_from susp_to :
-    visited_mapg_auth m mp pn ctr -∗
-    id_ref_frag from to -∗
-    pval_frag from susp_from -∗ pval_frag to susp_to -∗
-      ⌜susp_from ≠ susp_to⌝ ∗ visited_mapg_auth m mp pn ctr.
-  Proof.
-    iIntros "(%d & %ps & %gm & %pvm & %m_v & %rs & %mcap & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & Hmp & Hcap & %Hdommp & %Hdomcap & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh) Hfrag Hpvf Hpvt".
-    iDestruct (id_ref_auth_frag with "Hrs Hfrag") as %Hrs_lookup.
-    pose proof (Hirc from to Hrs_lookup) as [_ [_ (susp_f & susp_t & Hpvf_eq & Hpvt_eq & Hneq)]].
-    iDestruct (pvalmap_auth_frag_eq with "Hpvm Hpvf") as %Hpvf_eq2.
-    iDestruct (pvalmap_auth_frag_eq with "Hpvm Hpvt") as %Hpvt_eq2.
-    rewrite Hpvf_eq in Hpvf_eq2.
-    rewrite Hpvt_eq in Hpvt_eq2.
-    apply Some_equiv_inj, (inj to_agree) in Hpvf_eq2.
-    apply Some_equiv_inj, (inj to_agree) in Hpvt_eq2.
-    fold_leibniz. subst susp_f susp_t.
-    iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta Hrs Hmp Hcap". iPureIntro. eauto 20.
-  Qed.
-
 End visited_map_res.
 
 
@@ -1582,202 +1539,6 @@ Section lg_map.
     rewrite lookup_insert_ne //.
   Qed.
 
-  (** [bind_id_fresh_susp]: bind an existing id [from] (whose susp loc is
-      [l], certified by the input [pval_frag from l]) to a fresh γ. The
-      caller provides [vmeta_token l] which guarantees [l ∉ dom m_v];
-      combined with the persistent [lg_mapg_frag susp_to γ_to] for the
-      prior id's susp, this discharges [l ≠ susp_to] for
-      [id_ref_coherent]. Writes [gm] (Cinl → Cinr γ at [from]), [d]
-      (γ → ()), [m_v] ([l] → Cinr γ), [m] (γ → done_val from), and [rs]
-      ([from] → [to]). [pvm] is unchanged. *)
-  Lemma bind_id_fresh_susp
-      m mp pn ctr
-      from to γ γ_to susp_to (l : loc) :
-    to < from →
-    vmeta_token l -∗
-    id_token from -∗
-    visit_pending γ -∗
-    pval_frag from l -∗
-    pval_frag to susp_to -∗
-    lg_mapg_frag susp_to γ_to -∗
-    visited_mapg_auth m mp pn ctr ==∗
-      visited_mapg_auth (<[γ := done_val from]>m) mp pn ctr ∗
-      visit_done γ from ∗
-      lg_mapg_frag l γ ∗
-      id_ref_frag from to.
-  Proof.
-    iIntros (Hlt) "Hvtok Htok Hpen #Hpvf #Hpvt #Hlbf
-              (%d & %ps & %gm & %pvm & %m_v & %rs & %mcap & Hms & Hd & Hps & Hpn & Hgm & Hctr & Hpvm & Hmv & Hsmeta & Hrs & Hmp & Hcap &
-               %Hdommp & %Hdomcap & %Hdom & %Hdompvm & %Hgmm & %Hisgc & %Hirc & %Hdid & %Hpcoh)".
-    rewrite /vmeta_token /pval_frag /id_token /visit_pending
-            /visit_done /visit_reached_done /lg_mapg_frag /id_ref_frag.
-    (* susp_to ∈ dom m_v via the lg_mapg_frag's agreement with m_v auth. *)
-    iDestruct (own_valid_2 with "Hmv Hlbf") as %Hv_mv.
-    apply auth_both_valid_discrete in Hv_mv as [Hinc_mv _].
-    apply singleton_included_l in Hinc_mv as (x_mv & Hx_mv & _).
-    assert (susp_to ∈ dom m_v) as Hsusp_to_dom.
-    { apply elem_of_dom. destruct (m_v !! susp_to) as [a|] eqn:Heq.
-      - eauto.
-      - rewrite Heq in Hx_mv. by inversion Hx_mv. }
-    iDestruct (own_valid_2 with "Hms Hpen") as %Hvm.
-    apply auth_both_valid_discrete in Hvm as [Hinclm Hvalidm].
-    apply (singleton_included_exclusive_l m γ pending_val) in Hinclm; [|apply _|exact Hvalidm].
-    assert (m !! γ = Some pending_val) as Hmγ_pend
-      by (apply some_pending_val_equiv_eq; exact Hinclm).
-    iDestruct (own_valid with "Hd") as %Hvd_auth.
-    pose proof (proj1 (auth_auth_valid d) Hvd_auth) as Hvd_auth'.
-    assert (d !! γ = None) as Hdγ.
-    { destruct (d !! γ) as [xd|] eqn:Hdeq; [|done].
-      exfalso.
-      assert (✓ xd) as Hvxd.
-      { apply (lookup_valid_Some d γ xd Hvd_auth'). rewrite Hdeq. done. }
-      assert (d !! γ ≡ Some (to_agree (tt : unitO))) as Hdg_eq.
-      { rewrite Hdeq. f_equiv.
-        apply to_agree_uninj in Hvxd as [u Hxd_eq].
-        destruct u. by rewrite Hxd_eq. }
-      destruct (Hdid γ Hdg_eq) as [[n Hmγ] | Hmγ];
-        rewrite Hmγ_pend in Hmγ; discriminate. }
-    iDestruct (own_valid_2 with "Hgm Htok") as %Hvgm.
-    apply auth_both_valid_discrete in Hvgm as [Hinclgm Hvalidgm].
-    apply (singleton_included_exclusive_l gm from (Cinl (Excl ()))) in Hinclgm; [|apply _|exact Hvalidgm].
-    assert (gm !! from = Some (Cinl (Excl ()))) as Hgm_from_cinl
-      by (apply some_cinl_excl_unit_equiv_eq; exact Hinclgm).
-    (* rs !! from = None: id_ref_coherent says rs[from] = Some _ requires
-       gm[from] = Cinr (to_agree _), contradicting Hgm_from_cinl. *)
-    assert (rs !! from = None) as Hrsfrom.
-    { destruct (rs !! from) as [to'|] eqn:Hr; [|done].
-      exfalso. pose proof (Hirc from to' Hr) as [_ [(γ' & Hgm_eq) _]].
-      rewrite Hgm_from_cinl in Hgm_eq. by inversion Hgm_eq. }
-    (* pvm[from] ≡ Some (to_agree l) via the input pval_frag *)
-    iDestruct (pvalmap_auth_frag_eq with "Hpvm Hpvf") as %Hpvf_eq.
-    (* pvm[to] ≡ Some (to_agree susp_to) via the input pval_frag *)
-    iDestruct (pvalmap_auth_frag_eq with "Hpvm Hpvt") as %Hpvt_eq.
-    (* l ∉ dom m_v from vmeta_token freshness combined with the accumulator *)
-    iDestruct (own_valid_2 with "Hsmeta Hvtok") as %Hv_smeta.
-    rewrite auth_frag_op_valid gset_disj_valid_op in Hv_smeta.
-    assert (l ∉ dom m_v) as Hl_nin by set_solver.
-    apply not_elem_of_dom in Hl_nin.
-    iCombine "Hsmeta Hvtok" as "Hsmeta'".
-    rewrite gset_disj_union; [|set_solver].
-    assert (l ≠ susp_to) as Hl_ne_susp_to.
-    { intros ->. apply not_elem_of_dom in Hl_nin. set_solver. }
-    iMod (own_update_2 _ _ _
-      (● <[γ := done_val from]>m ⋅ ◯ {[γ := done_val from]})
-      with "Hms Hpen") as "[Hms Hms_f]".
-    { apply auth_update, singleton_local_update_any.
-      intros x Hx. unfold pending_val.
-      apply (exclusive_local_update _ (done_val from)). done. }
-    iMod (own_update _ _
-      (● <[γ := to_agree (tt : unitO)]>d ⋅ ◯ {[γ := to_agree (tt : unitO)]})
-      with "Hd") as "[Hd #Hd_f]".
-    { apply auth_update_alloc, alloc_singleton_local_update; done. }
-    iMod (own_update_2 _ _ _
-      (● <[from := Cinr (to_agree (γ : leibnizO gname))]>gm ⋅
-       ◯ {[from := Cinr (to_agree (γ : leibnizO gname))]})
-      with "Hgm Htok") as "[Hgm _]".
-    { apply auth_update, singleton_local_update_any.
-      intros y _. apply exclusive_local_update. done. }
-    iMod (own_update _ _
-      (● <[l := Cinr (to_agree (γ : leibnizO gname)) : lg_mapEntry]>m_v ⋅
-       ◯ ({[l := Cinr (to_agree (γ : leibnizO gname)) : lg_mapEntry]}
-            : gmap loc lg_mapEntry))
-      with "Hmv") as "[Hmv #Hmv_f]".
-    { apply auth_update_alloc.
-      apply alloc_singleton_local_update; [exact Hl_nin | done]. }
-    iMod (own_update _ _
-      (● ((to_agree : nat → agree nat) <$> <[from := to]>rs : gmap nat _) ⋅
-       ◯ {[from := to_agree to]})
-      with "Hrs") as "[Hrs #Hrs_f]".
-    { rewrite fmap_insert.
-      apply auth_update_alloc.
-      apply alloc_singleton_local_update; [|done].
-      rewrite lookup_fmap Hrsfrom //. }
-    iModIntro.
-    rewrite /visited_mapg_auth.
-    iSplitR "Hms_f Hd_f Hmv_f Hrs_f"; last by iFrame "Hms_f Hd_f Hmv_f Hrs_f".
-    iExists (<[γ := to_agree (tt : unitO)]>d), ps,
-      (<[from := Cinr (to_agree (γ : leibnizO gname))]>gm),
-      pvm,
-      (<[l := Cinr (to_agree (γ : leibnizO gname)) : lg_mapEntry]>m_v),
-      (<[from := to]>rs), mcap.
-    rewrite dom_insert_L (comm_L union {[l]} (dom m_v)).
-    iFrame "Hms Hd Hps Hpn Hgm Hctr Hpvm Hmv Hsmeta' Hrs Hmp Hcap".
-    iPureIntro.
-    split_and!.
-    - exact Hdommp.
-    - exact Hdomcap.
-    - rewrite dom_insert_L (subseteq_union_1_L {[from]} (dom gm)); [done|].
-      apply elem_of_subseteq_singleton, elem_of_dom; rewrite Hgm_from_cinl; eauto.
-    - exact Hdompvm.
-    - destruct Hgmm as [Hgmm1 Hgmm2]. split.
-      + intros id γ' Hgm'.
-        destruct (decide (id = from)) as [-> | Hne_id].
-        * rewrite lookup_insert in Hgm'. injection Hgm' as Hγ'_eq.
-          subst γ'. left. by rewrite lookup_insert.
-        * rewrite lookup_insert_ne in Hgm'; [|done].
-          apply Hgmm1 in Hgm' as [Hm | Hm].
-          -- destruct (decide (γ' = γ)) as [-> | Hne_γ].
-             { exfalso. rewrite Hmγ_pend in Hm. discriminate. }
-             { left. rewrite lookup_insert_ne; done. }
-          -- destruct (decide (γ' = γ)) as [-> | Hne_γ].
-             { exfalso. rewrite Hmγ_pend in Hm. discriminate. }
-             { right. rewrite lookup_insert_ne; done. }
-      + intros id γ' Hm'.
-        destruct (decide (id = from)) as [-> | Hne_id].
-        * rewrite lookup_insert.
-          assert (γ' = γ) as ->.
-          { destruct (decide (γ' = γ)) as [-> | Hne_γ]; [done|].
-            rewrite lookup_insert_ne in Hm'; [|done].
-            exfalso. have Hcin := Hgmm2 from γ' Hm'.
-            rewrite Hgm_from_cinl in Hcin. discriminate. }
-          done.
-        * rewrite lookup_insert_ne; [|done]. apply Hgmm2.
-          destruct (decide (γ' = γ)) as [-> | Hne_γ].
-          -- rewrite lookup_insert in Hm'. injection Hm' as ->.
-             exfalso. exact (Hne_id eq_refl).
-          -- rewrite lookup_insert_ne in Hm'; done.
-    - (* id_susp_gamma_coherent on new state *)
-      intros id γ' Hgm'.
-      destruct (decide (id = from)) as [-> | Hne_id].
-      + rewrite lookup_insert in Hgm'. injection Hgm' as Hγ'_eq.
-        subst γ'. exists l. split; [exact Hpvf_eq|].
-        by rewrite lookup_insert.
-      + rewrite lookup_insert_ne in Hgm'; [|done].
-        destruct (Hisgc id γ' Hgm') as (susp & Hpvm_id & Hmv_susp).
-        exists susp. split; [exact Hpvm_id|].
-        destruct (decide (susp = l)) as [-> | Hne_susp].
-        * exfalso. assert (l ∈ dom m_v) as Hl_in.
-          { apply elem_of_dom.
-            destruct (m_v !! l) eqn:Hl; [eauto|].
-            rewrite Hl in Hmv_susp. by inversion Hmv_susp. }
-          apply not_elem_of_dom in Hl_nin. set_solver.
-        * rewrite lookup_insert_ne; done.
-    - (* id_ref_coherent on new state *)
-      intros from' to' Hrs'.
-      destruct (decide (from' = from)) as [-> | Hne].
-      + rewrite lookup_insert in Hrs'. injection Hrs' as ->.
-        split; [exact Hlt|]. split.
-        { exists γ. by rewrite lookup_insert. }
-        exists l, susp_to. by repeat split.
-      + rewrite lookup_insert_ne in Hrs'; [|done].
-        destruct (Hirc from' to' Hrs') as [Hlt' [(γ'' & Hgm_from') (sf & st & Hpf & Hpt & Hneq)]].
-        split; [exact Hlt'|]. split.
-        { exists γ''. rewrite lookup_insert_ne; [exact Hgm_from'|done]. }
-        exists sf, st. by repeat split.
-    - intros γ' Hdγ'.
-      destruct (decide (γ' = γ)) as [-> | Hne].
-      + left. exists from. by rewrite lookup_insert.
-      + rewrite lookup_insert_ne in Hdγ'; [|done].
-        destruct (Hdid γ' Hdγ') as [[n' Hmγ] | Hmγ].
-        * left. exists n'. rewrite lookup_insert_ne; done.
-        * right. rewrite lookup_insert_ne; done.
-    - destruct Hpcoh as [Hsize Hl_pcoh]. split; [exact Hsize|].
-      intros γ' Hγ'. destruct (decide (γ' = γ)) as [-> | Hne].
-      + exfalso. rewrite lookup_insert in Hγ'.
-        rewrite /done_val /pending_val in Hγ'. by inversion Hγ'.
-      + rewrite lookup_insert_ne in Hγ'; [|done]. by apply Hl_pcoh.
-  Qed.
-
   (** [pval_snapshot susp pid] is a persistent "freshness snapshot": at
       some past moment, the susps registered for every id in [0, pid]
       were collected and [susp] was not among them. Combined with
@@ -1797,7 +1558,7 @@ Section lg_map.
 
   (** [bind_id_existing_susp]: bind an existing id [from] (whose susp loc
       [susp_from] is *already* in [m_v]) to a γ that the susp is already
-      bound to. Distinguished from [bind_id_fresh_susp] by not writing
+      bound to. Unlike a fresh-susp binding, it does not write
       [m_v] — the susp→γ binding is taken as the input [lg_mapg_frag
       susp_from γ]. Writes [m] (γ → done_val from), [d] (γ → ()), [gm]
       (Cinl → Cinr γ at [from]), and [rs] ([from] → [to]). [pvm] and
@@ -2310,116 +2071,6 @@ Section state_res.
   Qed.
 
 End state_res.
-
-(* Single-instance token carrying a [gname]. The full fraction (1) is
-   exclusive; any two fragments agree on the carried [gname] and
-   split/combine via fractional ownership. *)
-Definition gnameTokUR := dfrac_agreeR (leibnizO gname).
-Class gnameTokG Σ := GnameTokG {
-  gname_tok_inG :> inG Σ gnameTokUR;
-  gname_tok_name : gname;
-}.
-
-Section gname_tok_res.
-  Context `{!gnameTokG Σ}.
-
-  Definition gtok (q : Qp) (γ : gname) : iProp Σ :=
-    own gname_tok_name (to_dfrac_agree (DfracOwn q) (γ : leibnizO gname)).
-
-  Lemma gtok_agree q1 q2 γ1 γ2 :
-    gtok q1 γ1 -∗ gtok q2 γ2 -∗ ⌜γ1 = γ2⌝.
-  Proof.
-    iIntros "H1 H2". rewrite /gtok. iCombine "H1 H2" as "H".
-    iDestruct (own_valid with "H") as %[_ Heq]%dfrac_agree_op_valid_L.
-    done.
-  Qed.
-
-  Lemma gtok_split q1 q2 γ :
-    gtok (q1 + q2)%Qp γ ⊣⊢ gtok q1 γ ∗ gtok q2 γ.
-  Proof.
-    by rewrite /gtok -own_op -dfrac_agree_op dfrac_op_own.
-  Qed.
-
-  Lemma gtok_combine q1 q2 γ1 γ2 :
-    gtok q1 γ1 -∗ gtok q2 γ2 -∗ ⌜γ1 = γ2⌝ ∗ gtok (q1 + q2)%Qp γ1.
-  Proof.
-    iIntros "H1 H2".
-    iDestruct (gtok_agree with "H1 H2") as %->.
-    iSplit; [done|]. iApply gtok_split. iFrame.
-  Qed.
-
-  Lemma gtok_excl q γ1 γ2 :
-    gtok 1 γ1 -∗ gtok q γ2 -∗ False.
-  Proof.
-    iIntros "H1 H2". rewrite /gtok. iCombine "H1 H2" as "H".
-    iDestruct (own_valid with "H") as %[Hv _]%dfrac_agree_op_valid_L.
-    iPureIntro. apply dfrac_valid_own in Hv.
-    by apply Qp.not_add_le_l in Hv.
-  Qed.
-
-  Lemma gtok_update γ γ' :
-    gtok 1 γ ==∗ gtok 1 γ'.
-  Proof.
-    iIntros "H". rewrite /gtok.
-    iApply (own_update with "H").
-    by apply cmra_update_exclusive.
-  Qed.
-
-End gname_tok_res.
-
-
-Section state_tok_res.
-  Context `{!correctnessG Σ}.
-
-  Definition stok (s : option nat) : iProp Σ :=
-    own state_tok_name (to_dfrac_agree (DfracOwn (1/2)) (s : leibnizO (option nat))).
-
-  Definition stok_comp (s : option nat) : iProp Σ :=
-    own state_tok_name (to_dfrac_agree (DfracOwn 1) (s : leibnizO (option nat))).
-
-  Definition stok_unset : iProp Σ := stok None.
-  Definition stok_set (n : nat) : iProp Σ := stok (Some n).
-
-  Lemma stok_agree s1 s2 :
-    stok s1 -∗ stok s2 -∗ ⌜s1 = s2⌝.
-  Proof.
-    iIntros "H1 H2". rewrite /stok. iCombine "H1 H2" as "H".
-    iDestruct (own_valid with "H") as %[_ Heq]%dfrac_agree_op_valid_L.
-    done.
-  Qed.
-
-  Lemma stok_split s :
-    stok_comp s ⊣⊢ stok s ∗ stok s.
-  Proof.
-    by rewrite /stok /stok_comp -own_op -dfrac_agree_op dfrac_op_own Qp.half_half.
-  Qed.
-
-  Lemma stok_combine s1 s2 :
-    stok s1 -∗ stok s2 -∗ ⌜s1 = s2⌝ ∗ stok_comp s1.
-  Proof.
-    iIntros "H1 H2".
-    iDestruct (stok_agree with "H1 H2") as %->.
-    iSplit; [done|]. iApply stok_split. iFrame.
-  Qed.
-
-  Lemma stok_excl s1 s2 :
-    stok_comp s1 -∗ stok s2 -∗ False.
-  Proof.
-    iIntros "H1 H2". rewrite /stok /stok_comp. iCombine "H1 H2" as "H".
-    iDestruct (own_valid with "H") as %[Hv _]%dfrac_agree_op_valid_L.
-    iPureIntro. apply dfrac_valid_own in Hv.
-    by apply Qp.not_add_le_l in Hv.
-  Qed.
-
-  Lemma stok_update s s' :
-    stok_comp s ==∗ stok_comp s'.
-  Proof.
-    iIntros "H". rewrite /stok_comp.
-    iApply (own_update with "H").
-    by apply cmra_update_exclusive.
-  Qed.
-
-End state_tok_res.
 
 
 Section suspfilledmap_res.
