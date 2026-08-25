@@ -1156,7 +1156,10 @@ Section proof.
     wp_pures.
     iDestruct "Hpw" as (??????) "(% & -> & Hbuf & % & %Hbuf)".
     wp_pures.
-    wp_apply (flush_buf_stream_spec with "[$Hproph $Hbuf $Htok $Hintr]").
+    iAssert (intransit (3/4) ∗ intransit (1/4))%I with "[Hintr]" as "[Hintr34 Hintr14]".
+    { rewrite -intransit_split.
+      replace (3/4 + 1/4)%Qp with 1%Qp by compute_done. iFrame. }
+    wp_apply (flush_buf_stream_spec with "[$Hproph $Hbuf $Htok $Hintr14]").
     { instantiate (1 := pn). instantiate (1 := []).
       repeat (iSplit; eauto). iPureIntro.
       rewrite -H. done. }
@@ -1192,12 +1195,45 @@ Section proof.
     v_pures. v_load.
 
     destruct (size m) eqn:Hmsize; last first.
-    { (* size m ≠ 0 is impossible on a good trace: every registered suspension
-         must have been visited. The old argument threaded [stok]/[gt_child];
-         post-purge [gt_child] wants [intransit q] with [1/2 < q], but the
-         whole intransit was absorbed by [flush_buf_stream_spec]. Needs either
-         flush returning the token or a new accounting argument. *)
-      admit. }
+    { assert (size m ≠ 0) as Hmnonemp by lia.
+      assert (size (mapg_alive m') ≠ 0) as Hm'nonemp by lia.
+
+      iAssert (⌜∀ (id : nat), id ∈ dom (mapg_alive m') → ∃ v, m !! #id = Some v⌝)%I
+        as %Hbigsepdom.
+      { iIntros (id Hin).
+        apply elem_of_dom in Hin as [agv Hagv].
+        iPoseProof (big_sepM_lookup _ _ id agv Hagv with "Hbigsep") as "Hms".
+        iDestruct "Hms" as (?????????) "[(% & %Hmid & _) _]".
+        iPureIntro. eauto. }
+
+      set (keys := dom (mapg_alive m')).
+      set (max_id := set_fold Nat.max 0 keys).
+      assert (max_id ∈ keys) as Hmaxin.
+      { apply gset_max_elem_of. intros Hempty. apply Hm'nonemp.
+        rewrite -size_dom. unfold keys in Hempty. rewrite Hempty size_empty //. }
+      assert (∃ v, (mapg_alive m') !! max_id = Some v) as [vmax Hvmax]
+        by (apply elem_of_dom; exact Hmaxin).
+
+      iPoseProof (big_sepM_lookup_acc _ (mapg_alive m') max_id vmax Hvmax with "Hbigsep") as "[Hms Hbigsep]".
+      iDestruct "Hms" as (ctr_v Nc_v finish_v xv av serv tv sv qv)
+        "((%Hctr_v & %Hmid_v & %Hagv_v) & _ & _ & _ & _ & _ & Hxc & _)".
+
+      iMod ("Hgoodtr" with "Hst Hvmauth Hpc'") as "(Hst & Hvmauth & Hpc')".
+
+      assert ((1/2 < 3/4)%Qp) as Hhalf by compute_done.
+      iPoseProof (gt_child _ _ _ _ _ _ _ _ _ _ (3/4)%Qp
+          with "[%] [%] Hvisinv Hintr34 Hpc' Hxc Hvmauth")
+        as "[%Hpn|%Hex]"; try lia; try exact Hhalf.
+      destruct Hex as (id' & v' & Hgt & Hlookup); simplify_eq.
+
+      assert (id' ∈ keys) as Hid'in.
+      { apply (id_in_alive_dom m keys id').
+        - unfold keys. rewrite size_dom. by rewrite Hszeq.
+        - exact Hbigsepdom.
+        - eauto. }
+
+      assert (id' ≤ max_id) by (apply gset_max_ge; exact Hid'in).
+      exfalso. lia. }
 
     v_bind (map_is_empty d).
     iMod (gwp_map_is_empty () ⊤ d m 
