@@ -335,7 +335,8 @@ Section unauth_step.
             
             v_store. v_pures.
 
-            assert ((mapg_alive m2) !! cntr = None) as Hm_cntr_none by admit.
+            iDestruct (v_susp_big_sep_fresh with "Hbigsep") as %Hm_cntr_none;
+              first exact Hidinv.
 
             iDestruct (big_sepM_insert (v_susp_big_sep_lam m) (mapg_alive m2) cntr (mapg_alive_insert_val a2') Hm_cntr_none 
               with "[$Hbigsep $Hvfinish $Hauthv $Hc $Hagg $Hcap $Hvser]") as "Hbigsep".
