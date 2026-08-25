@@ -1548,4 +1548,52 @@ Section authentikit_helpers_tabseq.
     apply Hdom in Hin as [v Hv]. by rewrite Hv in Hidinv.
   Qed.
 
+  (** Transport [vm_big_sep] across simultaneous updates: extend [m] with a
+      fresh entry [#cntr := ce] and extend [vm] via [set_fold] inserting
+      [pending_val] for each [γ ∈ γl]. The new [m]-entry never fires a
+      [done_val id] premise (since ids in [vm]'s existing [done_val] entries
+      are all < cntr by [ctr_inv]); the newly-inserted [pending_val] entries
+      trigger no [done_val] premise at all. *)
+  Lemma vm_big_sep_lam_unset_insert_ctr_inv m cntr ce γ v :
+    ctr_inv cntr m →
+    vm_big_sep_lam_unset m γ v ⊢
+      (vm_big_sep_lam_unset (<[#cntr:=ce]> m) γ v : iProp Σ).
+  Proof.
+    iIntros (Hidinv) "Hlam". rewrite /vm_big_sep_lam_unset.
+    iIntros (id Hveq). iDestruct ("Hlam" $! id Hveq) as (v') "%Hlkp".
+    iPureIntro. exists v'. rewrite lookup_insert_ne; first done.
+    intros [= Heq]. apply Nat2Z.inj in Heq. subst id.
+    specialize (Hidinv cntr ltac:(lia)).
+    by rewrite Hlkp in Hidinv.
+  Qed.
+
+  Lemma vm_big_sep_lam_unset_pending m γ :
+    ⊢ (vm_big_sep_lam_unset m γ pending_val : iProp Σ).
+  Proof. rewrite /vm_big_sep_lam_unset. by iIntros (id [=]). Qed.
+
+  Lemma vm_big_sep_transport (m : gmap val val)
+        (γl : gset gname) (cntr : nat) (ce : val)
+        (vm : state_mapg_type) :
+    ctr_inv cntr m →
+    vm_big_sep m vm ⊢
+      (vm_big_sep (<[#cntr:=ce]> m)
+                 (set_fold (λ (γ : gname) (m0 : state_mapg_type),
+                              <[γ:=pending_val]> m0) vm γl) : iProp Σ).
+  Proof.
+    iIntros (Hidinv) "Hvis". rewrite /vm_big_sep.
+    (* First: fold over γl adds pending_val entries which trivially satisfy
+       vm_big_sep_lam_unset (any m). Base case (γl = ∅) uses ctr_inv on m. *)
+    iInduction γl as [|γx γl' Hnotin] "IH" using set_ind_L
+        forall (vm) "Hvis".
+    { rewrite set_fold_empty.
+      iApply (big_sepM_mono with "Hvis").
+      iIntros (γ v Hγv) "Hlam".
+      by iApply (vm_big_sep_lam_unset_insert_ctr_inv with "Hlam"). }
+    rewrite set_fold_pending_union; last set_solver.
+    rewrite set_fold_singleton.
+    iApply ("IH" $! (<[γx:=pending_val]> vm)).
+    iApply big_sepM_insert_2; last done.
+    iApply vm_big_sep_lam_unset_pending.
+  Qed.
+
 End authentikit_helpers_tabseq.

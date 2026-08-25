@@ -957,7 +957,7 @@ Section proof.
             iSplit; last first.
             { iPureIntro. rewrite dom_insert set_seq_S_end_union_L.
               set_solver. }
-            admit. }
+            iApply (vm_big_sep_transport with "Hvisinv"); done. }
 
           v_pures. v_bind (list_tail _).
           iMod (gwp_list_tail ⊤ _ (s_real :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
