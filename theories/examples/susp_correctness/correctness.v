@@ -1523,28 +1523,52 @@ Section proof.
     REL c1 #~ #~ p_Authentikit
      << c2 #~ #~ v_Authentikit
      << c3 #~ #~ i_Authentikit : lrel_auth_comp (⟦ τ ⟧ (auth_ctx ∅)).
-  Proof. Admitted. (*
-    iIntros "Hc" (????) "Hv Hi".
+  Proof.
+    iIntros "Hc" (????) "Hv Hi Htok".
+    v_bind (v_Authentikit); i_bind (i_Authentikit).
+    iPoseProof (refines_authentikit_func _ ∅) as "Hfunc".
+    iSpecialize ("Hfunc" with "Hv Hi Htok").
+    iEval (rewrite wp_value_fupd') in "Hfunc".
+    iMod "Hfunc" as "(%vv & %vi & Hv & Hi & #Hfunc' & Htok)".
+    iEval (simpl) in "Hv". iEval (simpl) in "Hi".
     wp_bind c1; v_bind c2; i_bind c3.
-    iSpecialize ("Hc" with "Hv Hi").
+    iSpecialize ("Hc" with "Hv Hi Htok").
     wp_apply (wp_wand with "Hc").
-    iIntros (v1) "(%v2 & %v3 & Hv & Hi & Hcnt)".
-    iSpecialize ("Hcnt" $! lrel_auth with "[//]"); rewrite -/interp.
+    iIntros (v1) "(%v2 & %v3 & Hv & Hi & Hcnt & Htok)".
+    iDestruct "Hcnt" as "(Hcnt & _)".
+    interp_unfold! in "Hcnt".
+    iEval (unfold lrel_tern_tern, lrel_forall, lrel_forall', lrel_arr, lrel_arr', lrel_car) in "Hcnt".
+    idtac "===L1===". Show.
+    iSpecialize ("Hcnt" $! lrel_auth).
+    iSpecialize ("Hcnt" $! #~ #~ #~ with "[//]").
     v_bind (v2 _); i_bind (v3 _).
-    iSpecialize ("Hcnt" with "Hv Hi").
+    iSpecialize ("Hcnt" with "Hv Hi Htok").
     wp_apply (wp_wand with "Hcnt").
-    iIntros (v1') "(%v2' & %v3' & Hv & Hi & Hcnt)".
-    iSpecialize ("Hcnt" $! lrel_auth_comp with "[//]"); rewrite -/interp.
+    iIntros (v1') "(%v2' & %v3' & Hv & Hi & Hcnt & Htok)".
+    iDestruct "Hcnt" as "(Hcnt & _)".
+    interp_unfold! in "Hcnt".
+    iEval (unfold lrel_tern_tern, lrel_forall, lrel_forall', lrel_arr, lrel_arr', lrel_car) in "Hcnt".
+    iSpecialize ("Hcnt" $! lrel_auth_comp).
+    iSpecialize ("Hcnt" $! #~ #~ #~ with "[//]").
     v_bind (v2' _); i_bind (v3' _).
-    iSpecialize ("Hcnt" with "Hv Hi").
+    iSpecialize ("Hcnt" with "Hv Hi Htok").
     wp_apply (wp_wand with "Hcnt").
-    iIntros (v1'') "(%v2'' & %v3'' & Hv & Hi & Hcnt)".
-    v_bind (v2'' _); i_bind (v3'' _).
-    iSpecialize ("Hcnt" with "[] Hv Hi"); rewrite -!/interp.
-    { iApply refines_authentikit_func. }
+    iIntros (v1'') "(%v2'' & %v3'' & Hv & Hi & Hcnt & Htok)".
+    iDestruct "Hcnt" as "(Hcnt & _)".
+    interp_unfold! in "Hcnt".
+    iEval (unfold lrel_tern_tern, lrel_arr, lrel_arr', lrel_car) in "Hcnt".
+    iSpecialize ("Hcnt" $! p_Authentikit vv vi with "Hfunc'").
+    iSpecialize ("Hcnt" with "Hv Hi Htok").
     wp_apply (wp_wand with "Hcnt").
-    iIntros (v1''') "(%v2''' & %v3''' & Hv & Hi & Hcnt)".
-    iFrame. *)
+    iIntros (r1) "(%r2 & %r3 & Hv & Hi & Hres & Htok)".
+    iExists _, _. iFrame "Hv Hi Htok".
+    assert (⟦ var0 τ ⟧ (ext (ext ∅ lrel_auth) lrel_auth_comp)
+            = lrel_auth_comp (⟦ τ ⟧ (auth_ctx ∅))) as Hconv
+      by (rewrite interp_unseal; reflexivity).
+    iEval (rewrite Hconv) in "Hres".
+    iExact "Hres".
+  Qed.
+
 
 End proof.
 
