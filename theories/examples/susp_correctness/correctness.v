@@ -51,6 +51,48 @@ Definition v_unauth_cl (c : loc) : val :=
 Section proof.
   Context `{!authG Σ, !seqG Σ, !tabseqG Σ, !correctnessG Σ}.
 
+  Lemma refines_auth_return Θ (Δ : ctxO Σ Θ) :
+    ⊢ ⟦ ∀: ⋆, var0 → var1 var0 ⟧ (auth_ctx Δ) p_return v_return i_return.
+  Proof.
+    rewrite /p_return /v_return /i_return.
+    iSplit; interp_unfold!; last first.
+    { iIntros (A). iModIntro. iIntros (?) "_ Htok".
+      wp_pures. iModIntro. iFrame "Htok".
+      interp_unfold!.
+      iModIntro. iIntros (a1) "#HAu Htok".
+      wp_pures. iModIntro. iFrame "Htok".
+      interp_unfold!.
+      iIntros (p' ps ps1 ps_fix lpn w1 Ψ) "!# (Htok & Hpw & Hpr & %Hlast) HΨ".
+      wp_pures.
+      iModIntro. iApply "HΨ". by iFrame "∗ % #". }
+    iIntros (A ???) "!# _"; rewrite -!/interp.
+    iIntros (????) "Hv Hi Htok".
+    v_pures; i_pures; wp_pures.
+    iModIntro. iFrame. clear.
+    iSplit; interp_unfold!; last first.
+    { iModIntro. iIntros (a1') "#HAu Htok".
+      wp_pures. iModIntro. iFrame "Htok".
+      interp_unfold!.
+      iIntros (p' ps ps1 ps_fix lpn w1 Ψ) "!# (Htok & Hpw & Hpr & %Hlast) HΨ".
+      wp_pures.
+      iModIntro. iApply "HΨ". by iFrame "∗ % #". }
+    iIntros (a1 a2 a3) "!# #HA"; rewrite -!/interp.
+    iIntros (????) "Hv Hi Htok".
+    v_pures; i_pures; wp_pures.
+    iModIntro. iFrame.
+    iSplit; interp_unfold!; last first.
+    { iDestruct "HA" as "(_ & HAu)".
+      iIntros (p' ps ps1 ps_fix lpn w1 Ψ) "!# (Htok & Hpw & Hpr & %Hlast) HΨ".
+      wp_pures.
+      iModIntro. iApply "HΨ". by iFrame "∗ % #". }
+    iIntros (t2 K2 t3 K3 p' ps ps1 ps2 ps_fix lpn w1 w2 Ψ)
+      "!# (Htabtok & Htok & Hv & Hi & Hpenc & Hpw & Hvw & Hpr & % & Hintr & Hst) HΨ".
+    wp_pures; v_pures; i_pures.
+    iModIntro. iApply "HΨ".
+    iFrame "∗ #".
+    iLeft. iExists ps2. iFrame "∗ #". done.
+  Qed.
+
   (* Lemma refines_auth_return Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆, var0 → var1 var0 ⟧ (auth_ctx Δ) p_return v_return i_return.
   Proof.
