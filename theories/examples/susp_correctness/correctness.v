@@ -1299,6 +1299,40 @@ Section proof.
     iApply refines_Auth_auth.
   Qed. *)
 
+  Lemma refines_authentikit_func Θ (Δ : ctxO Σ Θ) :
+    ⊢ REL p_Authentikit << v_Authentikit << i_Authentikit :
+      ⟦ Authentikit_func var1 var0 ⟧ (auth_ctx Δ).
+  Proof.
+    iIntros (????) "Hv Hi Htok".
+    rewrite /p_Authentikit /v_Authentikit /i_Authentikit.
+    v_bind (v_Authenticable); i_bind (i_Authenticable).
+    iPoseProof (refines_Authenticatable _ (auth_ctx Δ)) as "HAc".
+    iSpecialize ("HAc" with "Hv Hi Htok").
+    iEval (rewrite wp_value_fupd') in "HAc".
+    iMod "HAc" as "(%vv & %vi & Hv & Hi & #HAc' & Htok)".
+    iEval (simpl) in "Hv". iEval (simpl) in "Hi".
+    v_pures; i_pures; wp_pures.
+    iModIntro. iExists _, _. iFrame "Hv Hi Htok".
+    rewrite /Authentikit_func.
+    iEval (rewrite !interp_app_unfold).
+    assert (⟦ (Λ: (Λ: (∀: ⋆, var0 → var1 var0) *
+               (∀: ⋆; ⋆, var2 var1 → (var1 → var2 var0) → var2 var0) *
+               Authenticatable)) var1 ⟧ (auth_ctx Δ) (⟦ var0 ⟧ (auth_ctx Δ))
+            = ⟦ (∀: ⋆, var0 → var1 var0) *
+                (∀: ⋆; ⋆, var2 var1 → (var1 → var2 var0) → var2 var0) *
+                Authenticatable ⟧ (auth_ctx (auth_ctx Δ))) as ->
+      by (rewrite interp_unseal; reflexivity).
+    interp_unfold!.
+    iExists _, _, _, _, _, _; rewrite -!/interp.
+    do 3 (iSplit; [done|]).
+    iSplit; last first.
+    { iApply "HAc'". }
+    iExists _, _, _, _, _, _; rewrite -!/interp.
+    do 3 (iSplit; [done|]).
+    iSplit; [iApply refines_auth_return|].
+    iApply refines_auth_bind.
+  Qed.
+
   (* Lemma refines_authentikit_func Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ Authentikit_func var1 var0 ⟧ (auth_ctx Δ) p_Authentikit v_Authentikit i_Authentikit.
   Proof.
