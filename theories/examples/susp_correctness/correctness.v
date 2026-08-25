@@ -93,6 +93,193 @@ Section proof.
     iLeft. iExists ps2. iFrame "∗ #". done.
   Qed.
 
+  Lemma refines_auth_bind Θ (Δ : ctxO Σ Θ) :
+    ⊢ ⟦ ∀: ⋆; ⋆, var2 var1 → (var1 → var2 var0) → var2 var0 ⟧
+      (auth_ctx Δ) p_bind v_bind i_bind.
+  Proof.
+    rewrite /p_bind /v_bind /i_bind.
+    iSplit; interp_unfold!; last first.
+    { iIntros (A2). iModIntro. iIntros (?) "_ Htok".
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iIntros (B2). iModIntro. iIntros (?) "_ Htok".
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iModIntro. iIntros (v1u) "#HmAu Htok".
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iModIntro. iIntros (w1u) "#HAmBu Htok".
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      interp_unfold! in "HmAu".
+      iEval (unfold lrel_tern_un, lrel_auth_comp, lrel_auth_comp', lrel_auth_comp_un, lrel_un_car) in "HmAu".
+      iIntros (pp ps ps1 ps_fix lpn u1 Ψ) "!# (Htok & Hpw & Hpr & %Hlast) HΨ".
+      wp_pures.
+      wp_bind (v1u _).
+      wp_apply ("HmAu" with "[$Htok $Hpw $Hpr //]").
+      iIntros (ps1x u1x a1) "(%Hlastx & Hpr & Htok & Hpw & #HAu) /=".
+      wp_pures.
+      interp_unfold! in "HAmBu".
+      iEval (unfold lrel_tern_un, lrel_un_arr, lrel_un_car) in "HAmBu".
+      wp_bind (w1u a1).
+      iSpecialize ("HAmBu" $! a1 with "HAu").
+      iSpecialize ("HAmBu" with "Htok").
+      wp_apply (wp_wand with "HAmBu").
+      iIntros (?) "(#HmBu & Htok) /=".
+      iEval (rewrite interp_unseal /=) in "HmBu".
+      iEval (unfold lrel_tern_un, lrel_auth_comp, lrel_auth_comp', lrel_auth_comp_un, lrel_un_car) in "HmBu".
+      wp_apply ("HmBu" with "[$Htok $Hpw $Hpr //]").
+      iIntros (ps1y u1y a1y) "(%Hlasty & Hpr & Htok & Hpw & #HBu)".
+      iApply "HΨ". by iFrame "∗ % #". }
+    iIntros (A ???) "!# _"; rewrite -!/interp.
+    iIntros (????) "Hv Hi Htok".
+    v_pures; i_pures; wp_pures.
+    iModIntro. iFrame. clear.
+    iSplit; interp_unfold!; last first.
+    { iIntros (B2). iModIntro. iIntros (?) "_ Htok".
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iModIntro. iIntros (v1u) "#HmAu Htok".
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iModIntro. iIntros (w1u) "#HAmBu Htok".
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      interp_unfold! in "HmAu".
+      iEval (unfold lrel_tern_un, lrel_auth_comp, lrel_auth_comp', lrel_auth_comp_un, lrel_un_car) in "HmAu".
+      iIntros (pp ps ps1 ps_fix lpn u1 Ψ) "!# (Htok & Hpw & Hpr & %Hlast) HΨ".
+      wp_pures.
+      wp_bind (v1u _).
+      wp_apply ("HmAu" with "[$Htok $Hpw $Hpr //]").
+      iIntros (ps1x u1x a1) "(%Hlastx & Hpr & Htok & Hpw & #HAu) /=".
+      wp_pures.
+      interp_unfold! in "HAmBu".
+      iEval (unfold lrel_tern_un, lrel_un_arr, lrel_un_car) in "HAmBu".
+      wp_bind (w1u a1).
+      iSpecialize ("HAmBu" $! a1 with "HAu").
+      iSpecialize ("HAmBu" with "Htok").
+      wp_apply (wp_wand with "HAmBu").
+      iIntros (?) "(#HmBu & Htok) /=".
+      iEval (rewrite interp_unseal /=) in "HmBu".
+      iEval (unfold lrel_tern_un, lrel_auth_comp, lrel_auth_comp', lrel_auth_comp_un, lrel_un_car) in "HmBu".
+      wp_apply ("HmBu" with "[$Htok $Hpw $Hpr //]").
+      iIntros (ps1y u1y a1y) "(%Hlasty & Hpr & Htok & Hpw & #HBu)".
+      iApply "HΨ". by iFrame "∗ % #". }
+    iIntros (B ???) "!# _"; rewrite -!/interp.
+    iIntros (????) "Hv Hi Htok".
+    v_pures; i_pures; wp_pures.
+    iModIntro. iFrame. clear.
+    iSplit; interp_unfold!; last first.
+    { iModIntro. iIntros (v1u) "#HmAu Htok".
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iModIntro. iIntros (w1u) "#HAmBu Htok".
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      interp_unfold! in "HmAu".
+      iEval (unfold lrel_tern_un, lrel_auth_comp, lrel_auth_comp', lrel_auth_comp_un, lrel_un_car) in "HmAu".
+      iIntros (pp ps ps1 ps_fix lpn u1 Ψ) "!# (Htok & Hpw & Hpr & %Hlast) HΨ".
+      wp_pures.
+      wp_bind (v1u _).
+      wp_apply ("HmAu" with "[$Htok $Hpw $Hpr //]").
+      iIntros (ps1x u1x a1) "(%Hlastx & Hpr & Htok & Hpw & #HAu) /=".
+      wp_pures.
+      interp_unfold! in "HAmBu".
+      iEval (unfold lrel_tern_un, lrel_un_arr, lrel_un_car) in "HAmBu".
+      wp_bind (w1u a1).
+      iSpecialize ("HAmBu" $! a1 with "HAu").
+      iSpecialize ("HAmBu" with "Htok").
+      wp_apply (wp_wand with "HAmBu").
+      iIntros (?) "(#HmBu & Htok) /=".
+      iEval (rewrite interp_unseal /=) in "HmBu".
+      iEval (unfold lrel_tern_un, lrel_auth_comp, lrel_auth_comp', lrel_auth_comp_un, lrel_un_car) in "HmBu".
+      wp_apply ("HmBu" with "[$Htok $Hpw $Hpr //]").
+      iIntros (ps1y u1y a1y) "(%Hlasty & Hpr & Htok & Hpw & #HBu)".
+      iApply "HΨ". by iFrame "∗ % #". }
+    iIntros (v1 v2 v3) "!# #HmA"; rewrite -!/interp.
+    iIntros (????) "Hv Hi Htok".
+    v_pures; i_pures; wp_pures.
+    iModIntro. iFrame. clear.
+    iSplit; interp_unfold!; last first.
+    { iModIntro. iIntros (w1u) "#HAmBu Htok".
+      wp_pures. iModIntro. iFrame "Htok". interp_unfold!.
+      iDestruct "HmA" as "(_ & HmAu)".
+      interp_unfold! in "HmAu".
+      iEval (unfold lrel_tern_un, lrel_auth_comp, lrel_auth_comp', lrel_auth_comp_un, lrel_un_car) in "HmAu".
+      iIntros (pp ps ps1 ps_fix lpn u1 Ψ) "!# (Htok & Hpw & Hpr & %Hlast) HΨ".
+      wp_pures.
+      wp_bind (v1 _).
+      wp_apply ("HmAu" with "[$Htok $Hpw $Hpr //]").
+      iIntros (ps1x u1x a1) "(%Hlastx & Hpr & Htok & Hpw & #HAu) /=".
+      wp_pures.
+      interp_unfold! in "HAmBu".
+      iEval (unfold lrel_tern_un, lrel_un_arr, lrel_un_car) in "HAmBu".
+      wp_bind (w1u a1).
+      iSpecialize ("HAmBu" $! a1 with "HAu").
+      iSpecialize ("HAmBu" with "Htok").
+      wp_apply (wp_wand with "HAmBu").
+      iIntros (?) "(#HmBu & Htok) /=".
+      iEval (rewrite interp_unseal /=) in "HmBu".
+      iEval (unfold lrel_tern_un, lrel_auth_comp, lrel_auth_comp', lrel_auth_comp_un, lrel_un_car) in "HmBu".
+      wp_apply ("HmBu" with "[$Htok $Hpw $Hpr //]").
+      iIntros (ps1y u1y a1y) "(%Hlasty & Hpr & Htok & Hpw & #HBu)".
+      iApply "HΨ". by iFrame "∗ % #". }
+    iIntros (w1 w2 w3) "!# #HAmB"; rewrite -!/interp.
+    iIntros (????) "Hv Hi Htok".
+    v_pures; i_pures; wp_pures.
+    iModIntro. iFrame. clear.
+    iSplit; interp_unfold!; last first.
+    { iDestruct "HmA" as "(_ & HmAu)".
+      iDestruct "HAmB" as "(_ & HAmBu)".
+      interp_unfold! in "HmAu".
+      iEval (unfold lrel_tern_un, lrel_auth_comp, lrel_auth_comp', lrel_auth_comp_un, lrel_un_car) in "HmAu".
+      iIntros (pp ps ps1 ps_fix lpn u1 Ψ) "!# (Htok & Hpw & Hpr & %Hlast) HΨ".
+      wp_pures.
+      wp_bind (v1 _).
+      wp_apply ("HmAu" with "[$Htok $Hpw $Hpr //]").
+      iIntros (ps1x u1x a1) "(%Hlastx & Hpr & Htok & Hpw & #HAu) /=".
+      wp_pures.
+      interp_unfold! in "HAmBu".
+      iEval (unfold lrel_tern_un, lrel_un_arr, lrel_un_car) in "HAmBu".
+      wp_bind (w1 a1).
+      iSpecialize ("HAmBu" $! a1 with "HAu").
+      iSpecialize ("HAmBu" with "Htok").
+      wp_apply (wp_wand with "HAmBu").
+      iIntros (?) "(#HmBu & Htok) /=".
+      iEval (rewrite interp_unseal /=) in "HmBu".
+      iEval (unfold lrel_tern_un, lrel_auth_comp, lrel_auth_comp', lrel_auth_comp_un, lrel_un_car) in "HmBu".
+      wp_apply ("HmBu" with "[$Htok $Hpw $Hpr //]").
+      iIntros (ps1y u1y a1y) "(%Hlasty & Hpr & Htok & Hpw & #HBu)".
+      iApply "HΨ". by iFrame "∗ % #". }
+    iIntros (t2 K2 t3 K3 pp ps ps1 ps2 ps_fix lpn u1 u2 Ψ)
+      "!# (Htabtok & Htok & Hv & Hi & Hpenc & Hpw & Hvw & Hpr & %Hps & Hintr & Hst) HΨ".
+    wp_pures; v_pures; i_pures.
+    wp_bind (v1 _); v_bind (v2 _); i_bind (v3 _).
+    iDestruct "HmA" as "(HmA & _)".
+    interp_unfold! in "HmA".
+    iEval (rewrite /lrel_auth_comp /lrel_auth_comp' /=) in "HmA".
+    iEval (unfold lrel_tern_tern, lrel_auth_comp_tern, lrel_car) in "HmA".
+    idtac "===APP===". Show.
+    wp_apply ("HmA" with
+      "[$Htabtok $Htok $Hv $Hi $Hpenc $Hpw $Hvw $Hpr $Hintr $Hst //]").
+    iIntros (ps1x lpnx u1x a1 a3)
+      "(Htabtok & Htok & Hi & Hintr & Hpr & Hpw & Hres) /=".
+    iDestruct "Hres" as
+      "[(%ps2x &%u2x &%a2 & Hpenc & %Hpsx & #HA & Hv & Hvw & Hst)| Hbad]".
+    - wp_pures. v_pures.
+      iDestruct "HAmB" as "(HAmB2 & _)".
+      interp_unfold! in "HAmB2".
+      iEval (unfold lrel_tern_tern, lrel_arr, lrel_arr', lrel_car) in "HAmB2".
+      wp_bind (w1 a1); v_bind (w2 a2); i_bind (w3 a3).
+      iSpecialize ("HAmB2" $! a1 a2 a3 with "HA Hv Hi Htok").
+      wp_apply (wp_wand with "HAmB2").
+      iIntros (?) "(% & % & Hv & Hi & #HmB & Htok) /=".
+      iDestruct "HmB" as "(HmB2 & _)".
+      interp_unfold! in "HmB2".
+      iEval (unfold lrel_tern_tern, lrel_auth_comp, lrel_auth_comp', lrel_auth_comp_tern, lrel_car) in "HmB2".
+      wp_apply ("HmB2" with
+        "[$Htabtok $Htok $Hv $Hi $Hpenc $Hpw $Hvw $Hpr $Hintr $Hst //]").
+      iIntros (ps1y lpny u1y a1y a3y)
+        "(Htabtok & Htok & Hi & Hintr & Hpr & Hpw & Hres)".
+      iApply "HΨ". iFrame "∗ #".
+    - (* the first computation went bad: the prover must still run (f a1)
+         alongside the ideal, which needs the removed binary (prover-ideal)
+         fragment of the relation — same gap as the "step prover using binary
+         suspend" admits in refines_auth_unauth. *)
+      admit.
+  Admitted.
+
   (* Lemma refines_auth_return Θ (Δ : ctxO Σ Θ) :
     ⊢ ⟦ ∀: ⋆, var0 → var1 var0 ⟧ (auth_ctx Δ) p_return v_return i_return.
   Proof.
