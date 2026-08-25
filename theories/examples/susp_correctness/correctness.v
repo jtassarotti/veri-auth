@@ -1155,7 +1155,6 @@ Section proof.
         { by destruct c'. }
 
         iSimpl in "Hv". v_pures. v_bind (v_count _).
-        iPoseProof "Hcapf" as "Hcap".
         iAssert (count_aggregator c' cntr c' a2')%I as "Hagg".
         { rewrite /count_aggregator. by iLeft. }
         iMod ("Hvcountspec" with "Hc Hv") as "[Hc Hv] /=". v_pures.
@@ -1424,8 +1423,8 @@ Section proof.
           iDestruct (v_susp_big_sep_fresh with "Hbigsep") as %Hm_cntr_none;
             first exact Hidinv.
 
-          iDestruct (big_sepM_insert (v_susp_big_sep_lam m) (mapg_alive m2) cntr (mapg_alive_insert_val a2') Hm_cntr_none 
-            with "[$Hbigsep $Hvfinish $Hauthv $Hc $Hagg $Hcap $Hvser]") as "Hbigsep".
+          iDestruct (big_sepM_insert (v_susp_big_sep_lam m) (mapg_alive m2) cntr (mapg_alive_insert_val a2') Hm_cntr_none
+            with "[$Hbigsep $Hvfinish $Hauthv $Hc $Hagg $Hcapf $Hvser]") as "Hbigsep".
           { iFrame "#". admit. }
 
           iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hmauth Hvmauth Hvisinv Hst' Hlc]") as "Htabtok".
