@@ -871,13 +871,10 @@ Section authenticatable.
         - interp_unfold!. iApply "HBun'". }
       iDestruct "HmatchA" as "([%HspA %HtA] & #HunA1' & %γlA & %mlgA & %a2A' &
           HlgpA & %HszA & HpensA & #HpserpA2 & Hv & HbigA & HpencA & HvmA & HwandA)".
-      destruct cA as [|cA'']; last first.
-      { admit. (* cA > 0: needs the wand generalized over v_outer —
-                  composition TODO, not a design exclusion. *) }
-      apply size_empty_inv in HszA. fold_leibniz. subst γlA.
       wp_pures. wp_bind (p_spB _).
-      iEval (rewrite /visited_map_update_pending set_fold_empty size_empty
-               Nat.add_0_r) in "HvmA".
+      iEval (rewrite visited_map_update_pending_rewrite) in "HvmA".
+      assert (cA + pn = pn + size γlA) as HpnA by lia.
+      iEval (rewrite HpnA) in "HpencA".
       iSimpl in "Hv". v_pures.
       v_bind (v_parB _).
       wp_apply ("HinnerB" with "[$HBc $HserB' $Hserpred $Hmint $HvmA $HlgpA $HpencA $Hv]").
@@ -887,13 +884,13 @@ Section authenticatable.
       { (* B mismatched after A matched — pair mismatch via the s2 slice. *)
         wp_pures.
         iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_realA s_realB)
-                  (0 + cB)%nat (tprod t_realA t_realB)).
+                  (cA + cB)%nat (tprod t_realA t_realB)).
         iModIntro.
         iSplitR.
-        { iApply (pair_susp_p_ser_spec_at _ _ _ _ 0 cB
+        { iApply (pair_susp_p_ser_spec_at _ _ _ _ cA cB
                     with "HrealA HrealB HspecatA HspecatB"). }
         iSplitR.
-        { iExists 0, cB. iSplit; [done|].
+        { iExists cA, cB. iSplit; [done|].
           iExists a1A', a1B', s_realA, s_realB. iSplit; [done|].
           iSplitR; [iApply "HrealA"|iApply "HrealB"]. }
         iFrame "Hserpred".
@@ -915,20 +912,18 @@ Section authenticatable.
         - interp_unfold!. iDestruct "HunB" as "HunBc". iApply "HunBc". }
       iDestruct "HmatchB" as "([%HspB %HtB] & #HunB1' & %γlB & %mlgB & %a2B' &
           HlgpB & %HszB & HpensB & #HpserpB2 & Hv & HbigB & HpencB & HvmB & HwandB)".
-      destruct cB as [|cB'']; last first.
-      { admit. (* cB > 0 — composition TODO. *) }
-      apply size_empty_inv in HszB. fold_leibniz. subst γlB.
       subst t_realA t_realB.
+      iDestruct (penset_frag_disj with "HpensA HpensB") as %HdisjAB.
       wp_pures.
       iSimpl in "Hv". v_pures.
-      iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_realA s_realB) 0
+      iApply ("HΨ" $! (a1A', a1B')%V (prod_ser_str s_realA s_realB) (cA + cB)
                 (tprod tA tB)).
       iModIntro.
       iSplitR.
-      { iApply (pair_susp_p_ser_spec_at _ _ _ _ 0 0
+      { iApply (pair_susp_p_ser_spec_at _ _ _ _ cA cB
                   with "HrealA HrealB HspecatA HspecatB"). }
       iSplitR.
-      { iExists 0, 0. iSplit; [done|].
+      { iExists cA, cB. iSplit; [done|].
         iExists a1A', a1B', s_realA, s_realB. iSplit; [done|].
         iSplitR; [iApply "HrealA"|iApply "HrealB"]. }
       iFrame "Hserpred".
@@ -965,43 +960,75 @@ Section authenticatable.
         iSplitR.
         - interp_unfold!. iDestruct "HunA1'" as "HunA1c". iApply "HunA1c".
         - interp_unfold!. iDestruct "HunB1'" as "HunB1c". iApply "HunB1c". }
-      iExists ∅, mlgB, (a2A', a2B')%V.
+      iExists (γlA ∪ γlB), mlgB, (a2A', a2B')%V.
       iFrame "HlgpB Hv".
-      iSplit; [by rewrite size_empty|].
-      iSplitL "HpensA"; [by iFrame "HpensA"|].
+      iSplit.
+      { iPureIntro. rewrite size_union; [lia|done]. }
+      iSplitL "HpensA HpensB".
+      { by iApply (penset_frag_union with "HpensA HpensB"). }
       iSplit.
       { iExists a1A', a1B', s1_def, s2_def. iSplit; [done|].
         iSplitR; [iApply "HpserpA2"|iApply "HpserpB2"]. }
-      iSplit. { by rewrite big_sepS_empty. }
-      iSplitL "HpencB"; [by iFrame "HpencB"|].
-      iEval (rewrite /visited_map_update_pending set_fold_empty size_empty
-               Nat.add_0_r) in "HvmB".
-      rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
-      iFrame "HvmB".
-      (* the pair wand: compose both component wands; the shared cap_frag is
-         persistent, and at c = 0 both frag inputs are emp *)
-      iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _".
-      iMod ("HwandA" $! t_out v_out s_out with "[] Hcap [//] [//]")
+      iSplitL "HbigA HbigB".
+      { rewrite big_sepS_union; [|done].
+        iSplitL "HbigA".
+        - iApply (big_sepS_mono with "HbigA").
+          iIntros (γ' Hγ') "[Hp Hv2]".
+          iSplitL "Hp".
+          + iDestruct "Hp" as (lb) "[Hp %Hps]". iExists lb. iFrame "Hp".
+            iPureIntro. exists a1A', a1B'. split; [done|].
+            right. right. by left.
+          + iDestruct "Hv2" as (suspx) "[Hg %Hvs]". iExists suspx.
+            iFrame "Hg". iPureIntro. exists a2A', a2B'. split; [done|].
+            right. right. by left.
+        - iApply (big_sepS_mono with "HbigB").
+          iIntros (γ' Hγ') "[Hp Hv2]".
+          iSplitL "Hp".
+          + iDestruct "Hp" as (lb) "[Hp %Hps]". iExists lb. iFrame "Hp".
+            iPureIntro. exists a1A', a1B'. split; [done|].
+            do 3 right. done.
+          + iDestruct "Hv2" as (suspx) "[Hg %Hvs]". iExists suspx.
+            iFrame "Hg". iPureIntro. exists a2A', a2B'. split; [done|].
+            do 3 right. done. }
+      assert (cA + cB + pn = cB + (pn + size γlA)) as Hpn2 by lia.
+      iSplitL "HpencB".
+      { rewrite Hpn2. iExact "HpencB". }
+      iSplitL "HvmB".
+      { iEval (rewrite visited_map_update_pending_rewrite) in "HvmB".
+        rewrite /visited_map_update_pending.
+        rewrite (set_fold_pending_union _ _ _ HdisjAB).
+        rewrite size_union; [|done].
+        replace (pn + (size γlA + size γlB)) with (pn + size γlA + size γlB)
+          by lia.
+        iExact "HvmB". }
+      iIntros (t_out v_out s_out Nt) "%Hsubpos %HcN #Hcap Hmapf Hsr".
+      iDestruct (mapg_match_split with "Hmapf") as "[HmapfA HmapfB]".
+      iDestruct (sreg_match_split with "Hsr") as "[HsrA HsrB]".
+      iMod ("HwandA" $! t_out v_out s_out Nt
+              with "[] [] Hcap [HmapfA] [HsrA]")
         as "(HAf & HcntA & HservA)".
       { iPureIntro. eapply sub_pos_trans; [exact Hsubpos|].
         by apply sub_pos_prodl, sub_pos_refl. }
-      iMod ("HwandB" $! t_out v_out s_out with "[] Hcap [//] [//]")
+      { iPureIntro. lia. }
+      { iExact "HmapfA". }
+      { iExact "HsrA". }
+      iMod ("HwandB" $! t_out v_out s_out Nt
+              with "[] [] Hcap [HmapfB] [HsrB]")
         as "(HBf & HcntB & HservB)".
       { iPureIntro. eapply sub_pos_trans; [exact Hsubpos|].
         by apply sub_pos_prodr, sub_pos_refl. }
+      { iPureIntro. lia. }
+      { iExact "HmapfB". }
+      { iExact "HsrB". }
       iModIntro.
       iSplitL "HAf HBf".
       { iEval (rewrite interp_prod_combined).
         iExists a1A', a1B', a2A', a2B', wc1, wc2.
         do 3 (iSplit; [done|]).
         iSplitL "HAf"; [interp_unfold!; iApply "HAf"|interp_unfold!; iApply "HBf"]. }
-      iDestruct "HcntA" as "(_ & _ & HcA & _)".
-      iDestruct "HcntB" as "(_ & _ & HcB & _)".
-      iSplitL "HcA HcB".
-      { iFrame "Hcap". iSplit; [done|]. iSplitL.
-        - iExists 0, 0, a2A', a2B'. iSplit; [done|].
-          iSplitL "HcA"; by iApply sub_susp_count_c0_vout.
-        - by iLeft. }
+      iSplitL "HcntA HcntB".
+      { iExists cA, cB, a2A', a2B'. iSplit; [done|].
+        iSplitL "HcntA"; [iExact "HcntA"|iExact "HcntB"]. }
       iExists a2A', a2B', s1_def, s2_def. iSplit; [done|].
       iSplitL "HservA"; [iExact "HservA"|iExact "HservB"].
 

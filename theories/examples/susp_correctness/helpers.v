@@ -1,6 +1,6 @@
 From auth.prelude Require Import stdpp.
 From auth.rel_logic_tern_susp Require Export spec_rules spec_tactics.
-From iris.algebra Require Import gmap auth excl csum agree.
+From iris.algebra Require Import gmap gset auth excl csum agree.
 From iris.algebra.lib Require Import dfrac_agree.
 From auth.heap_lang.lib Require Import serialization_susp.
 From auth.examples.susp_correctness Require Import resource_algebras definitions.
@@ -64,6 +64,85 @@ Qed.
 
 Section authentikit_helpers.
   Context `{!authG Σ, !seqG Σ, !correctnessG Σ}.
+
+  (** Composition helpers for the pair's decoration wand: split the outer
+      [c1 + c2] mapg share and the s_reg equality between two component
+      positions, get disjointness of two pending sets, and compose two
+      sequential pending-updates into one over the union. *)
+  Lemma mapg_match_split (id c1 c2 N : nat) (v : val) :
+    (match (c1 + c2)%nat with
+     | 0%nat => emp
+     | _ => mapg_frag id
+              (pos_to_Qp (Pos.of_nat (c1 + c2)) /
+               pos_to_Qp (Pos.of_nat N))%Qp v
+     end : iProp Σ) -∗
+    (match c1 with
+     | 0%nat => emp
+     | _ => mapg_frag id
+              (pos_to_Qp (Pos.of_nat c1) / pos_to_Qp (Pos.of_nat N))%Qp v
+     end) ∗
+    (match c2 with
+     | 0%nat => emp
+     | _ => mapg_frag id
+              (pos_to_Qp (Pos.of_nat c2) / pos_to_Qp (Pos.of_nat N))%Qp v
+     end).
+  Proof.
+    iIntros "H".
+    destruct c1 as [|c1']; simpl; [by iFrame|].
+    destruct c2 as [|c2'].
+    { iEval (rewrite Nat.add_0_r) in "H". by iFrame. }
+    assert ((pos_to_Qp (Pos.of_nat (S c1' + S c2')) /
+             pos_to_Qp (Pos.of_nat N))%Qp
+            = ((pos_to_Qp (Pos.of_nat (S c1')) / pos_to_Qp (Pos.of_nat N)) +
+               (pos_to_Qp (Pos.of_nat (S c2')) / pos_to_Qp (Pos.of_nat N)))%Qp)
+      as Hq.
+    { rewrite Nat2Pos.inj_add; [|lia|lia].
+      by rewrite -pos_to_Qp_add Qp.div_add_distr. }
+    iEval (rewrite Hq) in "H".
+    iDestruct (mapg_frag_split with "H") as "[$ $]".
+  Qed.
+
+  Lemma sreg_match_split (c1 c2 : nat) (P : Prop) :
+    (match (c1 + c2)%nat with 0%nat => emp | _ => ⌜P⌝ end : iProp Σ) -∗
+    (match c1 with 0%nat => emp | _ => ⌜P⌝ end) ∗
+    (match c2 with 0%nat => emp | _ => ⌜P⌝ end).
+  Proof.
+    iIntros "H". destruct c1 as [|c1']; simpl; [by iFrame|].
+    destruct c2 as [|c2']; iDestruct "H" as %HP.
+    - iSplit; [by iPureIntro|done].
+    - iSplit; by iPureIntro.
+  Qed.
+
+  Lemma penset_frag_disj (γs1 γs2 : pending_setg_type) :
+    penset_frag γs1 -∗ penset_frag γs2 -∗ ⌜γs1 ## γs2⌝.
+  Proof.
+    iIntros "H1 H2".
+    iDestruct (own_valid_2 with "H1 H2") as %Hv.
+    rewrite -auth_frag_op auth_frag_valid gset_disj_valid_op in Hv.
+    done.
+  Qed.
+
+  Lemma penset_frag_union (γs1 γs2 : pending_setg_type) :
+    γs1 ## γs2 →
+    penset_frag γs1 -∗ penset_frag γs2 -∗ penset_frag (γs1 ∪ γs2).
+  Proof.
+    iIntros (Hdisj) "H1 H2".
+    rewrite /penset_frag -gset_disj_union // auth_frag_op own_op.
+    iFrame.
+  Qed.
+
+  Lemma set_fold_pending_union (vm : state_mapg_type)
+      (X Y : pending_setg_type) :
+    X ## Y →
+    set_fold (λ γ m, <[ γ := pending_val ]>m) vm (X ∪ Y)
+    = set_fold (λ γ m, <[ γ := pending_val ]>m)
+        (set_fold (λ γ m, <[ γ := pending_val ]>m) vm X) Y.
+  Proof.
+    intros Hdisj.
+    apply (set_fold_disj_union_strong (=)); [| |done].
+    - by intros x m1 m2 ->.
+    - intros x1 x2 b' _ _ Hne. by rewrite insert_commute.
+  Qed.
 
   Lemma sub_susp_count_update_map :
     ∀ t v c (id : nat) Nc m,
