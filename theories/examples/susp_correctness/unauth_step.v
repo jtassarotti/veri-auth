@@ -225,14 +225,17 @@ Section unauth_step.
 
           iEval (rewrite visited_map_update_pending_rewrite) in "Hvmauth".
           iMod (visited_deser_commit _ _ _ _ susp a2' c' with "Hvmauth Hid")
-            as "(Hvmauth & Hid & Hidtok & #Hvfrag & Hcapf & Hmapf)".
-          iMod ("Hdecorate" $! tA a2' s with "[] Hcapf Hmapf []")
+            as "(Hvmauth & Hid & Hidtok & #Hvfrag & #Hcapf & Hmapf)".
+          iMod ("Hdecorate" $! tA a2' s c' with "[] [//] Hcapf [Hmapf] []")
             as "(#HA' & Hc & Hvser)".
           { iPureIntro. apply sub_pos_refl. }
+          { destruct c'; [done|]. rewrite Qp.div_diag. iFrame "Hmapf". }
           { by destruct c'. }
 
           iSimpl in "Hv". v_pures. v_bind (v_count _).
-          iDestruct "Hc" as "(Hcap & % & Hc & Hagg)".
+          iPoseProof "Hcapf" as "Hcap".
+          iAssert (count_aggregator c' cntr c' a2')%I as "Hagg".
+          { rewrite /count_aggregator. by iLeft. }
           iMod ("Hvcountspec" with "Hc Hv") as "[Hc Hv] /=". v_pures.
 
           v_bind (v_finish _ _ _ _).

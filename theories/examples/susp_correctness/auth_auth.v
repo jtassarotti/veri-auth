@@ -591,7 +591,8 @@ Section authenticatable.
                Nat.add_0_r.
              iFrame "Hvm".
              (* the decoration wand — everything pure/persistent at c = 0 *)
-             iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _". iModIntro.
+             iIntros (t_out v_out s_out Nt) "%Hsubpos %HcN #Hcap _ _".
+             iModIntro.
              iSplit.
              { iEval (rewrite /lrel_auth /=). iSplit.
                - iEval (cbv [lrel_auth_tern lrel_car]).
@@ -613,10 +614,8 @@ Section authenticatable.
                iExists lb_new, lr_new, p_new.
                iSplit; [iPureIntro; rewrite -HhU; done|]. iLeft. iExact "Hinv_new". }
              iSplitL "".
-             { iFrame "Hcap". iSplit; [done|]. iSplitL "".
-               - iExists (InjLV #(hash s_in)). iSplit; [done|].
-                 iLeft. by iExists (hash s_in).
-               - by iLeft. }
+             { iExists (InjLV #(hash s_in)). iSplit; [done|].
+               iLeft. by iExists (hash s_in). }
              iExists (InjLV #(hash s_in)). iSplit; [done|].
              iLeft. by iExists (hash s_in).
           -- (* mismatch on the filled string *)
@@ -726,8 +725,15 @@ Section authenticatable.
              rewrite /visited_map_update_pending.
              iFrame "Hvm".
              (* the decoration wand at c = 1 *)
-             iIntros (t_out v_out s_out) "%Hsubpos #Hcap Hmapf %Hsregdef".
-             iEval (rewrite -(Qp.div_2 1)) in "Hmapf".
+             iIntros (t_out v_out s_out Nt) "%Hsubpos %HcN #Hcap Hmapf %Hsregdef".
+             assert ((pos_to_Qp (Pos.of_nat 1) / pos_to_Qp (Pos.of_nat Nt))%Qp
+                     = ((1 / (2 * pos_to_Qp (Pos.of_nat Nt))) +
+                        (1 / (2 * pos_to_Qp (Pos.of_nat Nt))))%Qp) as Hqsplit.
+             { replace (Pos.of_nat 1) with 1%positive by done.
+               rewrite -{1}(Qp.div_2 (1 / pos_to_Qp (Pos.of_nat Nt))).
+               by rewrite Qp.div_div
+                 (Qp.mul_comm (pos_to_Qp (Pos.of_nat Nt)) 2%Qp). }
+             iEval (rewrite Hqsplit) in "Hmapf".
              iDestruct (mapg_frag_split with "Hmapf") as "[HmapfI HmapfC]".
              iMod (na_inv_alloc seqG_name ⊤ (ver_susp_n susp_new)
                      (auth_susp_v_inv id (InjRV #susp_new)
@@ -735,12 +741,10 @@ Section authenticatable.
                      with "[Hunfilled HmapfI Hpts2]") as "#Hinv_v".
              { iNext. iRight.
                iExists (hash s_in), susp_new, p_v, v_out,
-                 t_out, s_reg, 1.
+                 t_out, s_reg, Nt.
                iSplit; [done|].
                iSplitR; [iExact "Hcap"|].
                iFrame "Hunfilled".
-               replace (1 / (2 * pos_to_Qp (Pos.of_nat 1)))%Qp with (1/2)%Qp;
-                 last by rewrite Qp.mul_1_r.
                iFrame "HmapfI".
                iSplit.
                { iPureIntro. eapply sub_pos_v_sub_obj; [exact Hsubpos|].
@@ -778,18 +782,13 @@ Section authenticatable.
                iExists lb_new, lr_new, p_new.
                iSplit; [iPureIntro; rewrite -HhU; done|]. iRight. iExact "Hinv_new". }
              iSplitL "Hpend Hpts4a HmapfC".
-             { iFrame "Hcap". iSplit; [done|].
-               iSplitL.
-               - iExists (InjRV #susp_new). iSplit; [done|].
-                 iRight. iExists susp_new. iSplit; [done|].
-                 iRight. iExists p_v, γ_new.
-                 iFrame "Hlgv Hpts4a".
-                 iSplit; [done|].
-                 replace (1 / (2 * pos_to_Qp (Pos.of_nat 1)))%Qp with (1/2)%Qp;
-                   last by rewrite Qp.mul_1_r.
-                 iFrame "HmapfC Hsnap".
-                 by iLeft.
-               - by iLeft. }
+             { iExists (InjRV #susp_new). iSplit; [done|].
+               iRight. iExists susp_new. iSplit; [done|].
+               iRight. iExists p_v, γ_new.
+               iFrame "Hlgv Hpts4a".
+               iSplit; [done|].
+               iFrame "HmapfC Hcap Hsnap".
+               by iLeft. }
              iExists (InjRV #susp_new). iSplit; [done|].
              iRight. iRight. iExists (hash s_in), susp_new, p_v.
              iSplit; [done|]. iFrame "Hpts4b".
@@ -880,7 +879,8 @@ Section authenticatable.
                Nat.add_0_r.
              iFrame "Hvm".
              (* the decoration wand — everything pure/persistent at c = 0 *)
-             iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _". iModIntro.
+             iIntros (t_out v_out s_out Nt) "%Hsubpos %HcN #Hcap _ _".
+             iModIntro.
              iSplit.
              { iEval (rewrite /lrel_auth /=). iSplit.
                - iEval (cbv [lrel_auth_tern lrel_car]).
@@ -902,10 +902,8 @@ Section authenticatable.
                iExists lb_new, lr_new, p_new.
                iSplit; [iPureIntro; rewrite -HhU; done|]. iLeft. iExact "Hinv_new". }
              iSplitL "".
-             { iFrame "Hcap". iSplit; [done|]. iSplitL "".
-               - iExists (InjLV #(hash s_in)). iSplit; [done|].
-                 iLeft. by iExists (hash s_in).
-               - by iLeft. }
+             { iExists (InjLV #(hash s_in)). iSplit; [done|].
+               iLeft. by iExists (hash s_in). }
              iExists (InjLV #(hash s_in)). iSplit; [done|].
              iLeft. by iExists (hash s_in).
           -- (* mismatch on the filled string *)
@@ -1051,7 +1049,8 @@ Section authenticatable.
                Nat.add_0_r.
              iFrame "Hvm".
              (* the decoration wand — everything pure/persistent at c = 0 *)
-             iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _". iModIntro.
+             iIntros (t_out v_out s_out Nt) "%Hsubpos %HcN #Hcap _ _".
+             iModIntro.
              iSplit.
              { iEval (rewrite /lrel_auth /=). iSplit.
                - iEval (cbv [lrel_auth_tern lrel_car]).
@@ -1073,10 +1072,8 @@ Section authenticatable.
                iExists lb_new, lr_new, p_new.
                iSplit; [iPureIntro; rewrite -HhU; done|]. iLeft. iExact "Hinv_new". }
              iSplitL "".
-             { iFrame "Hcap". iSplit; [done|]. iSplitL "".
-               - iExists (InjLV #(hash s_in)). iSplit; [done|].
-                 iLeft. by iExists (hash s_in).
-               - by iLeft. }
+             { iExists (InjLV #(hash s_in)). iSplit; [done|].
+               iLeft. by iExists (hash s_in). }
              iExists (InjLV #(hash s_in)). iSplit; [done|].
              iLeft. by iExists (hash s_in).
           -- (* mismatch on the filled string *)
@@ -1186,8 +1183,15 @@ Section authenticatable.
              rewrite /visited_map_update_pending.
              iFrame "Hvm".
              (* the decoration wand at c = 1 *)
-             iIntros (t_out v_out s_out) "%Hsubpos #Hcap Hmapf %Hsregdef".
-             iEval (rewrite -(Qp.div_2 1)) in "Hmapf".
+             iIntros (t_out v_out s_out Nt) "%Hsubpos %HcN #Hcap Hmapf %Hsregdef".
+             assert ((pos_to_Qp (Pos.of_nat 1) / pos_to_Qp (Pos.of_nat Nt))%Qp
+                     = ((1 / (2 * pos_to_Qp (Pos.of_nat Nt))) +
+                        (1 / (2 * pos_to_Qp (Pos.of_nat Nt))))%Qp) as Hqsplit.
+             { replace (Pos.of_nat 1) with 1%positive by done.
+               rewrite -{1}(Qp.div_2 (1 / pos_to_Qp (Pos.of_nat Nt))).
+               by rewrite Qp.div_div
+                 (Qp.mul_comm (pos_to_Qp (Pos.of_nat Nt)) 2%Qp). }
+             iEval (rewrite Hqsplit) in "Hmapf".
              iDestruct (mapg_frag_split with "Hmapf") as "[HmapfI HmapfC]".
              iMod (na_inv_alloc seqG_name ⊤ (ver_susp_n susp_new)
                      (auth_susp_v_inv id (InjRV #susp_new)
@@ -1195,12 +1199,10 @@ Section authenticatable.
                      with "[Hunfilled HmapfI Hpts2]") as "#Hinv_v".
              { iNext. iRight.
                iExists (hash s_in), susp_new, p_v, v_out,
-                 t_out, s_reg, 1.
+                 t_out, s_reg, Nt.
                iSplit; [done|].
                iSplitR; [iExact "Hcap"|].
                iFrame "Hunfilled".
-               replace (1 / (2 * pos_to_Qp (Pos.of_nat 1)))%Qp with (1/2)%Qp;
-                 last by rewrite Qp.mul_1_r.
                iFrame "HmapfI".
                iSplit.
                { iPureIntro. eapply sub_pos_v_sub_obj; [exact Hsubpos|].
@@ -1238,18 +1240,13 @@ Section authenticatable.
                iExists lb_new, lr_new, p_new.
                iSplit; [iPureIntro; rewrite -HhU; done|]. iRight. iExact "Hinv_new". }
              iSplitL "Hpend Hpts4a HmapfC".
-             { iFrame "Hcap". iSplit; [done|].
-               iSplitL.
-               - iExists (InjRV #susp_new). iSplit; [done|].
-                 iRight. iExists susp_new. iSplit; [done|].
-                 iRight. iExists p_v, γ_new.
-                 iFrame "Hlgv Hpts4a".
-                 iSplit; [done|].
-                 replace (1 / (2 * pos_to_Qp (Pos.of_nat 1)))%Qp with (1/2)%Qp;
-                   last by rewrite Qp.mul_1_r.
-                 iFrame "HmapfC Hsnap".
-                 by iLeft.
-               - by iLeft. }
+             { iExists (InjRV #susp_new). iSplit; [done|].
+               iRight. iExists susp_new. iSplit; [done|].
+               iRight. iExists p_v, γ_new.
+               iFrame "Hlgv Hpts4a".
+               iSplit; [done|].
+               iFrame "HmapfC Hcap Hsnap".
+               by iLeft. }
              iExists (InjRV #susp_new). iSplit; [done|].
              iRight. iRight. iExists (hash s_in), susp_new, p_v.
              iSplit; [done|]. iFrame "Hpts4b".
@@ -1340,7 +1337,8 @@ Section authenticatable.
                Nat.add_0_r.
              iFrame "Hvm".
              (* the decoration wand — everything pure/persistent at c = 0 *)
-             iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _". iModIntro.
+             iIntros (t_out v_out s_out Nt) "%Hsubpos %HcN #Hcap _ _".
+             iModIntro.
              iSplit.
              { iEval (rewrite /lrel_auth /=). iSplit.
                - iEval (cbv [lrel_auth_tern lrel_car]).
@@ -1362,10 +1360,8 @@ Section authenticatable.
                iExists lb_new, lr_new, p_new.
                iSplit; [iPureIntro; rewrite -HhU; done|]. iLeft. iExact "Hinv_new". }
              iSplitL "".
-             { iFrame "Hcap". iSplit; [done|]. iSplitL "".
-               - iExists (InjLV #(hash s_in)). iSplit; [done|].
-                 iLeft. by iExists (hash s_in).
-               - by iLeft. }
+             { iExists (InjLV #(hash s_in)). iSplit; [done|].
+               iLeft. by iExists (hash s_in). }
              iExists (InjLV #(hash s_in)). iSplit; [done|].
              iLeft. by iExists (hash s_in).
           -- (* mismatch on the filled string *)

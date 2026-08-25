@@ -678,12 +678,20 @@ Section authenticatable_definitions.
                    premise is the caller's obligation to mint apartness
                    witnesses ([pval_snapshot]) for freshly allocated
                    verifier locs at the just-committed id. *)
-                (∀ (t_out : evi_type) (v_out : val) (s_out : string),
+                (∀ (t_out : evi_type) (v_out : val) (s_out : string)
+                   (N : nat),
                  ⌜sub_pos t_out v_out s_out t a2' s_def⌝ -∗
-                 cap_frag id c -∗
+                 (* [N] is the TOTAL suspension count of the outer
+                    registration; this position contributes [c ≤ N] of
+                    them, and receives the matching [c/N] share of the
+                    registered mapg fragment. *)
+                 ⌜c ≤ N⌝ -∗
+                 cap_frag id N -∗
                  (match c with
                   | 0%nat => emp
-                  | _ => mapg_frag id 1 v_out
+                  | _ => mapg_frag id
+                           (pos_to_Qp (Pos.of_nat c) /
+                            pos_to_Qp (Pos.of_nat N))%Qp v_out
                   end) -∗
                  (* The registered prediction coincides with the defined
                     serialization — needed only where a suspension was
@@ -695,7 +703,11 @@ Section authenticatable_definitions.
                   | _ => ⌜s_reg = s_out⌝
                   end) ={⊤}=∗
                    A a1' a2' a3 ∗
-                   sub_susp_count_frags t a2' c id c v_out ∗
+                   (* The RAW count — cap/bound/aggregator wrappers are
+                      assembled once at the top-level fire, not per
+                      position (two sibling aggregators at the same [id]
+                      would not compose). *)
+                   sub_susp_count t a2' c id N v_out ∗
                    ser_v_proph t id a2' s_def)) ∨
               (⌜s_pred ≠ s_real⌝ ∗ (lrel_tern_un A) a1')) }}})).
 

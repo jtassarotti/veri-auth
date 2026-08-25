@@ -321,18 +321,10 @@ Section authenticatable.
              assert (s_pred = inl_ser_str s_realA) as ->.
              { rewrite {1}(substring_split_from_O s_pred 2) //.
                by rewrite /inl_ser_str HtagL' HspA. }
-             destruct cA as [|cA'']; last first.
-             { (* cA > 0: suspensions under a sum are unreachable by design
-                  (v_sub_obj's tsum clause pins the injected value), so the
-                  sum-level per-γ payload cannot be assembled. Standing
-                  design exclusion. *)
-               admit. }
-             apply size_empty_inv in Hsz. fold_leibniz. subst γl.
-             iApply ("HΨ" $! (InjLV a1A') (inl_ser_str s_realA) 0 (tsum tA tB)).
+             iApply ("HΨ" $! (InjLV a1A') (inl_ser_str s_realA) cA (tsum tA tB)).
              iModIntro.
              iSplitR.
-             { (* the sum serializer spec at InjL, closure via γl = ∅ *)
-               rewrite /susp_p_ser_spec_at.
+             { rewrite /susp_p_ser_spec_at.
                iIntros (E q HE Ψ') "!# (Htok & Hintr) HΨ'".
                wp_pures.
                wp_apply ("HspecatA" $! E q with "[//] [$Htok $Hintr]").
@@ -347,31 +339,36 @@ Section authenticatable.
              { rewrite interp_un_sum_unfold. iExists a1A'. iLeft.
                iSplit; [done|]. interp_unfold!.
                iDestruct "HunA1'" as "HunA1c". iApply "HunA1c". }
-             iExists ∅, mlg', (InjLV a2A').
+             iExists γl, mlg', (InjLV a2A').
              iFrame "Hlgp' Hpens Hv".
-             iSplit; [by rewrite size_empty|].
+             iSplit; [by iPureIntro|].
              iSplit.
              { iExists a1A', s1_def. iLeft. iSplit; [iApply "HpserpA'"|done]. }
-             iSplit. { by rewrite big_sepS_empty. }
+             iSplitL "Hbig".
+             { iApply (big_sepS_mono with "Hbig").
+               iIntros (γ' Hγ') "[Hp Hv2]".
+               iSplitL "Hp".
+               - iDestruct "Hp" as (lb) "[Hp %Hps]". iExists lb. iFrame "Hp".
+                 iPureIntro. exists a1A'. left. by split.
+               - iDestruct "Hv2" as (suspx) "[Hg %Hvs]". iExists suspx.
+                 iFrame "Hg". iPureIntro. exists a2A'. left. by split. }
              iSplitL "Hpenc'"; [by iFrame "Hpenc'"|].
              iFrame "Hvm'".
-             (* the sum-level decoration wand, composing the component's *)
-             iIntros (t_out v_out s_out) "%Hsubpos Hcap _ _".
-             iMod ("Hwand" $! t_out v_out s_out with "[] Hcap [//] [//]")
+             iIntros (t_out v_out s_out Nt) "%Hsubpos %HcN Hcap Hmap Hsr".
+             iMod ("Hwand" $! t_out v_out s_out Nt
+                     with "[] [//] Hcap [Hmap] [Hsr]")
                as "(HAf & Hcnt & Hserv)".
              { iPureIntro. eapply sub_pos_trans; [exact Hsubpos|].
                by apply sub_pos_inl, sub_pos_refl. }
+             { iExact "Hmap". }
+             { iExact "Hsr". }
              iModIntro.
              iSplitL "HAf".
              { iEval (rewrite interp_sum_combined).
                iExists a1A', a2A', w3. iLeft.
                do 3 (iSplit; [done|]). interp_unfold!. iApply "HAf". }
-             iDestruct "Hcnt" as "(#Hcap' & _ & Hc & Hagg)".
-             iSplitL "Hc".
-             { iFrame "Hcap'". iSplit; [done|]. iSplitL "Hc".
-               - iLeft. iExists a2A'. iSplit; [done|].
-                 by iApply sub_susp_count_c0_vout.
-               - by iLeft. }
+             iSplitL "Hcnt".
+             { iLeft. iExists a2A'. iSplit; [done|]. iExact "Hcnt". }
              iExists a2A', s1_def. iLeft. iSplit; [iExact "Hserv"|done].
           ** (* component mismatch *)
              injection HtagL as HtagL'.
@@ -550,12 +547,7 @@ Section authenticatable.
                 assert (s_pred = inr_ser_str s_realB) as ->.
                 { rewrite {1}(substring_split_from_O s_pred 2) //.
                   by rewrite /inr_ser_str HtagR' HspB. }
-                destruct cB as [|cB'']; last first.
-                { (* cB > 0: suspensions under a sum are unreachable by
-                     design — standing exclusion. *)
-                  admit. }
-                apply size_empty_inv in Hsz. fold_leibniz. subst γl.
-                iApply ("HΨ" $! (InjRV a1B') (inr_ser_str s_realB) 0 (tsum tA tB)).
+                iApply ("HΨ" $! (InjRV a1B') (inr_ser_str s_realB) cB (tsum tA tB)).
                 iModIntro.
                 iSplitR.
                 { rewrite /susp_p_ser_spec_at.
@@ -573,30 +565,36 @@ Section authenticatable.
                 { rewrite interp_un_sum_unfold. iExists a1B'. iRight.
                   iSplit; [done|]. interp_unfold!.
                   iDestruct "HunB1'" as "HunB1c". iApply "HunB1c". }
-                iExists ∅, mlg', (InjRV a2B').
+                iExists γl, mlg', (InjRV a2B').
                 iFrame "Hlgp' Hpens Hv".
-                iSplit; [by rewrite size_empty|].
+                iSplit; [by iPureIntro|].
                 iSplit.
                 { iExists a1B', s1_def. iRight. iSplit; [iApply "HpserpB'"|done]. }
-                iSplit. { by rewrite big_sepS_empty. }
+                iSplitL "Hbig".
+                { iApply (big_sepS_mono with "Hbig").
+                  iIntros (γ' Hγ') "[Hp Hv2]".
+                  iSplitL "Hp".
+                  - iDestruct "Hp" as (lb) "[Hp %Hps]". iExists lb. iFrame "Hp".
+                    iPureIntro. exists a1B'. right. by split.
+                  - iDestruct "Hv2" as (suspx) "[Hg %Hvs]". iExists suspx.
+                    iFrame "Hg". iPureIntro. exists a2B'. right. by split. }
                 iSplitL "Hpenc'"; [by iFrame "Hpenc'"|].
                 iFrame "Hvm'".
-                iIntros (t_out v_out s_out) "%Hsubpos Hcap _ _".
-                iMod ("Hwand" $! t_out v_out s_out with "[] Hcap [//] [//]")
+                iIntros (t_out v_out s_out Nt) "%Hsubpos %HcN Hcap Hmap Hsr".
+                iMod ("Hwand" $! t_out v_out s_out Nt
+                        with "[] [//] Hcap [Hmap] [Hsr]")
                   as "(HBf & Hcnt & Hserv)".
                 { iPureIntro. eapply sub_pos_trans; [exact Hsubpos|].
                   by apply sub_pos_inr, sub_pos_refl. }
+                { iExact "Hmap". }
+                { iExact "Hsr". }
                 iModIntro.
                 iSplitL "HBf".
                 { iEval (rewrite interp_sum_combined).
                   iExists a1B', a2B', w3. iRight.
                   do 3 (iSplit; [done|]). interp_unfold!. iApply "HBf". }
-                iDestruct "Hcnt" as "(#Hcap' & _ & Hc & Hagg)".
-                iSplitL "Hc".
-                { iFrame "Hcap'". iSplit; [done|]. iSplitL "Hc".
-                  - iRight. iExists a2B'. iSplit; [done|].
-                    by iApply sub_susp_count_c0_vout.
-                  - by iLeft. }
+                iSplitL "Hcnt".
+                { iRight. iExists a2B'. iSplit; [done|]. iExact "Hcnt". }
                 iExists a2B', s1_def. iRight. iSplit; [iExact "Hserv"|done].
              ** (* component mismatch *)
                 injection HtagR as HtagR'.
@@ -886,12 +884,9 @@ Section authenticatable.
         rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
         iFrame "Hvm".
         (* the decoration wand: everything is pure at c = 0 *)
-        iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _". iModIntro.
+        iIntros (t_out v_out s_out Nt) "%Hsubpos %HcN #Hcap _ _". iModIntro.
         iSplit. { iSplit; [by iExists sv|]. iApply "HAun". }
-        iSplit.
-        { iFrame "Hcap". iSplit; [done|]. iSplit.
-          - iSplit; [by iExists sv|done].
-          - by iLeft. }
+        iSplit. { iSplit; [by iExists sv|done]. }
         iPureIntro. by exists sv.
       + (* mismatch: parse fails or parses to a different string *)
         rewrite /string_deser. v_pures; try solve_vals_compare_safe.
@@ -1060,12 +1055,9 @@ Section authenticatable.
         iSplitL "Hpenc"; [by iFrame "Hpenc"|].
         rewrite /visited_map_update_pending set_fold_empty size_empty Nat.add_0_r.
         iFrame "Hvm".
-        iIntros (t_out v_out s_out) "%Hsubpos #Hcap _ _". iModIntro.
+        iIntros (t_out v_out s_out Nt) "%Hsubpos %HcN #Hcap _ _". iModIntro.
         iSplit. { iSplit; [by iExists zv|]. iApply "HAun". }
-        iSplit.
-        { iFrame "Hcap". iSplit; [done|]. iSplit.
-          - iSplit; [by iExists zv|done].
-          - by iLeft. }
+        iSplit. { iSplit; [by iExists zv|done]. }
         iPureIntro. by exists zv.
       + (* mismatch: no need to step the verifier — the post drops it *)
         iApply ("HΨ" $! #zv (int_ser_str zv) 0 tint).
@@ -1278,8 +1270,9 @@ Section authenticatable.
         iExists γl, mlg', a2'.
         iFrame "Hlgp' Hpens Hpserp' Hv Hbig Hpenc' Hvm'".
         iSplit; [done|].
-        iIntros (t_out v_out s_out) "%Hsubpos Hcap Hmap Hsr".
-        iMod ("Hwand" $! t_out v_out s_out with "[//] Hcap [Hmap] [Hsr]")
+        iIntros (t_out v_out s_out Nt) "%Hsubpos %HcN Hcap Hmap Hsr".
+        iMod ("Hwand" $! t_out v_out s_out Nt
+                with "[//] [//] Hcap [Hmap] [Hsr]")
           as "(HAf & Hcnt & Hserv)".
         { subst t_real. iExact "Hmap". }
         { subst t_real. iExact "Hsr". }
