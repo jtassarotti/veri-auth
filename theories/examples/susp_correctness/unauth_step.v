@@ -275,7 +275,8 @@ Section unauth_step.
 
           case_bool_decide; simplify_eq; v_pures.
           -- v_bind (v_finish _).
-            assert (size γl = 0) as -> by lia.
+            assert (size γl = 0) as Hγl0 by lia.
+            rewrite Hγl0.
             destruct! H5; simplify_eq; first lia.
 
             iDestruct "Hvmauth" as (n0) "Hvmauth".
@@ -285,11 +286,24 @@ Section unauth_step.
                 "Hvisit Hvfrag Htok Hauthv Hintr Hvmauth Hmauth Hbigsep")
               as (E') "(-> & #Hnmspc' & Htauthv & Hvmauth & Hmauth & Hbigsep)".
 
+            iEval (rewrite visited_map_update_finished_rewrite) in "Hvmauth".
             iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hmauth Hvmauth Hvisinv Hst' Hserp]") as "Htabtok".
-            { (* table re-close: iFrame on the giant [visited_mapg_auth]
-                 term diverges; the block was admitted anyway — reconcile
-                 shapes when adapting this region to the merged table. *)
-              iNext. iLeft. admit. }
+            { iNext. iLeft.
+              iExists d, m, m2, _, _, _, _.
+              iFrame "Hl Hbigsep Hst' Hserp Hvmauth".
+              iSplit; first done.
+              iSplit; first done.
+              iSplit.
+              { iPureIntro. intros ctr' Hge. apply Hidinv. lia. }
+              iSplit; last first.
+              { iPureIntro. rewrite dom_insert set_seq_S_end_union_L. set_solver. }
+              (* γl = ∅ so set_fold reduces to vm; insert γ0 finished on top *)
+              assert (γl = ∅) as ->.
+              { apply size_empty_inv in Hγl0. by fold_leibniz. }
+              rewrite set_fold_empty insert_insert.
+              iApply (big_sepM_insert_2 (vm_big_sep_lam_unset m)).
+              { rewrite /vm_big_sep_lam_unset. by iIntros (id [=]). }
+              iApply "Hvisinv". }
 
             iMod ("Hvfinish" $! ⊤ with "[] Htabtok Hlc Hvser Hvserspec Hc
                     Htauthv Hst Hv") as "(Hv & Htabtok & Htok & Hst & Hintr) /=".
