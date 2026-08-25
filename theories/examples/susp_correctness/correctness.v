@@ -838,8 +838,12 @@ Section proof.
             { destruct (le_gt_dec cntr pid) as [Hle|]; last by iPureIntro.
               iDestruct (pval_snapshot_neq _ _ _ _ Hle with "Hpvuneq Hvfrag") as %?.
               done. }
+            iAssert (visit_finished γ -∗ id_token cntr)%I with "[Hidtok]"
+              as "Hgetidtok".
+            { iIntros "_". iExact "Hidtok". }
             iSplitR "Hvmauth".
-            { iRight. iFrame "#".
+            { iRight. iExists _, susp0, pid, γ.
+              iFrame "Hvfrag Hpvuneq Hlbvfrag Hvisdone Hgetidtok Hinv_authv".
               repeat (iSplit; eauto). }
             admit.
 
