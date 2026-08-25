@@ -913,6 +913,8 @@ Section proof.
           
           v_store.
 
+          iDestruct (v_susp_big_sep_fresh with "Hbigsep") as %Hcntr_fresh;
+            first exact Hidinv.
           iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hvmauth Hvisinv Hst' Hc Hlc Hvfinish Hvser Hidtok Hserp]") as "Htabtok".
           { iNext. iLeft. iFrame "Hvmauth". iFrame "∗ %".
 
@@ -939,7 +941,13 @@ Section proof.
                 iLeft. by iFrame. }
               iFrame. }
 
-            iSplit; first admit.
+            iSplit.
+            { iPureIntro.
+              rewrite /mapg_insert_def mapg_alive_insert.
+              rewrite (map_size_insert_None _ _ _ Hcntr_fresh).
+              pose proof (Hidinv cntr ltac:(lia)) as Hm_none.
+              rewrite (map_size_insert_None _ _ _ Hm_none).
+              by rewrite H. }
             iSplit.
             { iPureIntro. intros ??.
               rewrite lookup_insert_None.

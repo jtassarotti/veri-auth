@@ -1514,3 +1514,38 @@ Section authentikit_helpers.
   Proof. rewrite /v_count_spec. apply _. Qed.
 
 End authentikit_helpers.
+
+Section authentikit_helpers_tabseq.
+  Context `{!authG Σ, !seqG Σ, !tabseqG Σ, !correctnessG Σ}.
+
+  (** Every id in [mapg_alive m'] has a Some entry in [m] at [#id]. This is
+      the pure content of every [v_susp_big_sep_lam m id agv] entry. Combined
+      with [ctr_inv cntr m] and [m !! #cntr = None] this shows [cntr ∉ dom
+      (mapg_alive m')], enabling size arithmetic across insertions on both
+      sides. *)
+  Lemma v_susp_big_sep_dom m m' :
+    v_susp_big_sep m m' ⊢
+      ⌜∀ id : nat, id ∈ dom (mapg_alive m') → is_Some (m !! #id)⌝.
+  Proof.
+    rewrite /v_susp_big_sep. iIntros "Hbs" (id Hin).
+    apply elem_of_dom in Hin as [agv Hidval].
+    iDestruct (big_sepM_lookup _ _ id agv Hidval with "Hbs") as "Hlam".
+    rewrite /v_susp_big_sep_lam.
+    iDestruct "Hlam" as (?????????[?[Hm _]]) "_".
+    iPureIntro. by rewrite Hm.
+  Qed.
+
+  Lemma v_susp_big_sep_fresh m m' cntr :
+    ctr_inv cntr m →
+    v_susp_big_sep m m' ⊢ ⌜mapg_alive m' !! cntr = None⌝.
+  Proof.
+    iIntros (Hidinv) "Hbs".
+    iDestruct (v_susp_big_sep_dom with "Hbs") as "%Hdom".
+    iPureIntro. destruct (mapg_alive m' !! cntr) eqn:Hlkp; last done.
+    exfalso. specialize (Hidinv cntr ltac:(lia)).
+    assert (cntr ∈ dom (mapg_alive m')) as Hin.
+    { apply elem_of_dom. eexists. exact Hlkp. }
+    apply Hdom in Hin as [v Hv]. by rewrite Hv in Hidinv.
+  Qed.
+
+End authentikit_helpers_tabseq.
