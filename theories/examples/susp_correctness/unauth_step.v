@@ -200,7 +200,14 @@ Section unauth_step.
               simpl. split_and!; try done; lia. }
 
             do 2 iRight. iFrame "#".
-            admit. }
+            iPureIntro.
+            unfold lastn.
+            rewrite reverse_cons -assoc /=.
+            rewrite !length_app length_reverse /=.
+            replace (length ps2 + S (length ps1) - S (length ps1)) with (length ps2) by lia.
+            rewrite skipn_app skipn_all2; last (rewrite length_reverse; lia).
+            replace (length ps2 - length (reverse ps2)) with 0 by (rewrite length_reverse; lia).
+            simpl. intros [=Hne%H5]. done. }
           iDestruct "HC" as "[_ [HP2 HP3]]".
 
 
