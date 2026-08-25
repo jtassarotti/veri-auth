@@ -796,7 +796,14 @@ Section proof.
             simpl. split_and!; try done; lia. }
 
           do 2 iRight. iFrame "#".
-          admit. }
+          iPureIntro.
+          unfold lastn.
+          rewrite reverse_cons -assoc /=.
+          rewrite !length_app length_reverse /=.
+          replace (length ps2 + S (length ps1) - S (length ps1)) with (length ps2) by lia.
+          rewrite skipn_app skipn_all2; last (rewrite length_reverse; lia).
+          replace (length ps2 - length (reverse ps2)) with 0 by (rewrite length_reverse; lia).
+          simpl. intros [=Hne%H5]. done. }
 
         iPoseProof (big_sepS_sep
           (λ γ, ∃ lb, lg_mapg_p_frag lb γ ∗ ⌜p_sub_obj tA a1' #lb⌝)%I
