@@ -382,7 +382,7 @@ Section unauth_step.
             eexists _. split; eauto.
             repeat f_equal. lia.
 
-          -- assert (size γl > 0).
+          -- assert (size γl > 0) as Hγlpos.
             { destruct (size γl); simplify_eq. lia. }
             destruct! H5; try lia; simplify_eq.
 
@@ -402,28 +402,32 @@ Section unauth_step.
               with "[$Hbigsep $Hvfinish $Hauthv $Hc $Hagg $Hcapf $Hvser]") as "Hbigsep".
             { iFrame "#". admit. }
 
-            iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hmauth Hvmauth Hvisinv Hst' Hlc]") as "Htabtok".
+            iPoseProof (big_sepM_mono
+                (v_susp_big_sep_lam m)
+                (v_susp_big_sep_lam (<[#cntr:=(#(size γl), v_finish)%V]> m))
+              with "Hbigsep") as "Hbigsep".
+            { iIntros (?? Hlook) "Hbigsep".
+              rewrite /v_susp_big_sep_lam.
+              iDestruct "Hbigsep" as (?????????[?[??]]) "($ & $ & $ & $)".
+              iPureIntro. exists q.
+              do 2 (split; eauto).
+              rewrite lookup_insert_ne; eauto.
+              intros ?. simplify_eq.
+              specialize (Hidinv k ltac:(lia)).
+              simplify_eq. }
+
+            iEval (rewrite -mapg_alive_insert) in "Hbigsep".
+            iEval (rewrite -/(mapg_insert_def m2 cntr a2')) in "Hbigsep".
+            iDestruct "Hvmauth" as (n0) "Hvmauth".
+            assert (mp2 = mapg_insert_def m2 cntr a2') as Hmp2eq.
+            { subst mp2. destruct (size γl); [lia|done]. }
+            iEval (rewrite Hmp2eq) in "Hvmauth".
+            iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hvmauth Hvisinv Hst' Hserp]") as "Htabtok".
             { iNext. iLeft.
-
-              iPoseProof (big_sepM_mono 
-                  (v_susp_big_sep_lam m)
-                  (v_susp_big_sep_lam (<[#cntr:=(#(size γl), v_finish)%V]> m)) 
-                with "Hbigsep") as "Hbigsep".
-              { iIntros (?? Hlook) "Hbigsep".
-                rewrite /v_susp_big_sep_lam.
-                iDestruct "Hbigsep" as (?????????[?[??]]) "($ & $ & $ & $)".
-                iPureIntro. exists q.
-                do 2 (split; eauto).
-                rewrite lookup_insert_ne; eauto.
-                intros ?. simplify_eq.
-                specialize (Hidinv k ltac:(lia)).
-                simplify_eq. }
-
-              iEval (rewrite -mapg_alive_insert) in "Hbigsep".
-              iFrame "Hl Hmauth Hst' Hbigsep".
-
-              (* framing the giant [visited_mapg_auth] into the table's
-                 existential diverges; block was admitted anyway. *)
+              iExists _, (<[#cntr:=(#(size γl), v_finish)%V]> m), (mapg_insert_def m2 cntr a2'),
+                (<[γ0:=done_val n0]> vm'), cntr', pn', _.
+              iFrame "Hl Hbigsep Hst' Hserp Hvmauth".
+              (* size (mapg_alive mp2) = size m', ctr_inv, vm_big_sep, dom msp — TODO *)
               admit. }
 
             v_pures. v_bind (list_tail _).
