@@ -1483,7 +1483,10 @@ Section proof.
                 last (intros [=Heq]; apply Nat2Z.inj in Heq; subst; lia).
               apply Hidinv. lia. }
             iSplitR.
-            { (* vm_big_sep for done_val n0 — TODO *) admit. }
+            { (* Mirror of unauth_step.v:444 — same [vm_big_sep_lam_unset _ γ
+                 (done_val n0)] obligation, blocked on the same structural
+                 issue. See the comment there for the full write-up. *)
+              admit. }
             iPureIntro. rewrite dom_insert_L. subst cntr'.
             rewrite set_seq_S_end_union_L. set_solver. }
 

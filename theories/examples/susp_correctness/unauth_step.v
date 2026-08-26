@@ -229,6 +229,23 @@ Section unauth_step.
             admit. }
           iMod "Hmint" as (m'') "[Hmauth %]".
 
+          (* [Hbig_assert]: outer visit-update-done iAssert. NOTE: this
+             iAssert's postcondition, as written, is STRUCTURALLY UNPROVABLE
+             on the Hinv_1 (filled) branch. There [Hvisfin: visit_finished γ0]
+             combined with Hvmauth forces [vm !! γ0 = finished_val], and the
+             postcondition's [visited_map_update_done vm' mp2 γ0 pn' cntr' :=
+             ∃ n, visited_mapg_auth (<[γ0:=done_val n]>vm') mp2 pn' cntr']
+             requires regressing γ0 from finished_val to done_val n — which
+             Iris ghost updates disallow. Fixing this properly needs one of:
+             (a) restructure the postcondition into a disjunction (done branch
+                 ∨ already-finished branch) and update all callers to
+                 case-analyse; or
+             (b) show Hinv_1 is unreachable at this call site (derive False
+                 from the fresh [Hvfrag: pval_frag cntr susp] + the prior
+                 finish encoded by Hvisfin) — plausible but needs proof.
+             Downstream: the [vm_big_sep] admit in the size γl > 0 caller
+             below (line ~444) depends on [n0] being semantically-grounded,
+             which needs this iAssert closed. See the comment there. *)
           iAssert (
             |={⊤}=>
               seq_tok ⊤ ∗ intransit 1 ∗
@@ -441,7 +458,26 @@ Section unauth_step.
                   last (intros [=Heq]; apply Nat2Z.inj in Heq; subst; lia).
                 apply Hidinv. lia. }
               iSplitR.
-              { (* vm_big_sep for done_val n0 — TODO *) admit. }
+              { (* vm_big_sep for the extended vm [<[γ0:=done_val n0]>vm'].
+                   To discharge [vm_big_sep_lam_unset _ γ0 (done_val n0)] we
+                   need [is_Some (m !! #n0)]. This is invariant (via Hvisinv:
+                   [vm_big_sep m vm] whose lam_unset arm on done_val encodes
+                   exactly this) BUT ONLY for γ's already in vm. Here γ0 was
+                   just added by the outer [Hbig_assert] iAssert, and under
+                   its current admitted body [n0] is a fresh unconstrained
+                   nat — so we cannot recover [m !! #n0 = Some _].
+                   Semantically [n0 = pid] (the parent id from the auth_v
+                   destruct at Hauthv), and [pid < cntr] gives
+                   [m !! #pid = Some _] via Hvisinv on the parent γ_parent
+                   that maps to done_val pid. Closing this admit requires
+                   either (a) closing the [Hbig_assert] body so its output
+                   exposes [n0 = pid], which itself needs restructuring the
+                   iAssert postcondition into a disjunction to handle the
+                   Hinv_1 [visit_finished γ0] branch's state-regression
+                   issue; or (b) adding a coupling invariant to
+                   [visited_mapg_auth] relating [vm !! γ = done_val n] to
+                   [n ∈ dom (mapg_alive mp)]. See prior analysis notes. *)
+                admit. }
               iPureIntro. rewrite dom_insert_L. subst cntr'.
               rewrite set_seq_S_end_union_L. set_solver. }
 
