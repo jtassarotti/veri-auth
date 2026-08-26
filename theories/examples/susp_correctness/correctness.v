@@ -1277,7 +1277,7 @@ Section proof.
 
         case_bool_decide; simplify_eq; v_pures.
         -- v_bind (v_finish _).
-          assert (size γl = 0) as -> by lia.
+          assert (size γl = 0) as Hγl0 by lia.
           destruct! H5; simplify_eq; first lia.
 
           iDestruct "Hvmauth" as (n0) "Hvmauth".
@@ -1372,10 +1372,27 @@ Section proof.
                 iSplitL "Hintr Hsusp". { iLeft. iFrame "∗ #". admit. }
                 admit. }
 
-          iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hmauth Hvmauth Hvisinv Hst' Hserp2]") as "Htabtok".
-          { (* table re-close: see the note at the first branch. *)
-            iNext. iLeft. admit. }
+          rewrite /mp2 Hγl0 /=. subst vm''.
+          iEval (rewrite visited_map_update_finished_rewrite insert_insert) in "Hvmauth".
+          iMod ("Hclose_tab" with "[$Htabtok Hl Hbigsep Hvmauth Hvisinv Hst' Hserp2]") as "Htabtok".
+          { iNext. iLeft.
+            iExists d, m, m2, (<[γ:=finished_val]> vm'), cntr', pn', _.
+            iFrame "Hl Hbigsep Hst' Hserp2 Hvmauth".
+            iSplit; first done.
+            iSplit; first done.
+            iSplit.
+            { iPureIntro. intros ctr' Hge. apply Hidinv. lia. }
+            iSplit; last first.
+            { iPureIntro. rewrite dom_insert set_seq_S_end_union_L. set_solver. }
+            subst vm'.
+            assert (γl = ∅) as ->.
+            { apply size_empty_inv in Hγl0. by fold_leibniz. }
+            rewrite set_fold_empty.
+            iApply (big_sepM_insert_2 (vm_big_sep_lam_unset m)).
+            { rewrite /vm_big_sep_lam_unset. by iIntros (id [=]). }
+            iApply "Hvisinv". }
 
+          v_bind (v_finish _).
           iMod ("Hvfinish" $! ⊤ with "[] Htabtok Hlc Hvser Hvserspec Hc
                   Htauthv Hst Hv") as "(Hv & Htabtok & Htok & Hst & Hintr) /=".
           { iModIntro. iIntros (pid' psusp pγ) "%Hlt Hpv Hlg Hvis".
