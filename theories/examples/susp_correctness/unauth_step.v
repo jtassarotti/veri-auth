@@ -427,8 +427,23 @@ Section unauth_step.
               iExists _, (<[#cntr:=(#(size γl), v_finish)%V]> m), (mapg_insert_def m2 cntr a2'),
                 (<[γ0:=done_val n0]> vm'), cntr', pn', _.
               iFrame "Hl Hbigsep Hst' Hserp Hvmauth".
-              (* size (mapg_alive mp2) = size m', ctr_inv, vm_big_sep, dom msp — TODO *)
-              admit. }
+              iSplit.
+              { iPureIntro. done. }
+              iSplit.
+              { iPureIntro.
+                rewrite /mapg_insert_def mapg_alive_insert.
+                rewrite map_size_insert_None; last done.
+                rewrite (map_size_insert_None _ _ _ (Hidinv cntr (Nat.le_refl _))).
+                by rewrite H. }
+              iSplitR "".
+              { iPureIntro. intros ctr'' Hge. subst cntr'.
+                rewrite lookup_insert_ne;
+                  last (intros [=Heq]; apply Nat2Z.inj in Heq; subst; lia).
+                apply Hidinv. lia. }
+              iSplitR.
+              { (* vm_big_sep for done_val n0 — TODO *) admit. }
+              iPureIntro. rewrite dom_insert_L. subst cntr'.
+              rewrite set_seq_S_end_union_L. set_solver. }
 
             v_pures. v_bind (list_tail _).
             iMod (gwp_list_tail ⊤ _ (s_real :: _) () (λ v, ⌜is_proof _ ps2⌝)%I
