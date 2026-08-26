@@ -1416,7 +1416,7 @@ Section proof.
             simpl. split_and!; try done; lia. }
           iLeft. iExists ps2. iSimpl.
           assert (pn' = definitions.sum_list lpn) as <- by lia.
-          iFrame "HA' Hv Hid Hpenc Hstok Hst".
+          iFrame "HA' Hv Hid Hpenc Hst".
           iSplit.
           { iPureIntro. by rewrite reverse_cons -assoc. }
 
@@ -1504,7 +1504,7 @@ Section proof.
             simpl. split_and!; try done; lia. }
           iLeft. iExists ps2. iSimpl.
           assert (pn' = size γl + definitions.sum_list lpn) as <- by lia.
-          iFrame "HA' Hv Hid Hpenc Hstok Hst".
+          iFrame "HA' Hv Hid Hpenc Hst".
           iSplit.
           { iPureIntro. by rewrite reverse_cons -assoc. }
 
