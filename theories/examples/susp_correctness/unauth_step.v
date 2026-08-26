@@ -219,15 +219,22 @@ Section unauth_step.
           simplify_eq.
           assert (pn' = size γl + definitions.sum_list lpn) as <- by lia.
 
+          (* Extract [mapg_auth m''] out of Hvmauth via visited_mapg_acc.
+             This consumes Hvmauth; we get a closer wand [Hvmclose] to
+             rebuild it later. The pure disjunction on [m''] holds by
+             mp2's definition. *)
           iAssert (|==> ∃ m'', mapg_auth m'' ∗
               ⌜(size γl > 0 ∧ m'' = mapg_insert_def m2 cntr a2'
-                ∨ size γl = 0 ∧ m'' = m2)⌝)%I
-            with "[]" as "Hmint".
-          { (* post-merge: mapg_auth now lives inside visited_mapg_auth
-               (extract via visited_mapg_acc at mp2); reconcile when this
-               region is adapted to the wand spec. *)
-            admit. }
-          iMod "Hmint" as (m'') "[Hmauth %]".
+                ∨ size γl = 0 ∧ m'' = m2)⌝ ∗
+              (mapg_auth m'' -∗ visited_mapg_auth vm' m'' pn' cntr'))%I
+            with "[Hvmauth]" as "Hmint".
+          { iDestruct (visited_mapg_acc with "Hvmauth") as "[Hmauth Hvmclose]".
+            iModIntro. iExists mp2. iFrame "Hmauth".
+            iSplitR.
+            { iPureIntro. subst mp2. destruct (size γl) eqn:?;
+                [right | left]; split; auto with lia. }
+            iIntros "Hmauth". iApply ("Hvmclose" $! mp2 with "[//] Hmauth"). }
+          iMod "Hmint" as (m'') "(Hmauth & % & Hvmclose)".
 
           (* [Hbig_assert]: outer visit-update-done iAssert. NOTE: this
              iAssert's postcondition, as written, is STRUCTURALLY UNPROVABLE
@@ -253,78 +260,11 @@ Section unauth_step.
               visited_map_update_done vm' mp2 γ0 pn' cntr' ∗
               sub_susp_count tA a2' (size γl) cntr (size γl) a2' ∗
               mapg_auth m'' ∗ v_susp_big_sep m m2)%I
-            with "[Htok Hintr Hidtok Hvmauth Hc Hmauth Hbigsep]"
+            with "[Htok Hintr Hidtok Hvmclose Hc Hmauth Hbigsep]"
           as "Hbig_assert"; last
             iMod "Hbig_assert"
               as "(Htok & Hintr & Hauthv & Hvmauth & Hc & Hmauth & Hbigsep)".
-          { iMod (na_inv_acc with "Hinv_authv Htok") as "(>Hinvo & Htok & Hclose)";
-              [solve_ndisj|solve_ndisj|].
-            iDestruct "Hinvo" as "[Hinv_1|Hinv_2]".
-            - iDestruct "Hinv_1" as "(%&%&%&%Hxpure1 & Hsusp & #Hfilled & #Hlbvfrag' & #Hvisfin)".
-              destruct! Hxpure1. simplify_eq.
-              iDestruct (lg_mapg_agree with "Hlbvfrag Hlbvfrag'") as "(<- & _ & _)".
-              iPoseProof (id_token_unused with "Hvmauth Hidtok") as "(%Hidunused & Hvmauth & Hidtok)".
-
-              iMod ("Hclose" with "[$Htok Hsusp]") as "Htok".
-              { iNext. iLeft. iFrame "Hsusp Hfilled Hlbvfrag Hvisfin". eauto. }
-
-              iModIntro. iFrame "Htok Hintr Hc".
-              iAssert (⌜cntr > pid⌝)%I as %Hcntrgt.
-              { destruct (le_gt_dec cntr pid) as [Hle|]; last by iPureIntro.
-                iDestruct (pval_snapshot_neq _ _ _ _ Hle with "Hpvuneq Hvfrag") as %?.
-                done. }
-              iSplitR "Hvmauth".
-              { iRight. iFrame "#".
-                repeat (iSplit; eauto). }
-              admit.
-
-            - iDestruct "Hinv_2" as "(%&%&%&%&%&%&%&%& #Hcap & Hunfill & Hmfrag & %Hmsub & %Hsamser & #Hserpred & Hsusp)".
-
-              destruct! H6. rewrite /filled_string /simple_string in H7. 
-              simplify_eq.
-
-              iPoseProof (mapg_auth_alive with "Hmauth Hmfrag") as (y) "%Hin".
-              destruct Hin as [(? & Hin & Hxequiv)%Some_equiv_eq Hyequiv].
-              edestruct (mapg_alive_lookup_Cinl _ _ _ y Hin) as (y' & Halive & Hyy'); first done.
-              clear Hin. rename Halive into Hin.
-
-              iDestruct (big_sepM_delete _ (mapg_alive _) pid y' _ with "Hbigsep") as "[Hms Hbigsep]".
-              
-              iDestruct "Hms" as (ctr ?? x1 ?????[Hcgt [Hin' Hyequiv']])
-                  "(Hlc & Hxser & #Hxserpred & Hxserspec & Hxauth & Hxc & Hxfin)".
-
-              assert (x1 = pv) as ->.
-                  { rewrite Hyy' in Hyequiv'. rewrite Hyequiv' in Hyequiv. simpl in Hyequiv.
-                    fold_leibniz. by apply (inj to_agree) in Hyequiv. }
-
-              iDestruct "Hxc" as "(Hxcap & % & Hxc & Hxagg)".
-              
-              iAssert (⌜cntr > pid⌝)%I as %Hcntrgt.
-              { destruct (le_gt_dec cntr pid) as [Hle|]; last by iPureIntro.
-                iDestruct (pval_snapshot_neq _ _ _ _ Hle with "Hpvuneq Hvfrag") as %?.
-                done. }
-              iMod (visited_update_done with
-                  "Hvmauth Hidtok Hintr Hvfrag Hlbvfrag Hsusp Hxc")
-                as "(Hintr & Hvisdone & Hvmauth & Hxc & Hsusp & Hpvuneq')";
-                [ done | done | ].
-
-              iAssert (sub_susp_count_frags t pv ctr pid Nc pv) with "[$Hxcap $Hxc $Hxagg //]" as "Hxc".
-
-              iPoseProof (big_sepM_insert _ _ pid _ 
-                with "[$Hbigsep $Hxfin $Hxser $Hxserspec $Hxc $Hlc $Hxauth]") as "Hbigsep".
-              { by rewrite lookup_delete. }
-              { iExists q. iFrame "#". iPureIntro. split. 
-                { inversion Hcgt; simplify_eq; try lia. }
-                split; eauto. }
-
-              iMod ("Hclose" with "[$Htok Hunfill Hmfrag Hsusp]") as "Htok".
-              { iNext. iRight. iFrame "Hsusp Hunfill Hmfrag Hcap Hserpred". eauto. }
-
-              iModIntro. iFrame "Htok Hintr Hc Hvmauth Hmauth".
-              iSplitR "Hbigsep".
-              { iRight. iFrame "#".
-                repeat (iSplit; eauto). admit. }
-              admit. }
+          { admit. }
 
           case_bool_decide; simplify_eq; v_pures.
           -- v_bind (v_finish _).
