@@ -1440,10 +1440,9 @@ Section proof.
           iDestruct (v_susp_big_sep_fresh with "Hbigsep") as %Hm_cntr_none;
             first exact Hidinv.
 
-          iDestruct (big_sepM_insert (v_susp_big_sep_lam m) (mapg_alive m2) cntr (mapg_alive_insert_val a2') Hm_cntr_none
-            with "[$Hbigsep $Hvfinish $Hauthv $Hc $Hagg $Hcapf $Hvser]") as "Hbigsep".
-          { iFrame "#". admit. }
-
+          (* Mono first, then insert (see unauth_step.v:418): insert's
+             per-entry obligation needs the NEW m's lookup at #cntr, which
+             only holds after the mono. *)
           iPoseProof (big_sepM_mono
               (v_susp_big_sep_lam m)
               (v_susp_big_sep_lam (<[#cntr:=(#(size γl), v_finish)%V]> m))
@@ -1457,6 +1456,18 @@ Section proof.
             intros ?. simplify_eq.
             specialize (Hidinv k ltac:(lia)).
             simplify_eq. }
+
+          iDestruct (big_sepM_insert (v_susp_big_sep_lam _) (mapg_alive m2) cntr (mapg_alive_insert_val a2') Hm_cntr_none
+            with "[$Hbigsep Hvfinish Hauthv Hc Hagg Hcapf Hvser Hlc]") as "Hbigsep".
+          { rewrite /v_susp_big_sep_lam.
+            iAssert (sub_susp_count_frags tA a2' (size γl) cntr (size γl) a2')%I
+              with "[$Hcapf $Hc $Hagg //]" as "Hc".
+            iExists (size γl), (size γl), v_finish, a2', (InjRV #susp), v_ser, tA, s, 1%Qp.
+            iFrame "Hlc Hvser Hserpfrag Hvserspec Hauthv Hc Hvfinish".
+            iPureIntro. split_and!.
+            - exact Hγlpos.
+            - by rewrite lookup_insert.
+            - reflexivity. }
 
           iEval (rewrite -mapg_alive_insert) in "Hbigsep".
           iEval (rewrite -/(mapg_insert_def m2 cntr a2')) in "Hbigsep".
